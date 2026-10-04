@@ -42,12 +42,25 @@ const cssModule = useCssModule()
 
 const handle_focus = () => {
   if (!dom_btns.value) return
-  for (const node of dom_btns.value.childNodes) {
-    if (node.tagName != 'BUTTON') continue
+  // 必须先转成静态数组再遍历：`childNodes` 是**活节点集**，遍历过程中若 DOM 被
+  // 移除/重排（设置页关闭等场景会触发），迭代器可能拿到已脱离文档的节点，
+  // 读它的 tagName 抛 `Cannot read properties of null (reading 'tagName')`。
+  const nodes = Array.prototype.slice.call(dom_btns.value.childNodes)
+  for (const node of nodes) {
+    if (!node || node.tagName != 'BUTTON') continue
     node.classList.remove(cssModule.hover)
   }
 }
-const getBtnEl = (el) => el.tagName == 'BUTTON' || !el ? el : getBtnEl(el.parentNode)
+// 注意：向上找祖先时必须在 document 处停下。原实现 `el.tagName == 'BUTTON' || !el ? el : getBtnEl(el.parentNode)`
+// 对 document 会继续往上取 parentNode（恒为 null）→ 下一层读 null.tagName 抛错。
+const getBtnEl = (el) => {
+  let cur = el
+  while (cur && cur !== document) {
+    if (cur.tagName == 'BUTTON') return cur
+    cur = cur.parentNode
+  }
+  return null
+}
 const handle_mouseover = (event) => {
   const btn = getBtnEl(event.target)
   if (!btn) return

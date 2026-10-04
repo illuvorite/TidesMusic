@@ -102,7 +102,7 @@ watch(() => props.img, () => { imgError.value = false })
 
 .placeholder {
   .qm-cover-placeholder();
-  :global(.svg-icon) { width: 26px; height: 26px; fill: currentColor; }
+  :global(.svg-icon) { width: var(--qm-icon-lg); height: var(--qm-icon-lg); fill: currentColor; }
 }
 
 .count {

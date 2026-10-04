@@ -66,6 +66,20 @@ const CONTENT_TYPE = {
   xml: 'application/xml',
   binary: 'application/octet-stream',
 }
+
+/** HTTP 非 2xx 响应错误，供调用方按状态码区分处理 */
+export class HttpStatusError extends Error {
+  readonly statusCode: number
+  readonly url: string
+  readonly responseBody: string
+  constructor(statusCode: number, url: string, responseBody = '') {
+    super(`Request failed with status ${statusCode}`)
+    this.name = 'HttpStatusError'
+    this.statusCode = statusCode
+    this.url = url
+    this.responseBody = responseBody
+  }
+}
 type ParamsData = Record<string, string | number | null | undefined | boolean>
 export interface Options {
   method?:
@@ -96,6 +110,12 @@ export interface Options {
   needBody?: boolean
   needRaw?: boolean
   retryNum?: number
+  /**
+   * 状态码非 2xx 时是否直接抛错。
+   * 默认关闭：大量平台接口以 4xx 状态码返回业务错误（如 429 限流、403 无版权），
+   * 调用方通过 statusCode 做分支处理。开启后错误响应体会以 HttpStatusError 抛出。
+   */
+  checkStatus?: boolean
 }
 export interface Response<Res> {
   headers: {
@@ -245,6 +265,9 @@ export const request = async <T = unknown>(url: string, options: Options = {}): 
     dispatcher: buildRequestDispatcher(options),
   }).then(async(response) => {
     if (options.needBody) {
+      if (options.checkStatus && (response.statusCode < 200 || response.statusCode >= 300)) {
+        throw new HttpStatusError(response.statusCode, url)
+      }
       return {
         headers: response.headers,
         statusCode: response.statusCode,
@@ -252,18 +275,28 @@ export const request = async <T = unknown>(url: string, options: Options = {}): 
       } satisfies Omit<Response<T>, 'raw'> as Response<T>
     }
     if (options.needRaw) {
+      const raw = await response.body.bytes()
+      if (options.checkStatus && (response.statusCode < 200 || response.statusCode >= 300)) {
+        throw new HttpStatusError(response.statusCode, url, raw.toString())
+      }
       return {
         headers: response.headers,
         statusCode: response.statusCode,
-        raw: await response.body.bytes(),
+        raw,
       } satisfies Omit<Response<T>, 'body'> as Response<T>
     }
     // console.log(response)
     let body = (await response.body.text()) as T
-    if (!headers['Content-Type'] || headers['Content-Type'].includes(CONTENT_TYPE.json)) {
+    // 必须用响应的 Content-Type 判断；此前误用了请求头 headers，
+    // 导致条件恒为真，对 HTML 错误页也会尝试 JSON.parse
+    const resContentType = response.headers['content-type'] ?? ''
+    if (!resContentType.includes(CONTENT_TYPE.xml) && (resContentType.includes(CONTENT_TYPE.json) || !resContentType)) {
       try {
         body = JSON.parse(body as string) as T
       } catch {}
+    }
+    if (options.checkStatus && (response.statusCode < 200 || response.statusCode >= 300)) {
+      throw new HttpStatusError(response.statusCode, url, String(body))
     }
     return {
       body,

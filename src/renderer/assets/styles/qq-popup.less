@@ -1,0 +1,141 @@
+// ============================================================
+//  统一弹窗 / 下拉菜单（QQ 音乐风格）
+//
+//  取值依据：参考图「音质弹窗」「音量弹窗」「播放模式弹窗」逐像素实测
+//    卡片：圆角 12 / 内边距 6 / 1px 极浅描边 / 柔和投影
+//    菜单项：圆角 8 / 行高 36 / 左右内边距 10 / 字号 13
+//    选中项：浅主色底 + 主色文字 + 中等字重（不画分隔线，用留白分组）
+//
+//  两种画布：
+//    主窗口（浅色外壳）→ 默认（白卡深字）
+//    播放详情页（深色画布）→ 弹窗 teleport 到 #root，拿不到详情页局部
+//      重定义的语义色，因此由 Popup.vue 按 isShowPlayerDetail 加 .dark，
+//      在弹窗自身上重建深色变量（见本文件尾部的 .qm-popup-dark）。
+//
+//  用法：弹窗内容用全局类名（不是 CSS Module）
+//      <div class="qm-menu">
+//        <button class="qm-menu-item qm-menu-item--active">
+//          <svg-icon class="qm-menu-item__icon" name="..." />
+//          <span>随机播放</span>
+//        </button>
+//      </div>
+// ============================================================
+
+.qm-menu {
+  display: flex;
+  flex-flow: column nowrap;
+  padding: 6px;
+  min-width: 118px;
+  font-size: var(--qm-fs-sm, 13px);
+  box-sizing: border-box;
+  color: var(--qm-text-2);
+}
+
+.qm-menu-item {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--qm-radius-sm, 8px);
+  background-color: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--qm-fs-sm, 13px);
+  line-height: 1.35;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition:
+    background-color var(--qm-t-fast),
+    color var(--qm-t-fast);
+
+  > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &:hover:not(:disabled) {
+    background-color: var(--qm-hover);
+    .qm-menu-item__icon { opacity: 1; }
+  }
+
+  &:active:not(:disabled) {
+    background-color: var(--qm-hover-strong);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--qm-primary);
+    outline-offset: -2px;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+// 选中 / 当前生效项：浅主色胶囊底 + 主色文字
+.qm-menu-item--active {
+  background-color: var(--qm-primary-soft);
+  color: var(--qm-primary);
+  font-weight: var(--qm-fw-medium, 500);
+
+  .qm-menu-item__icon { opacity: 1; }
+
+  &:hover:not(:disabled) { background-color: var(--qm-primary-soft-hover); }
+  &:active:not(:disabled) { background-color: var(--qm-primary-soft-hover); }
+}
+
+.qm-menu-item__icon {
+  flex: none;
+  width: var(--qm-icon-sm, 18px);
+  height: var(--qm-icon-sm, 18px);
+  opacity: 0.8;
+}
+
+// 分组小标题（可选，用于长菜单分节）
+.qm-menu-title {
+  padding: 6px 10px 2px;
+  font-size: var(--qm-fs-2xs, 11px);
+  color: var(--qm-text-4);
+  line-height: 1.4;
+}
+
+// 菜单里的分隔线（仅在确实需要分节时使用，默认不画）
+.qm-menu-divider {
+  height: 1px;
+  margin: 5px 8px;
+  background-color: var(--qm-line-1);
+}
+
+// ============================================================
+//  深色画布弹窗（播放详情页）
+//  在弹窗自身上重建语义色，使所有 .qm-* 与 --color-* 引用自动切换
+// ============================================================
+.qm-popup-dark {
+  --color-font: rgba(255, 255, 255, 0.95);
+  --color-font-label: rgba(255, 255, 255, 0.6);
+  // 语义色变量本身不会改变 color，弹窗内容默认 color: inherit，
+  // 必须显式落到卡片上，否则深色卡上会继续继承浅色主题的近黑文字
+  color: var(--color-font);
+  --qm-text-1: rgba(255, 255, 255, 0.95);
+  --qm-text-2: rgba(255, 255, 255, 0.92);
+  --qm-text-3: rgba(255, 255, 255, 0.7);
+  --qm-text-4: rgba(255, 255, 255, 0.55);
+  --qm-text-5: rgba(255, 255, 255, 0.4);
+  --qm-hover: rgba(255, 255, 255, 0.1);
+  --qm-hover-strong: rgba(255, 255, 255, 0.15);
+  --qm-line-1: rgba(255, 255, 255, 0.09);
+  --qm-line-2: rgba(255, 255, 255, 0.14);
+  // 详情页把 --color-primary 重定义成白色，这里恢复为主题主色
+  --qm-primary: var(--color-primary, #31C27C);
+  --qm-primary-soft: color-mix(in srgb, var(--qm-primary) 22%, transparent);
+  --qm-primary-soft-hover: color-mix(in srgb, var(--qm-primary) 30%, transparent);
+  --qm-primary-border: color-mix(in srgb, var(--qm-primary) 45%, transparent);
+}

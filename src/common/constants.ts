@@ -45,6 +45,8 @@ export const DATA_KEYS = {
   searchSetting: 'searchSetting',
 
   lastStartInfo: 'lastStartInfo',
+
+  openApiToken: 'openApiToken',
 } as const
 
 export const DEFAULT_SETTING = {

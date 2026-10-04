@@ -1,36 +1,42 @@
 <template>
   <div :class="$style.list">
-    <!-- QQ 版式页头：标题 + 统计页签 + 操作行 -->
-    <header :class="$style.head">
-      <h1 :class="$style.headTitle">{{ listName }}</h1>
-      <div :class="$style.stats">
-        <span :class="[$style.stat, $style.statActive]">歌曲{{ list.length }}</span>
-        <span :class="$style.stat">专辑{{ albumCount }}</span>
-        <span :class="$style.stat">歌单{{ userLists.length }}</span>
-      </div>
+    <!-- QQ 版式页头（两段式）：页签 → 操作行；下滑列表时整体收起，上滑/回顶恢复 -->
+    <header :class="[$style.head, { [$style.headCollapsed]: isHeadCollapsed }]">
+      <nav :class="$style.tabs">
+        <span :class="[$style.tab, $style.tabActive]">歌曲{{ list.length }}</span>
+        <span :class="$style.tab">歌单{{ userLists.length }}</span>
+        <span :class="$style.tab">专辑{{ albumCount }}</span>
+        <span :class="$style.tab">有声节目0</span>
+        <span :class="$style.tab">视频0</span>
+      </nav>
       <div :class="$style.actions">
         <button type="button" :class="$style.btnPrimary" :disabled="!list.length" @click="playAllMusics">
-          <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M8 5.4v13.2l11-6.6z" fill="currentColor" /></svg>
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M8 5.4v13.2l11-6.6z" fill="currentColor" /></svg>
           播放
         </button>
         <button type="button" :class="$style.btnGhost" :disabled="!list.length" @click="downloadSelected">
-          <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
             <path d="M12 4v11m0 0l-4-4m4 4l4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
             <path d="M5 19h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
           </svg>
           下载
         </button>
         <button type="button" :class="$style.btnGhost" :disabled="!list.length" @click="toggleSelectAll">
-          <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
             <path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
           </svg>
           {{ selectedList.length ? `已选${selectedList.length}` : '批量' }}
         </button>
         <span :class="$style.spacer" />
         <button type="button" :class="$style.iconBtn" aria-label="搜索" title="在列表中搜索" @click="isShowSearchBar = true">
-          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
             <circle cx="10.6" cy="10.6" r="5.7" fill="none" stroke="currentColor" stroke-width="1.8" />
             <path d="M14.9 14.9 19.5 19.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+        </button>
+        <button type="button" :class="$style.iconBtn" aria-label="回到顶部" title="回到顶部" @click="scrollToTop">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path d="M12 19V6m0 0l-5 5m5-5l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </button>
       </div>
@@ -38,20 +44,16 @@
     <div class="thead">
       <table>
         <thead>
-          <tr v-if="actionButtonsVisible">
-            <th class="num" style="width: 40px;">#</th>
-            <th style="width: 50px;"></th>
-            <th class="nobreak">{{ $t('music_name') }} / {{ $t('music_singer') }}</th>
-            <th class="nobreak" style="width: 150px;"></th>
-            <th class="nobreak" style="width: 22%;">{{ $t('music_album') }}</th>
-            <th class="nobreak" style="width: 9%;">{{ $t('music_time') }}</th>
-          </tr>
-          <tr v-else>
-            <th class="num" style="width: 40px;">#</th>
-            <th style="width: 50px;"></th>
-            <th class="nobreak">{{ $t('music_name') }} / {{ $t('music_singer') }}</th>
-            <th class="nobreak" style="width: 150px;"></th>
-            <th class="nobreak" style="width: 25%;">{{ $t('music_album') }}</th>
+          <!-- 参考图列头：歌曲/歌手（含排序指示）· 专辑 · 时长；无序号列 -->
+          <tr>
+            <th class="nobreak">
+              <span>{{ $t('music_name') }} / {{ $t('music_singer') }}</span>
+              <svg class="thead-sort" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                <path d="M5.4 6.6 8 3.4l2.6 3.2z" fill="currentColor" />
+                <path d="M5.4 9.4 8 12.6l2.6-3.2z" fill="currentColor" />
+              </svg>
+            </th>
+            <th class="nobreak" style="width: 27%;">{{ $t('music_album') }}</th>
             <th class="nobreak" style="width: 10%;">{{ $t('music_time') }}</th>
           </tr>
         </thead>
@@ -61,22 +63,12 @@
       <base-virtualized-list
         v-if="actionButtonsVisible" ref="listRef" v-slot="{ item, index }" :list="list" key-name="id"
         :item-height="listItemHeight" container-class="scroll" content-class="list"
-        @scroll="saveListPosition" @contextmenu.capture="handleListRightClick"
+        @scroll="onListScroll" @contextmenu.capture="handleListRightClick"
       >
         <div
-          class="list-item" :class="[{ [$style.active]: playerInfo.isPlayList && playerInfo.playIndex === index }, { selected: selectedIndex == index || rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { disabled: !assertApiSupport(item.source) }]"
+          class="list-item" :class="[{ [$style.active]: playerInfo.isPlayList && playerInfo.playIndex === index }, { selected: selectedIndex == index || rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { disabled: !assertApiSupport(item.source) }, { 'row-alt': index % 2 === 1 }]"
           @click="handleListItemClick($event, index)" @contextmenu="handleListItemRightClick($event, index)"
         >
-          <div class="list-item-cell no-select" :class="$style.num" style="flex: 0 0 40px;">
-            <transition name="play-active">
-              <div v-if="playerInfo.isPlayList && playerInfo.playIndex === index" :class="$style.playIcon">
-                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="50%" viewBox="0 0 512 512" space="preserve">
-                  <use xlink:href="#icon-play-outline" />
-                </svg>
-              </div>
-              <div v-else class="num">{{ index + 1 }}</div>
-            </transition>
-          </div>
           <div class="list-item-cell cover">
             <div class="row-cover">
               <img v-if="getCoverUrl(item)" :src="getCoverUrl(item)" alt="" loading="lazy">
@@ -88,7 +80,7 @@
               </span>
             </div>
           </div>
-          <div class="list-item-cell auto name" style="padding-left: 0;">
+          <div class="list-item-cell auto name">
             <div class="name-wrap">
               <div class="name-main">
                 <span class="select name">{{ item.name }}</span>
@@ -96,6 +88,12 @@
                 <span v-else-if="item.meta._qualitys.ape || item.meta._qualitys.flac || item.meta._qualitys.wav" class="no-select badge badge-theme-primary">SQ</span>
                 <span v-else-if="item.meta._qualitys['320k']" class="no-select badge badge-theme-secondary">HQ</span>
                 <span v-if="isShowSource" class="no-select badge badge-theme-tertiary">{{ item.source }}</span>
+                <button
+                  type="button" class="row-play" :aria-label="$t('list__play')" :title="$t('list__play')"
+                  @click.stop="handlePlayMusic(index, true)"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.4v13.2l11-6.6z" fill="currentColor" /></svg>
+                </button>
               </div>
               <div class="name-sub">
                 <span class="select name-sub-text" :aria-label="item.singer">{{ item.singer }}</span>
@@ -108,30 +106,20 @@
               :download-btn="assertApiSupport(item.source) && item.source != 'local'" @btn-click="handleListBtnClick"
             />
           </div>
-          <div class="list-item-cell" style="flex: 0 0 22%;"><span class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span></div>
-          <div class="list-item-cell" style="flex: 0 0 9%;"><span class="no-select">{{ item.interval || '--/--' }}</span></div>
+          <div class="list-item-cell" style="flex: 0 0 27%;"><span class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span></div>
+          <div class="list-item-cell" style="flex: 0 0 10%;"><span class="no-select">{{ item.interval || '--/--' }}</span></div>
         </div>
       </base-virtualized-list>
       <base-virtualized-list
         v-else ref="listRef" v-slot="{ item, index }" :list="list" key-name="id"
         :item-height="listItemHeight" container-class="scroll" content-class="list"
-        @scroll="saveListPosition" @contextmenu.capture="handleListRightClick"
+        @scroll="onListScroll" @contextmenu.capture="handleListRightClick"
       >
         <div
           class="list-item"
-          :class="[{ [$style.active]: playerInfo.isPlayList && playerInfo.playIndex === index }, { selected: selectedIndex == index || rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { disabled: !assertApiSupport(item.source) }]"
+          :class="[{ [$style.active]: playerInfo.isPlayList && playerInfo.playIndex === index }, { selected: selectedIndex == index || rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { disabled: !assertApiSupport(item.source) }, { 'row-alt': index % 2 === 1 }]"
           @click="handleListItemClick($event, index)" @contextmenu="handleListItemRightClick($event, index)"
         >
-          <div class="list-item-cell no-select" :class="$style.num" style="flex: 0 0 40px;">
-            <transition name="play-active">
-              <div v-if="playerInfo.isPlayList && playerInfo.playIndex === index" :class="$style.playIcon">
-                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="50%" viewBox="0 0 512 512" space="preserve">
-                  <use xlink:href="#icon-play-outline" />
-                </svg>
-              </div>
-              <div v-else class="num">{{ index + 1 }}</div>
-            </transition>
-          </div>
           <div class="list-item-cell cover">
             <div class="row-cover">
               <img v-if="getCoverUrl(item)" :src="getCoverUrl(item)" alt="" loading="lazy">
@@ -143,7 +131,7 @@
               </span>
             </div>
           </div>
-          <div class="list-item-cell auto name" style="padding-left: 0;">
+          <div class="list-item-cell auto name">
             <div class="name-wrap">
               <div class="name-main">
                 <span class="select name">{{ item.name }}</span>
@@ -151,6 +139,12 @@
                 <span v-else-if="item.meta._qualitys.ape || item.meta._qualitys.flac || item.meta._qualitys.wav" class="no-select badge badge-theme-primary">SQ</span>
                 <span v-else-if="item.meta._qualitys['320k']" class="no-select badge badge-theme-secondary">HQ</span>
                 <span v-if="isShowSource" class="no-select badge badge-theme-tertiary">{{ item.source }}</span>
+                <button
+                  type="button" class="row-play" :aria-label="$t('list__play')" :title="$t('list__play')"
+                  @click.stop="handlePlayMusic(index, true)"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.4v13.2l11-6.6z" fill="currentColor" /></svg>
+                </button>
               </div>
               <div class="name-sub">
                 <span class="select name-sub-text" :aria-label="item.singer">{{ item.singer }}</span>
@@ -163,7 +157,7 @@
               :download-btn="assertApiSupport(item.source) && item.source != 'local'" @btn-click="handleListBtnClick"
             />
           </div>
-          <div class="list-item-cell" style="flex: 0 0 25%;"><span class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span></div>
+          <div class="list-item-cell" style="flex: 0 0 27%;"><span class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span></div>
           <div class="list-item-cell" style="flex: 0 0 10%;"><span class="no-select">{{ item.interval || '--/--' }}</span></div>
         </div>
       </base-virtualized-list>
@@ -185,6 +179,8 @@
     <music-sort-modal v-model:show="isShowMusicSortModal" :music-info="selectedSortMusicInfo" :selected-num="selectedNum" @confirm="sortMusic" />
     <music-toggle-modal v-model:show="isShowMusicToggleModal" :music-info="selectedToggleMusicInfo" @toggle="toggleSource" />
     <base-menu v-model="isShowItemMenu" :menus="menus" :xy="menuLocation" item-name="name" @menu-click="handleMenuClick" />
+    <base-menu v-model="isShowAddMenu" :menus="addMenuItems" :xy="addMenuLocation" :anchor-rect="addMenuAnchorRect" item-name="name" @menu-click="handleAddMenuClick" />
+    <!-- 行内「+」按钮的「添加到」菜单（QQ 版式，替代旧弹窗） -->
   </div>
 </template>
 
@@ -192,7 +188,7 @@
 import { clipboardWriteText } from '@common/utils/electron'
 import { computed, watch } from '@common/utils/vueTools'
 import { playList } from '@renderer/core/player/action'
-import { defaultList, loveList, userLists } from '@renderer/store/list/state'
+import { userLists } from '@renderer/store/list/state'
 import { assertApiSupport } from '@renderer/store/utils'
 import SearchList from './components/SearchList.vue'
 import MusicSortModal from './components/MusicSortModal.vue'
@@ -206,6 +202,8 @@ import useMusicAdd from './useMusicAdd'
 import useSort from './useSort'
 import useMusicActions from './useMusicActions'
 import useLovedList from '@renderer/utils/compositions/useLovedList'
+import useListAddMenu from '@renderer/utils/compositions/useListAddMenu'
+import useHeadCollapse from '@renderer/utils/compositions/useHeadCollapse'
 import { getCoverUrl, loadCover } from '@renderer/utils/compositions/useCoverLoader'
 import useSearch from './useSearch'
 import useListScroll from './useListScroll'
@@ -306,6 +304,7 @@ export default {
       handleRemoveMusic,
     } = useMusicActions({ props, list, removeAllSelect, selectedList })
 
+    const addMenu = useListAddMenu()
     const {
       menus,
       menuLocation,
@@ -315,6 +314,7 @@ export default {
     } = useMenu({
       assertApiSupport,
       emit,
+      listId: props.listId,
 
       handleShowDownloadModal,
       handlePlayMusic,
@@ -391,7 +391,7 @@ export default {
           handleSearch(index)
           break
         case 'listAdd':
-          handleShowMusicAddModal(index, true)
+          addMenu.openMenu(event?.currentTarget, list.value[index])
           break
         case 'like':
           void toggleLove(list.value[index])
@@ -415,11 +415,13 @@ export default {
     }
 
     // ====== QQ 版式页头 ======
-    const listName = computed(() => {
-      if (props.listId === loveList.id) return '喜欢'
-      if (props.listId === defaultList.id) return '试听列表'
-      return userLists.find(item => item.id === props.listId)?.name ?? '歌单'
-    })
+    // 页头滚动收起：下滑列表自动收起，上滑 / 回到顶部恢复；切换歌单时复位
+    const { isHeadCollapsed, handleHeadScroll, resetHeadCollapse } = useHeadCollapse()
+    const onListScroll = (event) => {
+      saveListPosition()
+      handleHeadScroll(event)
+    }
+    watch(() => props.listId, resetHeadCollapse)
     const albumCount = computed(() => {
       const set = new Set()
       for (const item of list.value) {
@@ -447,7 +449,8 @@ export default {
     }
 
     return {
-      listName,
+      isHeadCollapsed,
+      onListScroll,
       albumCount,
       playAllMusics,
       downloadSelected,
@@ -471,6 +474,11 @@ export default {
       isShowItemMenu,
       menuLocation,
       handleMenuClick,
+      isShowAddMenu: addMenu.isShow,
+      addMenuLocation: addMenu.location,
+      addMenuAnchorRect: addMenu.anchorRect,
+      addMenuItems: addMenu.menus,
+      handleAddMenuClick: addMenu.handleMenuClick,
 
       handleListRightClick,
       assertApiSupport,
@@ -518,94 +526,128 @@ export default {
 @import '@renderer/assets/styles/layout.less';
 @import '@renderer/assets/styles/qq.less';
 
-// ------- QQ 版式页头 -------
+// ------- QQ 版式页头（两段式，取值依据参考图实测）-------
+// 竖排：页签(13，选中带 3px 主色下划线) → 20px → 工具栏(32) → 24px → 表头
+// 下滑列表时整段收起（max-height + opacity 过渡），上滑或回到顶部展开
 .head {
   flex: none;
   display: flex;
-  flex-flow: row nowrap;
-  align-items: center;
-  gap: 18px;
-  padding: 16px 24px 12px;
+  flex-flow: column nowrap;
+  align-items: stretch;
+  overflow: hidden;
+  // 与列表行同宽内缩（参考图内容区 +34px）
+  padding: 18px 34px 0;
+  max-height: 220px;
+  transition: max-height .3s ease, opacity .22s ease, padding .3s ease;
 }
 
-.headTitle {
-  margin: 0;
-  font-size: var(--qm-fs-5xl, 24px);
-  font-weight: var(--qm-fw-bold, 700);
-  letter-spacing: .5px;
-  color: var(--qm-text-1);
+.headCollapsed {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
 }
 
-.stats {
+.tabs {
   display: flex;
   flex-flow: row nowrap;
-  align-items: center;
-  gap: 18px;
+  align-items: flex-start;
+  gap: 40px;
 }
 
-.stat {
+.tab {
+  flex: none;
+  position: relative;
+  padding-bottom: 10px;
   font-size: var(--qm-fs-sm, 13px);
+  line-height: 1;
   color: var(--qm-text-3);
   cursor: default;
+  white-space: nowrap;
 }
 
-.statActive {
+.tabActive {
   color: var(--qm-primary);
-  font-weight: var(--qm-fw-semibold, 600);
+  font-weight: var(--qm-fw-medium, 500);
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    border-radius: 2px;
+    background-color: var(--qm-primary);
+  }
 }
 
 .actions {
-  margin-left: auto;
   display: flex;
   flex-flow: row nowrap;
   align-items: center;
   gap: var(--qm-sp-4, 10px);
+  margin-top: 20px;
+  margin-bottom: 24px;
 }
 
-.spacer { flex: none; width: 6px; }
+// 窄窗适配：压缩页签间距与纵向留白，按钮禁止被挤压换行
+@media (max-width: 1280px) {
+  .tabs { gap: 24px; }
+  .actions {
+    margin-top: 16px;
+    margin-bottom: 20px;
+  }
+}
+
+.spacer { flex: auto; }
 
 .btnPrimary {
   .qm-btn-primary();
+  flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 30px;
-  padding: 0 16px;
+  gap: 6px;
+  height: 32px;
+  padding: 0 20px;
+  white-space: nowrap;
 
   svg { display: block; fill: currentColor; }
 }
 
 .btnGhost {
   .qm-btn-ghost();
+  flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 30px;
-  padding: 0 14px;
+  gap: 6px;
+  height: 32px;
+  padding: 0 16px;
+  white-space: nowrap;
 
   svg { display: block; color: currentColor; }
 }
 
+// 右侧图标按钮：参考图为无边框灰图标，悬停提亮
 .iconBtn {
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   padding: 0;
-  border: 1px solid var(--qm-line-2);
+  border: none;
   border-radius: var(--qm-radius-btn);
-  color: var(--qm-text-3);
+  color: var(--qm-text-4);
   background-color: transparent;
   cursor: pointer;
-  transition: color var(--qm-t-fast), border-color var(--qm-t-fast), background-color var(--qm-t-fast);
+  transition: color var(--qm-t-fast), background-color var(--qm-t-fast);
 
   svg { display: block; }
 
   &:hover {
-    color: var(--qm-primary);
-    border-color: var(--qm-primary);
-    background-color: var(--qm-primary-soft);
+    color: var(--qm-text-1);
+    background-color: var(--qm-hover);
   }
 }
 
@@ -615,6 +657,9 @@ export default {
   flex: auto;
   display: flex;
   flex-flow: column nowrap;
+
+  // 表头与行同宽内缩（thead 在本组件内，与 .content 的 34px 对齐）
+  :global(.thead) { padding: 0 34px; }
 
   :global(.list-item) {
     &.active {
@@ -658,6 +703,8 @@ export default {
   display: flex;
   flex-flow: column nowrap;
   flex: auto;
+  // 行背景左右内缩（参考图实测：行列距内容区左右各 34px）
+  padding: 0 34px;
 }
 
 .noItem {

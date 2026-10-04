@@ -83,26 +83,28 @@ export default () => {
   autoUpdater.on('checking-for-update', () => {
     sendStatusToWindow('Checking for update...')
   })
-  autoUpdater.on('update-available', info => {
+  // autoUpdater 为 any（见文件头，electron-updater 缺失时需降级），
+  // 因此回调参数必须显式标注，否则 noImplicitAny 会报 TS7006 并阻断生产构建
+  autoUpdater.on('update-available', (info: any) => {
     sendStatusToWindow('Update available.')
     handleSendEvent({ type: WIN_MAIN_RENDERER_EVENT_NAME.update_available, info })
   })
-  autoUpdater.on('update-not-available', info => {
+  autoUpdater.on('update-not-available', (info: any) => {
     sendStatusToWindow('Update not available.')
     handleSendEvent({ type: WIN_MAIN_RENDERER_EVENT_NAME.update_not_available, info })
   })
-  autoUpdater.on('error', err => {
+  autoUpdater.on('error', (err: any) => {
     sendStatusToWindow('Error in auto-updater.')
     handleSendEvent({ type: WIN_MAIN_RENDERER_EVENT_NAME.update_error, info: err.message })
   })
-  autoUpdater.on('download-progress', progressObj => {
+  autoUpdater.on('download-progress', (progressObj: any) => {
     let log_message = `Download speed: ${progressObj.bytesPerSecond}`
     log_message = `${log_message} - Downloaded ${progressObj.percent}%`
-    log_message = `${log_message} (progressObj.transferred/${progressObj.total})`
+    log_message = `${log_message} (${progressObj.transferred}/${progressObj.total})`
     sendStatusToWindow(log_message)
     handleSendEvent({ type: WIN_MAIN_RENDERER_EVENT_NAME.update_progress, info: progressObj })
   })
-  autoUpdater.on('update-downloaded', info => {
+  autoUpdater.on('update-downloaded', (info: any) => {
     sendStatusToWindow('Update downloaded.')
     handleSendEvent({ type: WIN_MAIN_RENDERER_EVENT_NAME.update_downloaded, info })
   })

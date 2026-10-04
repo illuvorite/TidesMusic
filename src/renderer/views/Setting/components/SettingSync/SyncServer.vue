@@ -160,8 +160,8 @@ export default {
   }
 
   svg {
-    height: 22px;
-    width: 22px;
+    height: var(--qm-icon);
+    width: var(--qm-icon);
   }
 
   &:hover {

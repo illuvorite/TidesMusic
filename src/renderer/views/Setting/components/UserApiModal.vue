@@ -23,8 +23,7 @@ material-modal(:show="modelValue" bg-close teleport="#root" max-width="620px" mi
           div(:class="$style.itemActions")
             base-checkbox(:id="`user_api_${api.id}`" v-model="api.allowShowUpdateAlert" :class="$style.checkbox" :label="$t('user_api__allow_show_update_alert')" @change="handleChangeAllowUpdateAlert(api, $event)")
         button(:class="$style.remove" type="button" :aria-label="$t('user_api__btn_remove')" :title="$t('user_api__btn_remove')" @click.stop="handleRemove(index)")
-          svg(v-once version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" viewBox="0 0 212.982 212.982" space="preserve")
-            use(xlink:href="#icon-delete")
+          svg-icon(name="delete")
 
     //- 空态
     div(v-else :class="$style.empty")
@@ -187,8 +186,8 @@ export default {
   transition: background-color var(--qm-t-fast);
 
   svg {
-    width: 17px;
-    height: 17px;
+    width: var(--qm-icon-xs);
+    height: var(--qm-icon-xs);
   }
 }
 
@@ -397,8 +396,8 @@ export default {
   transition: background-color var(--qm-t-fast), border-color var(--qm-t-fast), color var(--qm-t-fast), transform var(--qm-t-fast);
 
   svg {
-    width: 12px;
-    height: 12px;
+    width: var(--qm-icon-xs);
+    height: var(--qm-icon-xs);
     fill: currentColor;
   }
 

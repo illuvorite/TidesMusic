@@ -1,5 +1,6 @@
 <template>
   <div :class="$style.content">
+    <!-- ===== 预设宫格：关闭 / 内置 10 种 / 自定义，4×3 ===== -->
     <div :class="$style.presetGrid">
       <button
         v-for="item in presetItems"
@@ -7,6 +8,7 @@
         type="button"
         :class="[$style.presetBtn, { [$style.active]: activePresetKey === item.key }]"
         :aria-label="item.label"
+        :aria-pressed="activePresetKey === item.key"
         @click="item.preset ? handleSetPreset(item.preset) : handleReset()"
       >
         <span :class="$style.presetLabel">{{ item.label }}</span>
@@ -15,11 +17,9 @@
         </svg>
       </button>
     </div>
+
+    <!-- ===== 十段竖向均衡器 ===== -->
     <div :class="$style.eqArea">
-      <div :class="$style.eqMeta">
-        <span :class="$style.dbLabel">{{ activeBandLabel }}</span>
-        <base-btn min @click="handleReset">{{ $t('player__sound_effect_biquad_filter_reset_btn') }}</base-btn>
-      </div>
       <div :class="$style.eqList">
         <div
           v-for="(v, i) in freqs"
@@ -28,8 +28,8 @@
           @mouseenter="hoverFreq = v"
           @mouseleave="hoverFreq = 0"
         >
+          <span v-if="hoverFreq === v || dragFreq === v" :class="$style.bandValue">{{ bandText(v) }}</span>
           <div :class="$style.vslider" @mousedown="handleBandDown($event, v)">
-            <span v-if="hoverFreq === v || dragFreq === v" :class="$style.bandValue">{{ bandText(v) }}</span>
             <div :class="$style.vtrack" />
             <div :class="$style.vfill" :style="{ height: bandRatio(v) * 100 + '%' }" />
             <div :class="$style.vthumb" :style="{ bottom: `calc(${bandRatio(v) * 100}% - 7px)` }" />
@@ -38,7 +38,8 @@
         </div>
       </div>
     </div>
-    <!-- 增强效果滑条（QQ 银河音效同款 6 项，双击滑条行可重置） -->
+
+    <!-- ===== 增强效果：2 列 × 3 行（双击标签行可重置） ===== -->
     <div :class="$style.enhanceGrid">
       <div
         v-for="item in enhanceItems"
@@ -48,14 +49,12 @@
         @dblclick="item.reset()"
       >
         <span :class="$style.enhanceLabel">{{ item.label }}</span>
-        <base-slider-bar
-          :class="$style.enhanceSlider"
+        <se-slider
           :value="item.value"
           :min="item.min"
           :max="item.max"
           @change="item.change($event)"
         />
-        <span :class="$style.enhanceValue">{{ item.text }}</span>
       </div>
     </div>
   </div>
@@ -65,6 +64,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from '@common/utils/vueTools'
 import { freqs, freqsPreset, setMediaDeviceId } from '@renderer/plugins/player'
 import { appSetting, saveMediaDeviceId, updateSetting } from '@renderer/store/setting'
+import SeSlider from './SeSlider.vue'
 
 const labels = freqs.map(num => num < 1000 ? num : `${num / 1000}k`)
 
@@ -174,14 +174,6 @@ const handleBandUp = () => {
   dragFreq.value = 0
 }
 
-const activeBandLabel = computed(() => {
-  const f = dragFreq.value || hoverFreq.value
-  if (!f) return '±15dB'
-  const val = appSetting[`player.soundEffect.biquadFilter.hz${f}`]
-  const label = f < 1000 ? f : `${f / 1000}k`
-  return `${label} ${val > 0 ? '+' : ''}${val}dB`
-})
-
 // ===== 增强效果滑条（高保真度/超重低音/混响强度/动态推进/环绕强度/声道平衡） =====
 const DEFAULT_REVERB = { source: 'matrix-reverb1.wav', mainGain: 10 }
 
@@ -204,7 +196,6 @@ const enhanceItems = computed(() => {
       value: appSetting['player.soundEffect.enhance.hifi'],
       min: 0,
       max: 50,
-      text: `${appSetting['player.soundEffect.enhance.hifi']}%`,
       change: v => { updateSetting({ 'player.soundEffect.enhance.hifi': Math.round(v) }) },
       reset: () => { updateSetting({ 'player.soundEffect.enhance.hifi': 0 }) },
     },
@@ -215,7 +206,6 @@ const enhanceItems = computed(() => {
       value: appSetting['player.soundEffect.enhance.bass'],
       min: 0,
       max: 50,
-      text: `${appSetting['player.soundEffect.enhance.bass']}%`,
       change: v => { updateSetting({ 'player.soundEffect.enhance.bass': Math.round(v) }) },
       reset: () => { updateSetting({ 'player.soundEffect.enhance.bass': 0 }) },
     },
@@ -226,7 +216,6 @@ const enhanceItems = computed(() => {
       value: appSetting['player.soundEffect.convolution.sendGain'],
       min: 0,
       max: 50,
-      text: `${appSetting['player.soundEffect.convolution.sendGain']}%`,
       change: v => {
         if (Math.round(v) === 0) {
           // 拖回 0 = 关闭混响（保留用户选择的采样文件，仅静音）
@@ -245,7 +234,6 @@ const enhanceItems = computed(() => {
       value: appSetting['player.soundEffect.enhance.dynamic'],
       min: 0,
       max: 50,
-      text: `${appSetting['player.soundEffect.enhance.dynamic']}%`,
       change: v => { updateSetting({ 'player.soundEffect.enhance.dynamic': Math.round(v) }) },
       reset: () => { updateSetting({ 'player.soundEffect.enhance.dynamic': 0 }) },
     },
@@ -256,9 +244,6 @@ const enhanceItems = computed(() => {
       value: appSetting['player.soundEffect.panner.soundR'],
       min: 0,
       max: 30,
-      text: appSetting['player.soundEffect.panner.soundR'] === 0
-        ? window.i18n.t('player__sound_effect_biquad_filter_preset_close')
-        : `${appSetting['player.soundEffect.panner.soundR']}%`,
       change: v => {
         v = Math.round(v)
         if (v <= 0) {
@@ -278,11 +263,6 @@ const enhanceItems = computed(() => {
       value: appSetting['player.soundEffect.enhance.balance'],
       min: -50,
       max: 50,
-      text: window.i18n.t(appSetting['player.soundEffect.enhance.balance'] < -5
-        ? 'player__sound_effect_enhance_balance_left'
-        : appSetting['player.soundEffect.enhance.balance'] > 5
-          ? 'player__sound_effect_enhance_balance_right'
-          : 'player__sound_effect_enhance_balance_center'),
       change: v => { updateSetting({ 'player.soundEffect.enhance.balance': Math.round(v) }) },
       reset: () => { updateSetting({ 'player.soundEffect.enhance.balance': 0 }) },
     },
@@ -306,23 +286,28 @@ onBeforeUnmount(() => {
   user-select: none;
   min-width: 0;
 }
+
+// ===== 预设宫格：4 列 × 3 行（实测 445×444 宽、左内缩 35px，行高 30、列距 15 / 行距 10）=====
 .presetGrid {
+  width: 445px;
+  margin: 5px 0 0 35px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: var(--qm-sp-4, 10px);
+  gap: 10px 15px;
 }
 .presetBtn {
   position: relative;
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: var(--qm-radius-sm, 8px);
-  background-color: var(--qm-field, rgba(0, 0, 0, 0.05));
-  color: var(--color-font);
-  font-size: var(--qm-fs-sm, 13px);
-  cursor: pointer;
-  transition: background-color @transition-fast, border-color @transition-fast, color @transition-fast;
   box-sizing: border-box;
+  height: 30px;
+  // 左右对称内距，保证文字真正居中；选中勾是绝对定位覆盖在右侧，不占位
+  padding: 0 6px;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background-color: var(--se-field, #f8f8f8);
+  color: var(--se-text, #333);
+  font-size: var(--se-fs-body, 13px);
+  cursor: pointer;
+  transition: background-color var(--qm-t-fast, 150ms ease), border-color var(--qm-t-fast, 150ms ease);
 
   .presetLabel {
     display: block;
@@ -331,69 +316,61 @@ onBeforeUnmount(() => {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  // 选中勾：贴右侧、垂直居中（实测 20×20 贴边）
   .presetCheck {
     position: absolute;
-    right: 3px;
-    bottom: 2px;
-    width: 12px;
-    height: 12px;
-    color: var(--color-primary);
+    right: 1px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    color: var(--se-accent, #1ecc94);
   }
 
   &:hover {
-    background-color: var(--qm-hover-strong, rgba(0, 0, 0, 0.08));
+    background-color: var(--se-field-hover, #f1f1f1);
   }
   &.active {
-    border-color: var(--color-primary);
-    background-color: var(--qm-primary-soft, rgba(0, 0, 0, 0.04));
-    color: var(--color-primary);
+    border-color: var(--se-accent, #1ecc94);
+    color: var(--se-accent, #1ecc94);
   }
 }
 
+// ===== 十段竖向均衡器 =====
 .eqArea {
-  margin-top: 18px;
-}
-.eqMeta {
-  display: flex;
-  flex-flow: row nowrap;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 24px;
-  margin-bottom: var(--qm-sp-2, 6px);
-
-  .dbLabel {
-    font-size: var(--qm-fs-xs, 12px);
-    color: var(--color-primary);
-  }
+  margin-top: 28px;
 }
 .eqList {
+  // 实测轨心在 219.5…651.5（间距 48），即区块左沿 195.5：并非居中（居中会是 200）
+  width: 480px;
+  margin: 0 0 0 15px;
   display: flex;
   flex-flow: row nowrap;
-  justify-content: space-between;
-  padding: 0 4px;
 }
 .eqItem {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-flow: column nowrap;
   align-items: center;
-  gap: var(--qm-sp-2, 6px);
-  width: 44px;
 }
+// 悬停/拖动时在轨道正上方显示当前 dB（实测 11px、#333、轨顶上方 3px）
 .bandValue {
   position: absolute;
-  top: -18px;
+  bottom: calc(100% + 3px);
   left: 50%;
   transform: translateX(-50%);
-  font-size: var(--qm-fs-2xs, 11px);
-  line-height: 14px;
-  color: var(--color-primary);
+  font-size: var(--se-fs-badge, 11px);
+  line-height: 1;
+  color: var(--se-text, #333);
   white-space: nowrap;
   pointer-events: none;
 }
 .vslider {
   position: relative;
   width: 18px;
-  height: 110px;
+  height: 186px;
   cursor: pointer;
 }
 .vtrack {
@@ -403,8 +380,8 @@ onBeforeUnmount(() => {
   transform: translateX(-50%);
   width: 4px;
   height: 100%;
-  border-radius: var(--qm-radius-2xs, 4px);
-  background-color: color-mix(in srgb, var(--color-1000) 14%, transparent);
+  border-radius: 999px;
+  background-color: var(--se-track-v, #b7b7b7);
 }
 .vfill {
   position: absolute;
@@ -412,8 +389,8 @@ onBeforeUnmount(() => {
   bottom: 0;
   transform: translateX(-50%);
   width: 4px;
-  border-radius: var(--qm-radius-2xs, 4px);
-  background-color: var(--color-primary);
+  border-radius: 999px;
+  background-color: var(--se-accent, #1ecc94);
 }
 .vthumb {
   position: absolute;
@@ -422,46 +399,39 @@ onBeforeUnmount(() => {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background-color: var(--color-main-background, #fff);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  background-color: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1), 0 1px 4px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
 }
 .freqLabel {
-  font-size: var(--qm-fs-xs, 12px);
-  color: var(--color-font);
+  // 实测：轨底到频率数字墨迹仅 4px
+  margin-top: 2px;
+  line-height: 14px;
+  font-size: var(--se-fs-aux, 12px);
+  color: var(--se-text, #333);
 }
 
-// ===== 增强效果滑条 =====
+// ===== 增强效果滑条：2 列 × 3 行（实测 439×439、左内缩 35px、行距 30）=====
 .enhanceGrid {
-  margin-top: var(--qm-sp-7, 16px);
+  width: 439px;
+  margin: 30px 0 0 35px;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px 28px;
-  padding: 0 4px;
+  gap: 14px 51px;
 }
 .enhanceItem {
   display: flex;
   flex-flow: row nowrap;
   align-items: center;
-  gap: var(--qm-sp-4, 10px);
+  gap: 14px;
   min-width: 0;
+  height: 16px;
 }
 .enhanceLabel {
   flex: none;
-  width: 60px;
-  font-size: var(--qm-fs-xs, 12px);
-  color: var(--color-font);
+  width: 51px;
+  font-size: var(--se-fs-body, 13px);
+  color: var(--se-text, #333);
   white-space: nowrap;
-}
-.enhanceSlider {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.enhanceValue {
-  flex: none;
-  width: 34px;
-  text-align: right;
-  font-size: var(--qm-fs-xs, 12px);
-  color: var(--qm-text-3, #999);
-  font-variant-numeric: tabular-nums;
 }
 </style>

@@ -19,11 +19,14 @@ export default ({
       {
         name: t('list__play'),
         action: 'play',
+        icon: 'play-o',
         disabled: false,
       },
+      { divider: true, key: 'd-play' },
       {
         name: t('list__collect'),
         action: 'collect',
+        icon: 'heart-outline',
         disabled: false,
       },
     ]

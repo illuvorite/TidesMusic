@@ -13,6 +13,14 @@ const baseConfig = require('./webpack.config.base')
 module.exports = merge(baseConfig, {
   mode: 'production',
   devtool: false,
+  externals: {
+    // undici 是纯 Node 侧的 HTTP 栈（无运行时依赖），不应打进主进程 bundle：
+    // 它内置的 WebSocket 用私有类字段，被 webpack 打包后会出现
+    // "Cannot read private member #handler from an object whose class did not declare it"，
+    // 该异常在模块初始化阶段抛出，会导致打包版启动即崩（开发版不打包故不受影响）。
+    // 改为运行时从 node_modules 加载；已同步加入 build-pack.js 的 files 白名单。
+    undici: 'undici',
+  },
   entry: {
     main: path.join(__dirname, '../../src/main/index.ts'),
     // 关键：让 webpack 同步打包 dbService worker（主进程 + worker 共享同一份编译链）

@@ -1,14 +1,19 @@
 <template lang="pug">
 div.comment(ref="dom_container" :class="$style.comment")
   div(:class="$style.commentHeader")
-    h3 {{ $t('comment__title', { name: currentMusicInfo.name }) }}
+    div(:class="$style.songInfo")
+      img(v-if="songMeta.pic" :class="$style.songCover" :src="songMeta.pic" @error="handleCoverError")
+      div(v-else :class="$style.songCoverEmpty")
+        svg-icon(name="music" :class="$style.songCoverEmptyIcon")
+      div(:class="$style.songText")
+        div(:class="$style.songName") {{ songMeta.name }}
+        div(:class="$style.songSinger") {{ songMeta.singer }}
     div(:class="$style.commentHeaderBtns")
       div(:class="$style.commentHeaderBtn" :aria-label="$t('comment__refresh')" @click="handleShowComment")
         svg(version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" style="transform: rotate(45deg);" viewBox="0 0 24 24" space="preserve")
           use(xlink:href="#icon-refresh")
       div(:class="$style.commentHeaderBtn" @click="$emit('close')")
-        svg(version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" space="preserve")
-          use(xlink:href="#icon-close")
+        svg-icon(name="close")
 
   div(:class="$style.commentMain")
     template(v-if="available")
@@ -34,11 +39,20 @@ div.comment(ref="dom_container" :class="$style.comment")
               material-pagination(:count="newComment.total" :btn-length="5" :limit="newComment.limit" :page="newComment.page" @btn-click="handleToggleCommentPage")
     div(v-else :class="$style.unavailable")
       p {{ $t('comment__unavailable') }}
+
+  div(v-if="available" :class="$style.commentFooter")
+    span(v-show="publishTip" :class="$style.publishTip") {{ $t('comment__publish_tip') }}
+    div(:class="$style.inputBar")
+      input(ref="commentInput" v-model="commentText" :class="$style.input" type="text" :placeholder="$t('comment__input_ph')" @keydown.enter="handlePublish")
+      svg(:class="$style.smiley" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true")
+        path(d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zM8.5 9.2a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6zm7 0a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6zM7.5 14.1c.9 1.6 2.6 2.6 4.5 2.6s3.6-1 4.5-2.6l1.4.8c-1.2 2.1-3.4 3.4-5.9 3.4s-4.7-1.3-5.9-3.4l1.4-.8z" fill="currentColor")
+      button(type="button" :class="$style.publishBtn" @click="handlePublish") {{ $t('comment__publish') }}
 </template>
 
 <script>
 import { toOldMusicInfo } from '@renderer/utils'
 import music from '@renderer/utils/musicSdk'
+import { musicInfo as songMeta } from '@renderer/store/player/state'
 import CommentFloor from './CommentFloor.vue'
 
 export default {
@@ -62,6 +76,8 @@ export default {
         singer: '',
       },
       tabActiveId: 'hot',
+      commentText: '',
+      publishTip: false,
       newComment: {
         isLoading: false,
         isLoadError: false,
@@ -70,17 +86,7 @@ export default {
         maxPage: 1,
         nextPage: 1,
         limit: 20,
-        list: [
-        // {
-        //   text: ['123123hhh'],
-        //   userName: 'dsads',
-        //   avatar: 'http://img4.kuwo.cn/star/userhead/39/52/1602393411654_512039239s.jpg',
-        //   time: '2020-10-22 22:14:17',
-        //   timeStr: '2020-10-22 22:14:17',
-        //   likedCount: 100,
-        //   reply: [],
-        // },
-        ],
+        list: [],
       },
       hotComment: {
         isLoading: true,
@@ -90,50 +96,72 @@ export default {
         maxPage: 1,
         nextPage: 1,
         limit: 20,
-        list: [
-        // {
-        //   text: ['123123hhh'],
-        //   userName: 'dsads',
-        //   avatar: 'http://img4.kuwo.cn/star/userhead/39/52/1602393411654_512039239s.jpg',
-        //   time: '2020-10-22 22:14:17',
-        //   timeStr: '2020-10-22 22:14:17',
-        //   likedCount: 100,
-        //   reply: [
-        //     {
-        //       text: ['123123hhh'],
-        //       userName: 'dsads',
-        //       avatar: 'http://img4.kuwo.cn/star/userhead/39/52/1602393411654_512039239s.jpg',
-        //       time: '2020-10-22 22:14:17',
-        //       timeStr: '2020-10-22 22:14:17',
-        //       likedCount: 100,
-        //     },
-        //   ],
-        // },
-        ],
+        list: [],
       },
     }
+  },
+  computed: {
+    songMeta() {
+      return songMeta
+    },
   },
   watch: {
     show(n) {
       if (n) this.handleShowComment()
     },
+    // playMusicInfo 是 shallowReactive，歌曲信息在详情页打开后才填充，
+    // 只靠 show 触发会拿到空对象（表现为「「」的评论」+「此歌曲不支持获取评论」）。
+    // 这里补一个深比较监听：歌曲真正就绪后重新加载评论。
+    musicInfo: {
+      handler(n) {
+        if (!n?.source) return
+        if (!this.show) return
+        this.handleShowComment()
+      },
+      deep: true,
+    },
   },
   mounted() {
     this.setWidth()
     window.addEventListener('resize', this.setWidth)
+    // 评论按钮在播放栏上：点击时详情页与本组件同时打开，挂载时 show 已为 true，
+    // `watch show`（无 immediate）永远不会触发 → currentMusicInfo 停留在初始空值，
+    // 表现为「「」的评论」+「此歌曲不支持获取评论」。这里补一次初始加载。
+    if (this.show) this.handleShowComment()
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.setWidth)
+    clearTimeout(this._tipTimer)
   },
   methods: {
     setWidth() {
       setTimeout(() => {
-        this.$refs.dom_container.style.width = Math.floor(this.$refs.dom_container.parentNode.clientWidth * 0.5) + 'px'
+        // 模板 ref 在延时回调里可能已经被卸载（详情页快速开关），
+        // 直接解引用会抛 "Cannot read properties of null (reading 'clientWidth')"
+        // 并把异常冒到全局；这里先判空再取值。
+        const el = this.$refs.dom_container
+        if (!el?.parentNode) return
+        el.style.width = Math.floor(el.parentNode.clientWidth * 0.5) + 'px'
 
         setTimeout(() => {
           this.handleToggleTab(this.tabActiveId, true)
         })
       })
+    },
+    handleCoverError(event) {
+      event.target.style.display = 'none'
+    },
+    handlePublish() {
+      // 未接入账号体系，暂时只做提示，不做真实发表
+      if (!this.commentText.trim()) {
+        this.$refs.commentInput?.focus()
+        return
+      }
+      this.publishTip = true
+      clearTimeout(this._tipTimer)
+      this._tipTimer = setTimeout(() => {
+        this.publishTip = false
+      }, 2000)
     },
     async getComment(musicInfo, page, limit, retryNum = 0) {
       let resp
@@ -194,9 +222,21 @@ export default {
       })
     },
     handleShowComment() {
-      this.currentMusicInfo = 'progress' in this.musicInfo ? this.musicInfo.metadata.musicInfo : this.musicInfo
+      const info = this.musicInfo || {}
+      // 'progress' 型才从 metadata 里取真正的歌曲信息；普通 PlayMusicInfo 直接用自身。
+      // 注意 metadata 可能缺失，需同时判断，否则读 .musicInfo 会抛错。
+      this.currentMusicInfo = ('progress' in info && info.metadata?.musicInfo)
+        ? info.metadata.musicInfo
+        : info
 
-      if (this.currentMusicInfo.source == 'local' || !music[this.currentMusicInfo.source].comment) {
+      // 歌曲信息尚未就绪（shallowReactive 深层变更不触发，详情页刚打开时可能还是空对象）：
+      // 此时不能判定为「不支持评论」，否则会一直停在「此歌曲不支持获取评论」。
+      const source = this.currentMusicInfo?.source
+      if (!source) {
+        this.available = false
+        return
+      }
+      if (source == 'local' || !music[source]?.comment) {
         this.available = false
         return
       }
@@ -227,12 +267,15 @@ export default {
     },
     handleToggleTab(id, force) {
       if (!this.available || (!force && this.tabActiveId == id)) return
+      // 页签容器在「评论不可用 / 尚未渲染」时为 null，同样需要先判空
+      const tabMain = this.$refs.dom_tabMain
+      if (!tabMain) return
       switch (id) {
         case 'hot':
-          this.$refs.dom_tabMain.scrollLeft = 0
+          tabMain.scrollLeft = 0
           break
         case 'new':
-          this.$refs.dom_tabMain.scrollLeft = this.$refs.dom_tabMain.clientWidth
+          tabMain.scrollLeft = tabMain.clientWidth
           break
       }
       this.tabActiveId = id
@@ -251,26 +294,87 @@ export default {
   transition-property: transform,opacity;
   transform-origin: 100%;
   overflow: hidden;
+  // 不透明深色面板：此前是带 alpha 的绿色背景，
+  // 歌词/封面文字会穿透面板（表现为「评论区和歌词叠在一起」）
+  background-color: #1a1e24;
+  padding: 14px 24px 14px 20px;
+  box-sizing: border-box;
 }
+
 .commentHeader {
   flex: none;
-  padding-bottom: 5px;
   display: flex;
   flex-flow: row nowrap;
   align-items: center;
-  // border-bottom: 1px solid #eee;
-  h3 {
-    font-size: var(--qm-fs-md, 14px);
-    .mixin-ellipsis-1();
-    line-height: 1.2;
-  }
+  gap: 12px;
+  padding-bottom: 12px;
 }
+
+.songInfo {
+  flex: 1 1 auto;
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.songCover {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--qm-radius-xs, 6px);
+  object-fit: cover;
+  background-color: rgba(255, 255, 255, .06);
+}
+
+.songCoverEmpty {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--qm-radius-xs, 6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, .06);
+  color: rgba(255, 255, 255, .3);
+}
+
+.songCoverEmptyIcon {
+  width: 40%;
+  height: 40%;
+  fill: currentColor;
+}
+
+.songText {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-flow: column nowrap;
+  gap: 2px;
+}
+
+.songName {
+  font-size: 15px;
+  font-weight: var(--qm-fw-semibold, 600);
+  color: var(--color-font);
+  line-height: 1.3;
+  .mixin-ellipsis-1();
+}
+
+.songSinger {
+  font-size: var(--qm-fs-xs, 12px);
+  color: rgba(255, 255, 255, .55);
+  line-height: 1.3;
+  .mixin-ellipsis-1();
+}
+
 .commentHeaderBtns {
-  flex: 1 0 auto;
+  flex: none;
   display: flex;
   flex-flow: row nowrap;
   justify-content: flex-end;
-  color: var(--color-primary);
+  color: rgba(255, 255, 255, .8);
 }
 .commentHeaderBtn {
   height: 22px;
@@ -288,20 +392,21 @@ export default {
 }
 .commentMain {
   flex: auto;
-  background-color: var(--color-primary-light-400-alpha-700);
-  border-radius: var(--qm-radius-2xs, 4px);
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
 .tab_header {
+  flex: none;
   display: flex;
   flex-flow: row nowrap;
   gap: var(--qm-sp-6, 15px);
-  padding-left: var(--qm-sp-6, 15px);
+  padding-left: 0;
   padding-right: var(--qm-sp-4, 10px);
 }
 .tab_main {
   flex: auto;
+  min-height: 0;
   display: flex;
   flex-flow: row nowrap;
   overflow: hidden;
@@ -319,29 +424,42 @@ export default {
   top: 0;
   width: 100%;
   height: 100%;
-  padding-left: var(--qm-sp-6, 15px);
+  padding-left: 0;
   padding-right: var(--qm-sp-4, 10px);
   scroll-behavior: smooth;
 }
 .commentLabel {
-  padding: var(--qm-sp-6, 15px);
+  padding: var(--qm-sp-6, 15px) 0;
   color: var(--color-font-label);
   font-size: var(--qm-fs-md, 14px);
 }
 .commentType {
-  padding: 5px;
-  margin: 5px 0;
-  font-size: var(--qm-fs-sm, 13px);
+  position: relative;
+  padding: 6px 2px 10px;
+  margin: 0;
+  font-size: 15px;
+  color: rgba(255, 255, 255, .6);
   background: none;
   border: none;
   cursor: pointer;
   transition: @transition-normal;
   transition-property: opacity, color;
   &:hover {
-    opacity: .7;
+    opacity: .8;
   }
   &.active {
-    color: var(--color-primary);
+    color: var(--qm-primary);
+    &::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: 2px;
+      width: 18px;
+      height: 3px;
+      border-radius: 2px;
+      background-color: var(--qm-primary);
+      transform: translateX(-50%);
+    }
   }
 }
 .commentFloor {
@@ -354,6 +472,76 @@ export default {
 }
 .pagination {
   padding: 10px 0;
+}
+
+.commentFooter {
+  flex: none;
+  position: relative;
+  padding-top: 10px;
+}
+
+.publishTip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 2px);
+  transform: translateX(-50%);
+  padding: 5px 12px;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, .65);
+  color: rgba(255, 255, 255, .85);
+  font-size: var(--qm-fs-xs, 12px);
+  white-space: nowrap;
+  z-index: 3;
+}
+
+.inputBar {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  height: 42px;
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, .08);
+  padding: 0 6px 0 18px;
+}
+
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-font);
+  font-size: var(--qm-fs-sm, 13px);
+
+  &::placeholder {
+    color: rgba(255, 255, 255, .38);
+  }
+}
+
+.smiley {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0 10px;
+  color: rgba(255, 255, 255, .5);
+}
+
+.publishBtn {
+  flex: none;
+  height: 32px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 999px;
+  background-color: var(--qm-primary);
+  color: #fff;
+  font-size: var(--qm-fs-sm, 13px);
+  cursor: pointer;
+  transition: opacity @transition-normal;
+
+  &:hover {
+    opacity: .85;
+  }
 }
 
 .unavailable {

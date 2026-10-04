@@ -21,6 +21,11 @@ declare namespace LX {
 
     type Actions = Action<'status'>
     | Action<'enable', EnableServer>
+    | Action<'token'>
+    | Action<'regenerate_token'>
 
+    interface TokenInfo {
+      token: string
+    }
   }
 }

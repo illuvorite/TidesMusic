@@ -316,7 +316,7 @@ const miniCards = computed(() => [
   {
     key: 'brush',
     name: '刷歌模式',
-    icon: 'shuffle',
+    icon: 'play-mode-random',
     meta: brushBusy.value
       ? '正在生成队列…'
       : `沉浸式随机连播 · ${brushQueue.value.length || dailyList.value.length} 首`,
@@ -767,7 +767,7 @@ onMounted(async() => {
   height: 100%;
   color: var(--qm-text-5);
 
-  :global(.svg-icon) { width: 20px; height: 20px; fill: currentColor; }
+  :global(.svg-icon) { width: var(--qm-icon); height: var(--qm-icon); fill: currentColor; }
 }
 
 .songInfo {

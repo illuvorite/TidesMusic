@@ -4,14 +4,10 @@
       <h2 :class="$style.listsTitle">{{ $t('my_list') }}</h2>
       <div :class="$style.headerBtns">
         <button :class="$style.listsAdd" :aria-label="$t('lists__new_list_btn')" @click="isShowNewList = true">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="70%" viewBox="0 0 24 24" space="preserve">
-            <use xlink:href="#icon-list-add" />
-          </svg>
+          <svg-icon name="playlist-add" />
         </button>
         <button :class="$style.listsAdd" :aria-label="$t('list_update_modal__title')" @click="isShowListUpdateModal = true">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" style="transform: rotate(45deg);" height="70%" viewBox="0 0 24 24" space="preserve">
-            <use xlink:href="#icon-refresh" />
-          </svg>
+          <svg-icon name="refresh" />
         </button>
       </div>
     </div>

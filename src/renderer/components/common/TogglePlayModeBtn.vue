@@ -1,72 +1,30 @@
 <template>
-  <material-popup-btn ref="btn_ref" :class="$style.btnContent">
-    <button :class="$style.btn" :aria-label="nextTogglePlayName">
-      <svg
-        v-if="appSetting['player.togglePlayMethod'] == 'listLoop'"
-        version="1.1"
-        xmlns="http://www.w3.org/2000/svg"
-        xlink="http://www.w3.org/1999/xlink"
-        height="80%" viewBox="0 0 24 24" space="preserve"
-      >
-        <use xlink:href="#icon-list-loop" />
-      </svg>
-      <svg
-        v-else-if="appSetting['player.togglePlayMethod'] == 'random'"
-        version="1.1"
-        xmlns="http://www.w3.org/2000/svg"
-        xlink="http://www.w3.org/1999/xlink"
-        width="100%" viewBox="0 0 24 24" space="preserve"
-      >
-        <use xlink:href="#icon-list-random" />
-      </svg>
-      <svg
-        v-else-if="appSetting['player.togglePlayMethod'] == 'list'"
-        version="1.1"
-        xmlns="http://www.w3.org/2000/svg"
-        xlink="http://www.w3.org/1999/xlink"
-        width="100%" viewBox="0 0 32 32" space="preserve"
-      >
-        <use xlink:href="#icon-list-order" />
-      </svg>
-      <svg
-        v-else-if="appSetting['player.togglePlayMethod'] == 'singleLoop'"
-        version="1.1"
-        xmlns="http://www.w3.org/2000/svg"
-        xlink="http://www.w3.org/1999/xlink"
-        width="100%" viewBox="0 0 24 24" space="preserve"
-      >
-        <use xlink:href="#icon-single-loop" />
-      </svg>
-      <svg v-else version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 32 32" space="preserve">
-        <use xlink:href="#icon-single" />
-      </svg>
+  <material-popup-btn ref="popupRef" :class="$style.wrap">
+    <button
+      :class="$style.btn"
+      :aria-label="nextTogglePlayName"
+     ignore-tip
+>
+      <svg-icon :name="currentIcon" />
     </button>
     <template #content>
-      <div :class="$style.setting">
-        <button :class="$style.btn" :aria-label="$t('player__play_toggle_mode_list_loop')" @click="toggleMode('listLoop')">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="100%" viewBox="0 0 24 24" space="preserve">
-            <use xlink:href="#icon-list-loop" />
-          </svg>
-        </button>
-        <button :class="$style.btn" :aria-label="$t('player__play_toggle_mode_random')" @click="toggleMode('random')">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 24 24" space="preserve">
-            <use xlink:href="#icon-list-random" />
-          </svg>
-        </button>
-        <button :class="$style.btn" :aria-label="$t('player__play_toggle_mode_list')" @click="toggleMode('list')">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 32 32" space="preserve">
-            <use xlink:href="#icon-list-order" />
-          </svg>
-        </button>
-        <button :class="$style.btn" :aria-label="$t('player__play_toggle_mode_single_loop')" @click="toggleMode('singleLoop')">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 24 24" space="preserve">
-            <use xlink:href="#icon-single-loop" />
-          </svg>
-        </button>
-        <button :class="$style.btn" :aria-label="$t('player__play_toggle_mode_off')" @click="toggleMode('none')">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 32 32" space="preserve">
-            <use xlink:href="#icon-single" />
-          </svg>
+      <!--
+        播放模式弹窗：4 项（对齐参考图，顺序为 随机 / 顺序 / 单曲循环 / 列表循环）
+        选中样式采用参考图「音质弹窗」的浅主色胶囊 + 主色文字
+      -->
+      <div class="qm-menu" :class="$style.menu">
+        <button
+          v-for="opt in playModeOptions"
+          :key="opt.mode"
+          type="button"
+          class="qm-menu-item"
+          :class="{ 'qm-menu-item--active': appSetting['player.togglePlayMethod'] === opt.mode }"
+          :aria-label="opt.label"
+          ignore-tip
+         @click="selectMode(opt.mode)"
+>
+          <svg-icon class="qm-menu-item__icon" :name="opt.icon" />
+          <span>{{ opt.label }}</span>
         </button>
       </div>
     </template>
@@ -74,71 +32,69 @@
 </template>
 
 <script setup>
-import { ref } from '@common/utils/vueTools'
-// import useNextTogglePlay from '@renderer/utils/compositions/useNextTogglePlay'
-// import useToggleDesktopLyric from '@renderer/utils/compositions/useToggleDesktopLyric'
-// import { musicInfo, playMusicInfo } from '@renderer/store/player/state'
+import { computed, ref } from '@common/utils/vueTools'
 import { appSetting } from '@renderer/store/setting'
 import useNextTogglePlay from '@renderer/utils/compositions/useNextTogglePlay'
 
-const btn_ref = ref(null)
+// 与主播放栏、详情页保持同一套顺序与图标
+const playModeOptions = [
+  { mode: 'random', label: '随机播放', icon: 'play-mode-random' },
+  { mode: 'list', label: '顺序播放', icon: 'play-mode-order' },
+  { mode: 'singleLoop', label: '单曲循环', icon: 'play-mode-single' },
+  { mode: 'listLoop', label: '列表循环', icon: 'play-mode-list' },
+]
 
-const {
-  nextTogglePlayName,
-  toggleNextPlayMode,
-} = useNextTogglePlay()
+const { nextTogglePlayName, toggleNextPlayMode } = useNextTogglePlay()
 
-const toggleMode = (mode) => {
-  btn_ref.value.hide()
+const popupRef = ref(null)
+
+// 按钮图标反映当前生效的模式
+const currentIcon = computed(() => {
+  switch (appSetting['player.togglePlayMethod']) {
+    case 'random': return 'play-mode-random'
+    case 'singleLoop': return 'play-mode-single'
+    case 'list': return 'play-mode-order'
+    case 'none': return 'play-mode-off'
+    default: return 'play-mode-list' // listLoop
+  }
+})
+
+const selectMode = (mode) => {
+  popupRef.value?.hide()
+  if (appSetting['player.togglePlayMethod'] === mode) return
   toggleNextPlayMode(mode)
 }
 
+defineExpose({
+  hide() { popupRef.value?.hide() },
+})
 </script>
 
 <style lang="less" module>
 @import '@renderer/assets/styles/layout.less';
-.btnContent {
+@import '@renderer/assets/styles/qq-icon.less';
+
+.wrap {
   flex: none;
-  height: 100%;
 }
 
+// 尺寸由使用方通过 --qm-playmode-size 控制（播放栏 32 / 详情页底栏 20）
 .btn {
+  .qm-icon-btn-strong();
+
   position: relative;
-  // color: var(--color-button-font);
-  justify-content: center;
-  align-items: center;
-  transition: color @transition-normal;
-  cursor: pointer;
-  background-color: transparent;
-  border: none;
-  width: 24px;
-  display: flex;
-  flex-flow: column nowrap;
-  padding: 0;
+  width: var(--qm-playmode-size, 32px);
+  height: var(--qm-playmode-size, 32px);
+  border-radius: var(--qm-radius-sm, 8px);
 
-  svg {
-    transition: opacity @transition-fast;
-    opacity: .6;
-    filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.2));
-  }
-  &:hover {
-    svg {
-      opacity: .9;
-    }
-  }
-  &:active {
-    svg {
-      opacity: 1;
-    }
-  }
+  &:hover:not(:disabled) { background-color: var(--qm-hover); }
+
+  // 图标尺寸单独用变量下传：组件内的规则与使用方的覆盖规则
+  // 特异性相同，胜负由 CSS Module 注入顺序决定（换文件顺序就回退）
+  :global(.svg-icon) { width: var(--qm-playmode-btn-icon, var(--qm-icon)); height: var(--qm-playmode-btn-icon, var(--qm-icon)); }
 }
 
-.setting {
-  display: flex;
-  flex-flow: row nowrap;
-  font-size: var(--qm-fs-md, 14px);
-  gap: var(--qm-sp-4, 10px);
+.menu {
+  min-width: 132px;
 }
-
-
 </style>

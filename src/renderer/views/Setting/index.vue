@@ -382,8 +382,8 @@ export default {
   transition: color var(--qm-t-fast), transform var(--qm-t-fast);
 
   :global(.svg-icon) {
-    width: 16px;
-    height: 16px;
+    width: var(--qm-icon-xs);
+    height: var(--qm-icon-xs);
     fill: currentColor;
   }
 }

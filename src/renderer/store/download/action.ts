@@ -176,7 +176,10 @@ const saveMeta = (downloadInfo: LX.Download.ListItem) => {
       album: downloadInfo.metadata.musicInfo.meta.albumName,
       APIC: imgUrl,
     }
-    void window.lx.worker.download.writeMeta(info, lyrics ?? { lyric: '' }, getProxy())
+    // 写入失败不应中断任务流程，但必须留下痕迹，否则用户只看到「歌曲没写进信息」却无从排查
+    void window.lx.worker.download.writeMeta(info, lyrics ?? { lyric: '' }, getProxy()).catch((err: unknown) => {
+      console.error('[download] write music meta failed:', err)
+    })
   })
 }
 

@@ -2,6 +2,7 @@ import { computed, ref, shallowReactive, reactive, nextTick } from '@common/util
 import musicSdk from '@renderer/utils/musicSdk'
 import { useI18n } from '@renderer/plugins/i18n'
 import { DOWNLOAD_STATUS } from '@common/constants'
+import useListTargetMenu from '@renderer/utils/compositions/useListTargetMenu'
 
 export default ({
   handleStartTask,
@@ -29,12 +30,31 @@ export default ({
   const menuLocation = shallowReactive({ x: 0, y: 0 })
   const isShowItemMenu = ref(false)
 
+  // 「添加到」二级菜单
+  const { buildSubmenu, handleTargetAction } = useListTargetMenu()
+  const currentMusicInfo = ref(null)
+
   const menus = computed(() => {
     return [
       {
         name: t('list__play'),
         action: 'play',
+        icon: 'play-o',
         hide: !itemMenuControl.play,
+      },
+      {
+        name: t('list__play_later'),
+        action: 'playLater',
+        icon: 'play-next',
+        hide: !itemMenuControl.playLater,
+      },
+      { divider: true, key: 'd-play' },
+      {
+        name: t('list__add_to'),
+        action: 'addTo',
+        icon: 'square-plus',
+        disabled: !itemMenuControl.addTo,
+        submenu: buildSubmenu('add', currentMusicInfo.value),
       },
       {
         name: t('list__start'),
@@ -47,39 +67,34 @@ export default ({
         hide: !itemMenuControl.pause,
       },
       {
-        name: t('list__play_later'),
-        action: 'playLater',
-        hide: !itemMenuControl.playLater,
-      },
-      {
         name: t('list__file'),
         action: 'file',
         hide: !itemMenuControl.file,
       },
       {
-        name: t('list__add_to'),
-        action: 'addTo',
-        disabled: !itemMenuControl.addTo,
-      },
-      {
         name: t('list__source_detail'),
         action: 'sourceDetail',
+        icon: 'information-slab-circle-outline',
         disabled: !itemMenuControl.sourceDetail,
       },
       {
         name: t('list__search'),
         action: 'search',
+        icon: 'search',
         hide: !itemMenuControl.search,
       },
+      { divider: true, key: 'd-remove' },
       {
         name: t('list__remove'),
         action: 'remove',
+        icon: 'delete',
         hide: !itemMenuControl.remove,
       },
     ]
   })
 
   const showMenu = (event, taskInfo) => {
+    currentMusicInfo.value = taskInfo.metadata.musicInfo
     itemMenuControl.sourceDetail = !!musicSdk[taskInfo.metadata.musicInfo.source]?.getMusicDetailPageUrl
 
     if (taskInfo.isComplate) {
@@ -120,6 +135,9 @@ export default ({
     // console.log(action)
     hideMenu()
     if (!action) return
+    // 「添加到」二级菜单的目标列表
+    if (handleTargetAction(action.action, currentMusicInfo.value)) return
+
     switch (action.action) {
       case 'start':
         handleStartTask(index)

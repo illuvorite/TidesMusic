@@ -402,12 +402,16 @@ export default {
 
 .comment {
   position: absolute;
+  // 顶部让出详情页窗口控制按钮（最小化/最大化/关闭）所在的悬浮区，
+  // 否则不透明面板会顶到 y=0，与窗口按钮重叠（表现为「按钮挤在一起」）
+  top: 56px;
+  height: calc(100% - 56px);
   right: 0;
-  top: 0;
   width: 50%;
-  height: 100%;
   opacity: 1;
   margin-left: var(--qm-sp-4, 10px);
+  border-top-left-radius: var(--qm-radius-lg, 12px);
+  overflow: hidden;
   transform: scaleX(0);
 }
 

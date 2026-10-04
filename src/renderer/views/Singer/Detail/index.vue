@@ -669,7 +669,7 @@ onBeforeUnmount(() => {
   height: 100%;
   color: var(--qm-text-5);
 
-  :global(.svg-icon) { width: 20px; height: 20px; fill: currentColor; }
+  :global(.svg-icon) { width: var(--qm-icon); height: var(--qm-icon); fill: currentColor; }
 }
 
 .albumInfo { min-width: 0; }

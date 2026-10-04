@@ -124,9 +124,10 @@ export default (setting: any): Partial<LX.AppSetting> => {
     setting['sync.enable'] = setting.sync?.enable
     setting['sync.port'] = setting.sync?.port
 
-    setting['theme.id'] = oldThemeMap[setting.theme?.id as keyof typeof oldThemeMap]
-    setting['theme.lightId'] = oldThemeMap[setting.theme?.lightId as keyof typeof oldThemeMap]
-    setting['theme.darkId'] = oldThemeMap[setting.theme?.darkId as keyof typeof oldThemeMap]
+    // theme 可能不存在，避免写入 undefined 覆盖默认值
+    setting['theme.id'] = oldThemeMap[setting.theme?.id as keyof typeof oldThemeMap] ?? setting.theme?.id
+    setting['theme.lightId'] = oldThemeMap[setting.theme?.lightId as keyof typeof oldThemeMap] ?? setting.theme?.lightId
+    setting['theme.darkId'] = oldThemeMap[setting.theme?.darkId as keyof typeof oldThemeMap] ?? setting.theme?.darkId
 
     setting['odc.isAutoClearSearchInput'] = setting.odc?.isAutoClearSearchInput
     setting['odc.isAutoClearSearchList'] = setting.odc?.isAutoClearSearchList
@@ -136,7 +137,10 @@ export default (setting: any): Partial<LX.AppSetting> => {
 
   // 迁移 v2.2.0 之前的设置数据
   if (compareVer(setting.version, '2.1.0') < 0) {
-    setting['sync.erver.port'] = setting['sync.port']
+    // 此前误写为 'sync.erver.port'，导致老用户升级后自定义同步端口丢失
+    // （回落默认值），同时向设置文件写入一个永远不会被读取的垃圾键
+    setting['sync.server.port'] = setting['sync.port']
+    delete setting['sync.erver.port']
     setting.version = '2.1.0'
   }
 

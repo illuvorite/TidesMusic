@@ -46,11 +46,27 @@
       </router-link>
     </nav>
 
-    <!-- 分组标题 -->
+    <!-- 分组标题：「自建歌单 | 收藏歌单」两段均可点击切换下方列表 -->
     <div v-if="!collapsed" :class="$style.sectionHeader" data-aside-section-header>
-      <span :class="$style.sectionTitle">自建歌单</span>
+      <button
+        :class="[$style.sectionTitle, { [$style.sectionTitleActive]: listSourceFilter === 'local' }]"
+        :aria-pressed="listSourceFilter === 'local'"
+        title="只看自建歌单"
+        data-list-source="local"
+        @click.stop="listSourceFilter = listSourceFilter === 'local' ? 'all' : 'local'"
+      >
+        自建歌单
+      </button>
       <span :class="$style.sectionDivider">|</span>
-      <span :class="$style.sectionTitle">收藏歌单</span>
+      <button
+        :class="[$style.sectionTitle, { [$style.sectionTitleActive]: listSourceFilter === 'online' }]"
+        :aria-pressed="listSourceFilter === 'online'"
+        title="只看收藏歌单"
+        data-list-source="online"
+        @click.stop="listSourceFilter = listSourceFilter === 'online' ? 'all' : 'online'"
+      >
+        收藏歌单
+      </button>
       <button
         :class="$style.sectionBtn"
         aria-label="新建歌单"
@@ -238,7 +254,6 @@ import {
   allMusicList,
   fetchingListStatus,
 } from '@renderer/store/list/state'
-import { playedList } from '@renderer/store/player/state'
 import {
   createUserList,
   removeUserList,
@@ -306,8 +321,16 @@ const loadListCounts = async(retry = 0) => {
 }
 
 // ====== 歌单相关 ======
+// 「自建歌单 | 收藏歌单」标题的选中态：all=两者都显示（默认），local=只看自建，online=只看收藏
+const listSourceFilter = ref<'all' | 'local' | 'online'>('all')
+
 const playlists = computed(() => {
-  return userLists.slice(0, 50).map(l => {
+  // source 有值 = 收藏（在线歌单）；source 为空 = 自建
+  const sourceMatched = userLists.slice(0, 50).filter((l) => {
+    if (listSourceFilter.value === 'all') return true
+    return listSourceFilter.value === 'online' ? !!l.source : !l.source
+  })
+  return sourceMatched.map(l => {
     const list = allMusicList.get(l.id)
     return {
       id: l.id,
@@ -320,16 +343,8 @@ const playlists = computed(() => {
 })
 
 const loveListCount = computed(() => listCounts[loveList.id] ?? 0)
-// 最近播放：与「最近播放」页一致，按歌曲去重计数
-const recentListCount = computed(() => {
-  const ids = new Set()
-  for (const item of playedList) {
-    const id = item.musicInfo?.id
-    if (id) ids.add(id)
-  }
-  return ids.size
-})
-const defaultListCount = computed(() => listCounts[defaultList.id] ?? 0)
+// 最近播放：与「最近播放」页一致（该页展示试听列表 default 的内容）
+const recentListCount = computed(() => listCounts[defaultList.id] ?? 0)
 
 // 首页 + 乐馆，并列排放
 const mainQuickNav = computed(() => [
@@ -341,7 +356,6 @@ const mainNav = computed(() => [
   { to: { name: 'ListLove' }, icon: 'heart-outline', label: '喜欢', name: 'ListLove', badge: loveListCount.value },
   { to: { name: 'ListRecent' }, icon: 'clock', label: '最近播放', name: 'ListRecent', badge: recentListCount.value },
   { to: { name: 'Download' }, icon: 'download-box', label: '本地和下载', name: 'Download' },
-  { to: { name: 'ListDefault' }, icon: 'music-note-list', label: '试听列表', name: 'ListDefault', badge: defaultListCount.value },
 ])
 const isActive = (item) => {
   if (item.name === 'Home') return route.path === '/home' || route.path === '/'
@@ -695,8 +709,8 @@ watch(userLists, () => {
   fill: currentColor;
 
   :global(.svg-icon) {
-    width: 18px;
-    height: 18px;
+    width: var(--qm-icon-sm);
+    height: var(--qm-icon-sm);
     fill: currentColor;
   }
 }
@@ -739,7 +753,7 @@ watch(userLists, () => {
   width: 20px;
   height: 20px;
   fill: currentColor;
-  :global(.svg-icon) { width: 20px; height: 20px; fill: currentColor; }
+  :global(.svg-icon) { width: var(--qm-icon); height: var(--qm-icon); fill: currentColor; }
 }
 
 // -------- 新建歌单 --------
@@ -761,7 +775,7 @@ watch(userLists, () => {
   // transform 必须列入过渡，否则 :active 的缩放会是「瞬跳」而非平滑反馈
   transition: color var(--qm-t-fast), background-color var(--qm-t-fast), transform var(--qm-t-fast);
 
-  :global(.svg-icon) { width: 13px; height: 13px; fill: currentColor; }
+  :global(.svg-icon) { width: var(--qm-icon-xs); height: var(--qm-icon-xs); fill: currentColor; }
   &:hover {
     color: var(--qm-primary);
     background-color: var(--qm-hover, var(--home-hover-bg));
@@ -827,7 +841,7 @@ watch(userLists, () => {
   color: var(--home-icon);
   fill: currentColor;
   transition: color var(--qm-t-fast);
-  :global(.svg-icon) { width: 18px; height: 18px; fill: currentColor; }
+  :global(.svg-icon) { width: var(--qm-icon-sm); height: var(--qm-icon-sm); fill: currentColor; }
 }
 
 .navItem:hover .navIcon,
@@ -866,6 +880,33 @@ watch(userLists, () => {
   // 使用 text-3 而非 text-4：12px 小字需保证 ≥4.5:1 对比度
   color: var(--qm-text-3);
   .mixin-ellipsis-1();
+  // 现在是可点击的筛选按钮：恢复按钮默认样式并给出 hover / 选中反馈
+  padding: 2px 4px;
+  margin: 0 -4px;
+  border: 0;
+  border-radius: var(--qm-radius-xs, 4px);
+  background: transparent;
+  font-family: inherit;
+  line-height: inherit;
+  cursor: pointer;
+  transition: color var(--qm-t-fast, 150ms ease), background-color var(--qm-t-fast, 150ms ease);
+  &:hover {
+    color: var(--qm-text-1);
+    background-color: var(--qm-primary-soft);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--qm-primary);
+    outline-offset: 1px;
+  }
+}
+// 选中态：主色文字 + 淡色底，明确区分当前筛选的是哪一类
+.sectionTitleActive {
+  color: var(--qm-primary);
+  font-weight: var(--qm-fw-bold, 700);
+  &:hover {
+    color: var(--qm-primary);
+    background-color: var(--qm-primary-soft-hover);
+  }
 }
 
 .sectionDivider {
@@ -1011,7 +1052,7 @@ watch(userLists, () => {
   }
   &:active { transform: scale(0.94); }
   &:focus-visible { box-shadow: var(--focus-ring, 0 0 0 3px rgba(0, 0, 0, .12)); }
-  :global(.svg-icon) { width: 19px; height: 19px; fill: currentColor; }
+  :global(.svg-icon) { width: var(--qm-icon-sm); height: var(--qm-icon-sm); fill: currentColor; }
 }
 
 // ============================================================
@@ -1067,7 +1108,7 @@ watch(userLists, () => {
   color: var(--color-primary);
   transition: background-color var(--transition-fast), transform var(--transition-fast);
 
-  :global(.svg-icon) { width: 12px; height: 12px; fill: currentColor; }
+  :global(.svg-icon) { width: var(--qm-icon-xs); height: var(--qm-icon-xs); fill: currentColor; }
 }
 
 .createPopoverTitle {
@@ -1218,7 +1259,7 @@ watch(userLists, () => {
   color: var(--home-text-weak);
   cursor: pointer;
   &:hover { background-color: rgba(0, 0, 0, 0.06); color: var(--home-text-strong); }
-  :global(.svg-icon) { width: 14px; height: 14px; fill: currentColor; }
+  :global(.svg-icon) { width: var(--qm-icon-xs); height: var(--qm-icon-xs); fill: currentColor; }
 }
 
 .updatePanelBody {
@@ -1300,7 +1341,7 @@ watch(userLists, () => {
   &:hover:not(:disabled) { background-color: rgba(35, 240, 140, 0.12); }
   &:active:not(:disabled) { transform: scale(0.92); }
   &:disabled { opacity: 0.4; cursor: not-allowed; }
-  :global(.svg-icon) { width: 16px; height: 16px; fill: currentColor; }
+  :global(.svg-icon) { width: var(--qm-icon-xs); height: var(--qm-icon-xs); fill: currentColor; }
 }
 
 .updateEmpty {

@@ -41,34 +41,64 @@
         <p>暂时没有找到合适的歌曲，检查音源设置后再试试</p>
         <button type="button" :class="$style.btnGhost" @click="reload(true)">重新生成</button>
       </div>
-      <ul v-else :class="$style.list">
-        <li
-          v-for="(item, index) in list" :key="item.id"
-          :class="[$style.row, { [$style.rowActive]: isPlayingItem(item) }]"
-          @dblclick="playFrom(index)"
-        >
-          <span :class="$style.num">{{ index + 1 }}</span>
-          <span :class="$style.nameCell">
-            <span :class="$style.name" :title="item.name">{{ item.name }}</span>
-            <em v-if="qualityTag(item)" :class="$style.tag">{{ qualityTag(item) }}</em>
-          </span>
-          <span :class="$style.singer" :title="item.singer">{{ item.singer }}</span>
-          <span :class="$style.album" :title="item.meta?.albumName">{{ item.meta?.albumName || '—' }}</span>
-          <span :class="$style.time">{{ item.interval || '--:--' }}</span>
-          <span :class="$style.rowBtns">
-            <button type="button" aria-label="播放" title="播放" @click.stop="playFrom(index)">
-              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-                <path d="M8 5.4v13.2l11-6.6z" fill="currentColor" />
-              </svg>
-            </button>
-            <button type="button" aria-label="收藏" title="收藏到我喜欢的音乐" @click.stop="likeIt(item)">
-              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-                <path d="M12 20.5s-7.2-4.4-9.6-9.1A5.4 5.4 0 0 1 12 5.6a5.4 5.4 0 0 1 9.6 5.8c-2.4 4.7-9.6 9.1-9.6 9.1z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
-              </svg>
-            </button>
-          </span>
-        </li>
-      </ul>
+      <template v-else>
+        <div class="thead">
+          <table>
+            <thead>
+              <tr>
+                <th class="nobreak">
+                  <span>歌曲 / 歌手</span>
+                  <svg class="thead-sort" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                    <path d="M5.4 6.6 8 3.4l2.6 3.2z" fill="currentColor" />
+                    <path d="M5.4 9.4 8 12.6l2.6-3.2z" fill="currentColor" />
+                  </svg>
+                </th>
+                <th class="nobreak" style="width: 27%;">专辑</th>
+                <th class="nobreak" style="width: 10%;">时长</th>
+              </tr>
+            </thead>
+          </table>
+        </div>
+        <ul class="list" :class="$style.list">
+          <li
+            v-for="(item, index) in list" :key="item.id"
+            class="list-item" :class="{ active: isPlayingItem(item), 'row-alt': index % 2 === 1 }"
+            @dblclick="playFrom(index)"
+          >
+            <div class="list-item-cell cover">
+              <div class="row-cover">
+                <img v-if="getCoverUrl(item)" :src="getCoverUrl(item)" alt="" loading="lazy">
+                <span v-else class="row-cover-empty"><svg-icon name="music" /></span>
+                <span class="row-cover-play" @click.stop="playFrom(index)">
+                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M8 5.4v13.2l11-6.6z" fill="currentColor" /></svg>
+                </span>
+              </div>
+            </div>
+            <div class="list-item-cell auto name">
+              <div class="name-wrap">
+                <div class="name-main">
+                  <span class="select name" :title="item.name">{{ item.name }}</span>
+                  <em v-if="qualityTag(item)" class="no-select badge badge-theme-primary">{{ qualityTag(item) }}</em>
+                  <button type="button" class="row-play" aria-label="播放" title="播放" @click.stop="playFrom(index)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.4v13.2l11-6.6z" fill="currentColor" /></svg>
+                  </button>
+                </div>
+                <div class="name-sub">
+                  <span class="select name-sub-text" :title="item.singer">{{ item.singer }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="list-item-cell actions">
+              <material-list-buttons
+                :index="index" :play-btn="false" :download-btn="false" :more-btn="false" :list-add-btn="false"
+                :liked="isLoved(item)" @btn-click="handleRowBtn"
+              />
+            </div>
+            <div class="list-item-cell" style="flex: 0 0 27%;"><span class="select" :title="item.meta?.albumName">{{ item.meta?.albumName || '—' }}</span></div>
+            <div class="list-item-cell" style="flex: 0 0 10%;"><span class="no-select">{{ item.interval || '--:--' }}</span></div>
+          </li>
+        </ul>
+      </template>
     </div>
   </div>
 </template>
@@ -78,9 +108,10 @@ import { computed, onMounted, ref, watch, markRawList } from '@common/utils/vueT
 import { useRoute, useRouter } from '@common/utils/vueRouter'
 import { LIST_IDS } from '@common/constants'
 import { playList } from '@renderer/core/player/action'
-import { addListMusics, setTempList } from '@renderer/store/list/action'
-import { loveList } from '@renderer/store/list/state'
+import { setTempList } from '@renderer/store/list/action'
 import { playMusicInfo, isPlay } from '@renderer/store/player/state'
+import useLovedList from '@renderer/utils/compositions/useLovedList'
+import { getCoverUrl } from '@renderer/utils/compositions/useCoverLoader'
 import SourceTabs from '@renderer/components/common/SourceTabs.vue'
 import {
   buildMillionFallback,
@@ -101,6 +132,10 @@ const type = computed(() => (route.query.type === 'million' ? 'million' : 'daily
 const list = ref([])
 const loading = ref(false)
 const hasStyle = ref(true)
+
+// 收藏（我喜欢）——行内红心按钮
+const { isLoved, loadLoved, toggleLove } = useLovedList()
+void loadLoved()
 const source = ref((() => {
   const query = route.query.source
   if (typeof query === 'string' && getAvailableSources().includes(query)) return query
@@ -177,7 +212,14 @@ async function playFrom(index) {
 }
 
 async function likeIt(item) {
-  await addListMusics(loveList.id, [item])
+  await toggleLove(item)
+}
+
+// 行内操作按钮（收藏到我喜欢）
+const handleRowBtn = ({ action, index }) => {
+  const item = list.value[index]
+  if (!item) return
+  if (action === 'like') void likeIt(item)
 }
 
 const isPlayingItem = (item) => isPlay.value && playMusicInfo.musicInfo?.id === item.id

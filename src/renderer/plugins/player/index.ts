@@ -57,6 +57,26 @@ let pitchShifterNodeTempValue = 1
 let defaultChannelCount = 2
 export const soundR = 0.5
 
+// ===== 核心链路「按需串入」状态 =====
+// 中性（一个音效都没开）时，整条链路必须与「直通」等价，否则干声会被无谓染色：
+//   · convolverDynamicsCompressor 未设置任何参数 → 用 Chromium 默认值（-24dB / 12:1 / knee 30），
+//     实测会把 20dB 的输入动态范围压成 ~15dB，且小声部被抬高 3.4dB；
+//     它本来是给「卷积混响叠加」做压峰的，没开混响就不该在链路里。
+//   · panner 是 createPanner()（3D PannerNode），停在原点也有 equalpower 中心衰减 ≈ -3.01dB，
+//     只有启用「环绕强度」时才有意义。
+let coreOutNode: AudioNode
+let isPannerEnabled = false
+
+// ===== 增强效果链节点（超重低音 / 高保真度 / 动态推进 / 声道平衡）=====
+// 这 4 项都遵循「中性即完全旁路」：只要参数为默认值，节点就不会被插入链路，
+// 避免 ㉓ 里出现过的「未开音效也像套了一层」问题。
+let enhanceBassShelf: BiquadFilterNode
+let enhanceHifiShelf: BiquadFilterNode
+let enhanceComp: DynamicsCompressorNode
+let enhanceMakeup: GainNode
+let enhanceBalance: StereoPannerNode
+let enhanceLimiter: DynamicsCompressorNode
+
 
 export const createAudio = () => {
   if (audio) return
@@ -129,16 +149,24 @@ const initAdvancedAudioFeatures = () => {
   initConvolver()
   initPanner()
   initGain()
-  // source -> analyser -> biquadFilter -> pitchShifter -> [(convolver & convolverSource)->convolverDynamicsCompressor] -> panner -> gain
+  // source -> analyser -> biquadFilter -> pitchShifter -> [(convolver & convolverSource)->卷积压缩器]
+  //        -> [增强链(按需插入)] -> [panner(按需插入)] -> gain
+  // 括号里的两级都按需串入：中性时链路只剩 analyser / 0dB 均衡 / 增益 1，与直通等价
   mediaSource = audioContext.createMediaElementSource(audio)
   mediaSource.connect(analyser)
   analyser.connect(biquads.get(`hz${freqs[0]}`)!)
   const lastBiquadFilter = (biquads.get(`hz${freqs.at(-1)!}`)!)
   lastBiquadFilter.connect(convolverSourceGainNode)
   lastBiquadFilter.connect(convolver)
-  convolverDynamicsCompressor.connect(panner)
   panner.connect(gainNode)
   gainNode.connect(audioContext.destination)
+
+  // 增强效果链：建节点 → 同步参数 → 由 applyEnhanceRouting 决定「直连」还是「串入」
+  // （全部参数为中性时不插入任何节点，干声零处理）
+  initEnhanceNodes()
+  syncEnhanceParams()
+  // 核心链路（卷积压缩器 / panner）同样按需串入
+  applyCoreRouting()
 
   // 音频输出设备改变时刷新 audio node 连接
   window.app_event.on('playerDeviceChanged', handleMediaListChange)
@@ -153,6 +181,193 @@ const initAdvancedAudioFeatures = () => {
 const handleMediaListChange = () => {
   mediaSource.disconnect()
   mediaSource.connect(analyser)
+}
+
+// ============================================================
+//  增强效果链（QQ 银河音效「均衡器」页 6 条滑条中的 4 条 DSP 项）
+//  另外两项：混响强度 → convolver sendGain、环绕强度 → panner（见 useSoundEffect）
+//
+//  链路：convolverDynamicsCompressor → [低频架] → [高频架] → [压限+补偿] → [声像] → [安全限幅] → panner
+//  设计要点：
+//   1. **中性即完全旁路**：4 项都在默认值时，回到 convolverDynamicsCompressor → panner 直连，
+//      干声零处理 —— 避免 ㉓ 里出现过的「未开音效也像套了一层音效」；
+//   2. 节点按需串入（低音/高保真/动态/声像各自独立判断），只开声道平衡时不会多走压缩；
+//   3. 参数一律用 setTargetAtTime 平滑，拖动滑条不会有咔哒声或阶梯噪声；
+//   4. 末尾的安全限幅器只在本链启用时存在：低音架最高 +15dB，没有它会在输出端硬削波。
+// ============================================================
+const ENHANCE_BASS_FREQ = 120
+const ENHANCE_HIFI_FREQ = 8000
+// 每 1 点滑条对应的 dB（与 common/types/app_setting.d.ts 的注释保持一致）
+const ENHANCE_BASS_DB_PER_UNIT = 0.3
+const ENHANCE_HIFI_DB_PER_UNIT = 0.24
+const ENHANCE_DYNAMIC_MAX = 50
+const ENHANCE_BALANCE_MAX = 50
+
+const enhanceState = { bass: 0, hifi: 0, dynamic: 0, balance: 0 }
+type EnhanceKey = keyof typeof enhanceState
+
+const rampParam = (param: AudioParam, value: number) => {
+  if (audioContext) param.setTargetAtTime(value, audioContext.currentTime, 0.03)
+  else param.value = value
+}
+
+const isEnhanceActive = () =>
+  enhanceState.bass > 0 || enhanceState.hifi > 0 || enhanceState.dynamic > 0 || enhanceState.balance != 0
+
+const initEnhanceNodes = () => {
+  if (enhanceBassShelf) return
+
+  enhanceBassShelf = audioContext.createBiquadFilter()
+  enhanceBassShelf.type = 'lowshelf'
+  enhanceBassShelf.frequency.value = ENHANCE_BASS_FREQ
+  enhanceBassShelf.gain.value = 0
+
+  enhanceHifiShelf = audioContext.createBiquadFilter()
+  enhanceHifiShelf.type = 'highshelf'
+  enhanceHifiShelf.frequency.value = ENHANCE_HIFI_FREQ
+  enhanceHifiShelf.gain.value = 0
+
+  enhanceComp = audioContext.createDynamicsCompressor()
+  enhanceComp.attack.value = 0.003
+  enhanceComp.release.value = 0.25
+
+  enhanceMakeup = audioContext.createGain()
+  enhanceMakeup.gain.value = 1
+
+  enhanceBalance = audioContext.createStereoPanner()
+  enhanceBalance.pan.value = 0
+
+  enhanceLimiter = audioContext.createDynamicsCompressor()
+  enhanceLimiter.threshold.value = -1
+  enhanceLimiter.knee.value = 0
+  enhanceLimiter.ratio.value = 20
+  enhanceLimiter.attack.value = 0.002
+  enhanceLimiter.release.value = 0.1
+}
+
+/** 把 enhanceState 写入各节点参数（state 是唯一数据源） */
+const syncEnhanceParams = () => {
+  if (!enhanceBassShelf) return
+
+  rampParam(enhanceBassShelf.gain, enhanceState.bass * ENHANCE_BASS_DB_PER_UNIT)
+  rampParam(enhanceHifiShelf.gain, enhanceState.hifi * ENHANCE_HIFI_DB_PER_UNIT)
+
+  // 动态推进：0 → 近乎直通（ratio 1 / threshold -6dB / 无补偿）；50 → 明显压限并把峰值补回来
+  const amount = enhanceState.dynamic / ENHANCE_DYNAMIC_MAX
+  rampParam(enhanceComp.threshold, -6 - amount * 24)
+  rampParam(enhanceComp.ratio, 1 + amount * 5)
+  rampParam(enhanceComp.knee, 6 + amount * 18)
+  rampParam(enhanceMakeup.gain, Math.pow(10, (amount * 4) / 20))
+
+  rampParam(enhanceBalance.pan, enhanceState.balance / ENHANCE_BALANCE_MAX)
+}
+
+/** 核心链路按需串入：卷积压缩器只在启用混响时插入；随后重建增强链 */
+const applyCoreRouting = () => {
+  if (!audioContext) return
+
+  for (const node of [convolverSourceGainNode, convolverOutputGainNode, convolverDynamicsCompressor]) {
+    try {
+      node.disconnect()
+    } catch {
+      // 无连接时个别实现会抛错，忽略
+    }
+  }
+
+  if (convolver.buffer) {
+    // 启用卷积：干声 + 湿声都汇入压缩器压峰后再送往下一级
+    convolverSourceGainNode.connect(convolverDynamicsCompressor)
+    convolverOutputGainNode.connect(convolverDynamicsCompressor)
+    coreOutNode = convolverDynamicsCompressor
+  } else {
+    // 未启用卷积：压缩器不参与链路，干声直接送下一级（它与直通等价）
+    coreOutNode = convolverSourceGainNode
+  }
+
+  applyEnhanceRouting()
+}
+
+/** 按当前参数重建 卷积段输出 → 增强链 → (panner|gain) 的连接；全部中性时直连 */
+const applyEnhanceRouting = () => {
+  initAdvancedAudioFeatures()
+  initEnhanceNodes()
+  syncEnhanceParams()
+
+  // 环绕强度未启用时 panner 不参与链路（否则会平白吃掉 ~3dB）
+  const tail: AudioNode = isPannerEnabled ? panner : gainNode
+  const nodes = [coreOutNode, enhanceBassShelf, enhanceHifiShelf, enhanceComp, enhanceMakeup, enhanceBalance, enhanceLimiter]
+  for (const node of nodes) {
+    if (!node) continue
+    try {
+      node.disconnect()
+    } catch {
+      // 无连接时个别实现会抛错，忽略
+    }
+  }
+
+  if (!isEnhanceActive()) {
+    coreOutNode.connect(tail)
+    return
+  }
+
+  let last: AudioNode = coreOutNode
+  if (enhanceState.bass > 0) {
+    last.connect(enhanceBassShelf)
+    last = enhanceBassShelf
+  }
+  if (enhanceState.hifi > 0) {
+    last.connect(enhanceHifiShelf)
+    last = enhanceHifiShelf
+  }
+  if (enhanceState.dynamic > 0) {
+    last.connect(enhanceComp)
+    enhanceComp.connect(enhanceMakeup)
+    last = enhanceMakeup
+  }
+  if (enhanceState.balance != 0) {
+    last.connect(enhanceBalance)
+    last = enhanceBalance
+  }
+  last.connect(enhanceLimiter)
+  enhanceLimiter.connect(tail)
+}
+
+/** 环绕强度开关：决定 panner 是否参与链路（关闭时链路与直通等价） */
+export const setPannerEnable = (enable: boolean) => {
+  if (isPannerEnabled === enable) return
+  isPannerEnabled = enable
+  if (audioContext) applyEnhanceRouting()
+}
+
+const setEnhanceValue = (key: EnhanceKey, value: number) => {
+  const wasActive = enhanceState[key] != 0
+  enhanceState[key] = value
+  if (wasActive != (value != 0)) {
+    // 是否活跃发生变化 → 需要重接链路（内部会一并同步参数）
+    applyEnhanceRouting()
+  } else if (enhanceBassShelf) {
+    syncEnhanceParams()
+  }
+}
+
+/** 超重低音（0~50）：低频架 120Hz，增益 = 值 × 0.3dB */
+export const setEnhanceBass = (value: number) => {
+  setEnhanceValue('bass', value)
+}
+
+/** 高保真度（0~50）：高频架 8kHz，增益 = 值 × 0.24dB */
+export const setEnhanceHifi = (value: number) => {
+  setEnhanceValue('hifi', value)
+}
+
+/** 动态推进（0~50）：映射压限器 threshold / ratio / knee + 峰值补偿增益 */
+export const setEnhanceDynamic = (value: number) => {
+  setEnhanceValue('dynamic', value)
+}
+
+/** 声道平衡（-50~50）：映射 StereoPanner 的 pan（-1 ~ 1） */
+export const setEnhanceBalance = (value: number) => {
+  setEnhanceValue('balance', value)
 }
 
 // let isConnected = true
@@ -230,6 +445,8 @@ export const setConvolver = (buffer: AudioBuffer | null, mainGain: number, sendG
     convolverSourceGainNode.gain.value = 1
     convolverOutputGainNode.gain.value = 0
   }
+  // 有没有卷积决定了压缩器是否参与链路，需要重建
+  applyCoreRouting()
 }
 
 export const setConvolverMainGain = (gain: number) => {

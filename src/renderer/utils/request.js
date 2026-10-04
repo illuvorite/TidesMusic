@@ -77,22 +77,40 @@ const buildHttpPromose = (url, options) => {
       cancelHttp(obj.requestObj)
       obj.requestObj = null
       obj.promise = obj.cancelHttp = null
-      obj.cancelFn(new Error(requestMsg.cancelRequest))
-      obj.cancelFn = null
+      // 请求可能已经结束（响应回调里已把 cancelFn 置空）：必须先判空再调用。
+      // 否则会抛 `TypeError: obj.cancelFn is not a function`，而各音源模块普遍是
+      // 「先 cancel 上一次请求、再发起新请求」的写法，一抛错新的请求就发不出去，
+      // 表现为页面空白 /「暂时没有取到歌单」/ 热门搜索为空等“全都获取不到”。
+      if (obj.cancelFn) {
+        obj.cancelFn(new Error(requestMsg.cancelRequest))
+        obj.cancelFn = null
+      }
     },
   }
   obj.promise = new Promise((resolve, reject) => {
     obj.cancelFn = reject
-    debugRequest && console.log(`\n---send request------${url}------------`)
+    // 注意：这里必须用 `if` 语句而不是 `debugRequest && console.log(...)` 表达式语句。
+    // 打包时 Terser 会把「赋值语句 + 短路表达式」相邻两句合并成
+    //   `obj.cancelFn = reject(false) && console.log(...)`
+    // 从而提前调用 reject(false) 否定 Promise，并把 obj.cancelFn 覆盖成
+    // console.log 的返回值 undefined —— 表现为「所有网络请求发出后永远无响应」
+    // （开发模式不压缩，故正常；打包版必现）。
+    if (debugRequest) console.log(`\n---send request------${url}------------`)
     fetchData(url, options.method, options, (err, resp, body) => {
       // options.isShowProgress && window.api.hideProgress()
-      debugRequest && console.log(`\n---response------${url}------------`)
-      debugRequest && console.log(body)
+      if (debugRequest) {
+        console.log(`\n---response------${url}------------`)
+        console.log(body)
+      }
       obj.requestObj = null
       obj.cancelFn = null
       if (err) return reject(err)
       resolve(resp)
     }).then(ro => {
+      // 响应回调可能先于这里执行（请求已完成，cancelFn 已是 null）：
+      // 此时不能再把已完成的 requestObj 挂回去，否则下次 cancelHttp 会越过
+      // `if (!obj.requestObj)` 这道判断，进而在 cancelFn 上抛错。
+      if (obj.cancelFn == null) return
       obj.requestObj = ro
       if (obj.isCancelled) obj.cancelHttp()
     })

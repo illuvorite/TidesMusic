@@ -271,8 +271,14 @@ async function loadFeatured() {
     // 此前它和「热门歌单」用同一个排序，导致两个区块内容完全一样
     let officialTagId = ''
     if (typeof sdk.getTag === 'function') {
+      // 注意：不能只写 `tagGroups?.flatMap(...)`。若 getTag resolve 的是**非数组**对象
+      // （部分平台 getTag 的返回结构与预期不符），`?.` 只保护了 tagGroups 本身，
+      // 后面的 .flatMap 仍会抛 `flatMap is not a function`，把整个乐馆的加载流程打断。
       const tagGroups = await sdk.getTag().catch(() => null)
-      const tag = tagGroups?.flatMap(group => group.list ?? []).find(item => (item.name ?? '').includes('官方'))
+      const groupList = Array.isArray(tagGroups) ? tagGroups : []
+      const tag = groupList
+        .flatMap(group => (Array.isArray(group?.list) ? group.list : []))
+        .find(item => (item?.name ?? '').includes('官方'))
       officialTagId = tag?.id ? String(tag.id) : ''
     }
     if (!officialTagId && source.value === 'tx') officialTagId = '3317'

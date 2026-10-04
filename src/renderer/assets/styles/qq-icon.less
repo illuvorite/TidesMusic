@@ -1,0 +1,66 @@
+// ============================================================
+//  图标按钮统一交互（配套 index.less 的 --qm-icon-* 尺寸 token）
+//
+//  三态统一定义（整个应用只有这一处定义）：
+//    默认  图标 72% 不透明度
+//    悬停  100% + 可选背景色
+//    按下  轻微缩放（0.94）
+//    禁用  整体 40% + not-allowed 光标
+//
+//  颜色一律 `color: inherit`：图标颜色由所在上下文决定，
+//  这样在浅色外壳与播放详情页的深色画布上都能正确显示
+//  （详情页会把 --color-font 一系重定义，写死 token 会失效）。
+//
+//  用法：控件按钮上 `.qm-icon-btn();`，选中态再叠 `.qm-icon-active();`
+// ============================================================
+
+.qm-icon-btn() {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  outline: none;
+  background-color: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    color var(--qm-t-fast),
+    opacity var(--qm-t-fast),
+    transform var(--qm-t-fast),
+    background-color var(--qm-t-fast);
+
+  .svg-icon { opacity: 0.72; }
+
+  &:hover:not(:disabled) {
+    .svg-icon { opacity: 1; }
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.94);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--qm-primary);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+// 主控制键（播放条 / 播放栏那一排）：常态再亮一档
+.qm-icon-btn-strong() {
+  .qm-icon-btn();
+
+  .svg-icon { opacity: 0.88; }
+}
+
+// 选中 / 已启用态（已收藏、音效开启、桌面歌词开启…）
+.qm-icon-active() {
+  color: var(--qm-primary);
+
+  .svg-icon { opacity: 1; }
+}

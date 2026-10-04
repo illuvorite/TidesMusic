@@ -50,7 +50,8 @@ export default ({ listRef, list }) => {
 
   let lastSelectIndex = -1
   const listItemHeight = computed(() => {
-    return Math.ceil((isFullscreen.value ? getFontSizeWithScreen() : appSetting['common.fontSize']) * 3.5)
+    // 3.625 = QQ 版式行高（58px）/ 默认字号（16px），见 index.less 的歌曲行样式
+    return Math.ceil((isFullscreen.value ? getFontSizeWithScreen() : appSetting['common.fontSize']) * 3.625)
   })
 
   const removeAllSelect = () => {

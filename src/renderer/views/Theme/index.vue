@@ -615,8 +615,8 @@ onBeforeUnmount(() => {
   transition: opacity @transition-fast, background-color @transition-fast;
 
   svg {
-    width: 13px;
-    height: 13px;
+    width: var(--qm-icon-xs);
+    height: var(--qm-icon-xs);
   }
   &:hover {
     background-color: rgba(0, 0, 0, 0.65);
@@ -659,8 +659,8 @@ onBeforeUnmount(() => {
   justify-content: center;
 
   svg {
-    width: 11px;
-    height: 11px;
+    width: var(--qm-icon-xs);
+    height: var(--qm-icon-xs);
   }
 }
 .cardName {

@@ -23,7 +23,7 @@ const defaultRequestOptions: Options['requestOptions'] = {
   headers: {},
 }
 const defaultOptions: Options = {
-  forceResume: true,
+  forceResume: false,
   timeout: 20_000,
   requestOptions: { ...defaultRequestOptions },
 }
@@ -189,27 +189,44 @@ class Task extends EventEmitter {
       this.__handleError(new Error('Content length is 0'))
       return
     }
-    let options: any = {}
-    let isResumable = this.options.forceResume ||
-      response.headers['accept-ranges'] !== 'none' ||
-      (typeof response.headers['accept-ranges'] == 'string' &&
-        parseInt(response.headers['accept-ranges'].replace(/^bytes=(\d+)/, '$1')) > 0)
 
-    if (isResumable) {
-      options.flags = 'a'
-      if (this.progress.downloaded) this.progress.total -= 10
-    } else {
-      if (this.chunkInfo.startByte != '0') {
-        this.__handleError(new Error('The resource cannot be resumed download.'))
-        return
-      }
-    }
-    this.progress.total += this.progress.downloaded
-    this.statsEstimate.prevBytes = this.progress.downloaded
+    const isPartial = response.statusCode === 206
+    const hasDownloaded = this.progress.downloaded > 0
+
     if (!this.chunkInfo.path) {
       this.__handleError(new Error('Chunk save Path is not set.'))
       return
     }
+
+    if (isPartial && hasDownloaded) {
+      // 断点续传：服务端返回 206，本次数据从已下载位置之后开始。
+      // 已下载部分的末尾 10 字节会在 __handleWriteData 中回退重写（重叠校验）
+      this.progress.total += this.progress.downloaded - 10
+      this.statsEstimate.prevBytes = this.progress.downloaded
+      this.__writeStream({ flags: 'a' })
+    } else if (!isPartial && hasDownloaded) {
+      // 服务端忽略了 Range，返回 200 全量数据。
+      // 此时若追加写入会产生「半截文件 + 完整文件」的损坏结果，
+      // 因此丢弃已有进度并从头写入。
+      console.warn('[downloader] server ignored range request, restarting from scratch')
+      this.__resetProgress()
+      this.__writeStream({ flags: 'w' })
+    } else {
+      this.progress.total += this.progress.downloaded
+      this.statsEstimate.prevBytes = this.progress.downloaded
+      this.__writeStream({ flags: hasDownloaded ? 'a' : 'w' })
+    }
+  }
+
+  /** 已下载字节数归零，用于服务端不支持续传时丢弃损坏的半成品 */
+  private __resetProgress() {
+    this.chunkInfo.startByte = '0'
+    this.resumeLastChunk = null
+    this.progress.downloaded = 0
+    delete this.requestOptions.headers!.range
+  }
+
+  private __writeStream(options: { flags: 'a' | 'w' }) {
     this.ws = fs.createWriteStream(this.chunkInfo.path, options)
 
     this.ws.on('finish', () => {
@@ -219,9 +236,7 @@ class Task extends EventEmitter {
     this.ws.on('error', err => {
       fs.unlink(this.chunkInfo.path, (unlinkErr: any) => {
         this.__handleError(err)
-        this.chunkInfo.startByte = '0'
-        this.resumeLastChunk = null
-        this.progress.downloaded = 0
+        this.__resetProgress()
         if (unlinkErr && unlinkErr.code !== 'ENOENT') this.__handleError(unlinkErr)
       })
     })
@@ -259,16 +274,34 @@ class Task extends EventEmitter {
 
   async __closeWriteStream() {
     return new Promise<void>((resolve, reject) => {
-      if (!this.ws) {
+      const ws = this.ws
+      if (!ws) {
         resolve()
         return
       }
       // console.log('close write stream')
+      // 流已关闭过则直接返回，否则注册的事件永远不会触发，导致 stop() 永久悬挂
+      if (ws.closed || ws.destroyed) {
+        this.ws = null
+        resolve()
+        return
+      }
       if (this.closeWaiting || this.dataWriteQueueLength) {
         this.closeWaiting ||= true
-        this.ws.on('close', resolve)
+        // 兜底：close 事件在某些异常路径下可能不触发，超时后放行避免任务卡死
+        const timer = setTimeout(() => {
+          ws.removeListener('close', onClose)
+          this.ws = null
+          resolve()
+        }, 5000)
+        const onClose = () => {
+          clearTimeout(timer)
+          this.ws = null
+          resolve()
+        }
+        ws.once('close', onClose)
       } else {
-        this.ws.close(err => {
+        ws.close(err => {
           if (err) {
             this.status = STATUS.error
             this.emit('error', err)

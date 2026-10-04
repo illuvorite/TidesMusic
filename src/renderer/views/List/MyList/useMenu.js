@@ -41,13 +41,16 @@ export default ({
       {
         name: t('lists__sort_list'),
         action: 'sort',
+        icon: 'sort',
         disabled: !menuControl.sort,
       },
       {
         name: t('lists__duplicate'),
         action: 'duplicate',
+        icon: 'copy',
         disabled: !menuControl.duplicate,
       },
+      { divider: true, key: 'd-manage' },
       {
         name: t('lists__select_local_file'),
         action: 'local_file',
@@ -61,6 +64,7 @@ export default ({
       {
         name: t('lists__source_detail'),
         action: 'sourceDetail',
+        icon: 'information-slab-circle-outline',
         disabled: !menuControl.sourceDetail,
       },
       {

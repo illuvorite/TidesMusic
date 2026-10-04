@@ -1,4 +1,4 @@
-import { mainSend } from '@common/mainIpc'
+import { mainSend, registerLimitedSender } from '@common/mainIpc'
 import { BrowserWindow } from 'electron'
 import fs from 'fs'
 import path from 'node:path'
@@ -104,6 +104,9 @@ export const createWindow = async(userApi: LX.UserApi.UserApiInfo) => {
       preload: preloadUrl,
     },
   })
+  // 该窗口执行第三方音源脚本，仅允许访问 userApi_ 前缀的自有通道，
+  // 禁止调用主窗口/列表/下载等其他 IPC 能力
+  registerLimitedSender(browserWindow.webContents.id, ['userApi_'])
 
   for (const eventName of denyEvents) {
     // @ts-expect-error

@@ -26,6 +26,12 @@ export const applySkinSurface = (opacityOverride?: number) => {
   document.documentElement.style.setProperty('--qm-surface', `color-mix(in srgb, ${mainBg} ${opacity}%, transparent)`)
 }
 
+/**
+ * 当前生效主题是否为暗色（applyTheme 解析主题后写入）。
+ * teleport 到 #root 的浮层（右键菜单 / 弹窗）拿不到主题作用域，用它来切明暗卡片。
+ */
+export const isDarkTheme = shallowReactive({ value: false })
+
 export const assertApiSupport = (source: LX.Source): boolean => {
   return source == 'local' || qualityList.value[source] != null
 }
@@ -100,6 +106,7 @@ export const applyTheme = (id: string, lightId: string, darkId: string, dataPath
       themeId = id == 'auto' && themeShouldUseDarkColors.value ? 'black' : 'green'
       theme = themeInfo.themes.find(theme => theme.id == themeId)!
     }
+    isDarkTheme.value = !!theme.isDark
     window.setTheme(buildThemeColors(theme, dataPath))
     applySkinSurface()
   })

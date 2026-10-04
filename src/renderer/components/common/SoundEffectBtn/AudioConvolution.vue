@@ -8,6 +8,7 @@
         type="button"
         :class="[$style.featuredCard, $style[item.themeCls], { [$style.active]: activeFeaturedId === item.id }]"
         :aria-label="item.name"
+        :aria-pressed="activeFeaturedId === item.id"
         @click="applyEffect(item.effect)"
       >
         <span :class="$style.featuredName">{{ item.name }}</span>
@@ -17,11 +18,20 @@
       </button>
     </div>
 
-    <h4 :class="$style.sectionTitle">{{ $t('player__sound_effect_recommend_master') }}</h4>
+    <h4 :class="[$style.sectionTitle, $style.sectionTitleGap]">{{ $t('player__sound_effect_recommend_master') }}</h4>
     <div :class="$style.masterGrid">
-      <div :class="$style.masterAdd" @click="saveCurrentAsMaster">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
-        <span>{{ $t('player__sound_effect_recommend_save_current') }}</span>
+      <div
+        :class="$style.masterAdd"
+        role="button"
+        tabindex="0"
+        :aria-label="$t('player__sound_effect_recommend_save_current')"
+        :title="$t('player__sound_effect_recommend_save_current')"
+        @click="saveCurrentAsMaster"
+        @keydown.enter="saveCurrentAsMaster"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 4.6v14.8M4.6 12h14.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
       </div>
       <div
         v-for="item in masterItems"
@@ -62,6 +72,7 @@ const eqOf = name => {
 // effect: { eq, conv: [source, main, send] | null, panner, bass, hifi, dynamic, balance }
 const C = (id, themeCls, name, eq, conv, opts = {}) => ({ id, themeCls, name, effect: { eq, conv: conv ? { source: conv[0], mainGain: conv[1], sendGain: conv[2] } : null, panner: !!opts.panner, bass: opts.bass || 0, hifi: opts.hifi || 0, dynamic: opts.dynamic || 0, balance: 0, pitch: 1 } })
 
+// themeCls 对应下方渐变类：底色取自 QQ 音乐音效弹窗参考图的像素采样
 const featuredList = [
   C('close', 'themeRed', window.i18n.t('player__sound_effect_biquad_filter_preset_close'), { ...ZERO_EQ }, null),
   C('smart', 'themePurple', window.i18n.t('player__sound_effect_featured_smart'), eqOf('pop'), ['matrix-reverb1.wav', 12, 6], { bass: 6, hifi: 6, dynamic: 5 }),
@@ -188,154 +199,139 @@ onMounted(() => {
   user-select: none;
   min-width: 0;
 }
+
+// ===== 区块标题 =====
 .sectionTitle {
-  margin: 0 0 12px;
-  font-size: var(--qm-fs-md, 14px);
-  font-weight: var(--qm-fw-semibold, 600);
-  color: var(--qm-text-1);
+  margin: 0 0 8px;
+  font-size: var(--se-fs-section, 14px);
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--se-text, #333);
+}
+.sectionTitleGap {
+  // 实测：精选卡第二行底 291 → 达人行首行顶 347，中间夹标题行高 20
+  margin: 17px 0 18px;
 }
 
-// ===== 精选音效卡 =====
-// 设计取向（对应 Apple HIG 卡片的「渐变承担明确作用、不牺牲文字可读性」）：
-// 原实现是 10 组霓虹双色强渐变 + 白字 + 重描边阴影，其中两个预设因白字读不清
-// 被临时改成深色字——说明配色体系本身有问题。
-// 现改为「低饱和同色相柔和渐变 + 主题墨色文字」：
-//   · 颜色仅用于区分预设（承担明确作用），不再做视觉主角
-//   · 文字统一走 --qm-text-1，浅色/深色主题下对比度都稳定达标
-//   · 选中态改用主题主色，与全局「选中」语言一致
+// ===== 精选音效：5 列卡片（实测 96×96、间距 10）=====
 .featuredGrid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: var(--qm-sp-5, 12px);
+  grid-auto-rows: 96px;
+  gap: 10px;
 }
 .featuredCard {
   position: relative;
-  height: 74px;
-  border: 1px solid var(--qm-line-1);
-  border-radius: var(--qm-radius-card, 10px);
+  box-sizing: border-box;
+  border: 2px solid transparent;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0 6px;
   cursor: pointer;
-  box-sizing: border-box;
-  background-color: var(--qm-card);
-  color: var(--qm-text-1);
-  transition: transform var(--qm-t-fast), border-color var(--qm-t-fast);
+  color: #fff;
+  overflow: hidden;
+  transition: transform var(--qm-t-fast, 150ms ease), box-shadow var(--qm-t-fast, 150ms ease);
+  // 白色文字压在中等明度的色块上，加一层极轻的投影把对比度抬到达标线以上
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
 
   &:hover {
     transform: translateY(-1px);
-    border-color: var(--qm-line-2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
   }
   &.active {
-    border-color: var(--qm-primary);
-    background-image: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--qm-primary) 16%, var(--qm-card)),
-      color-mix(in srgb, var(--qm-primary) 6%, var(--qm-card))
-    );
-    color: var(--qm-primary);
-
-    .checkBadge {
-      display: block;
-    }
+    border-color: var(--se-accent, #1ecc94);
   }
 }
-
-// 预设色相族：统一以「墨色三元组」定义，再以相同比例混入卡片底色。
-// 调整整体浓淡只需改下面两个百分比。
-.themeRed    { --tile-hue: 201, 106, 99; }
-.themePurple { --tile-hue: 142, 124, 195; }
-.themeTeal   { --tile-hue: 79, 179, 165; }
-.themeGreen  { --tile-hue: 90, 164, 105; }
-.themeIndigo { --tile-hue: 107, 127, 199; }
-.themeCyan   { --tile-hue: 74, 157, 196; }
-.themeAqua   { --tile-hue: 79, 176, 184; }
-.themeGreen2 { --tile-hue: 120, 176, 132; }
-.themeViolet { --tile-hue: 160, 108, 192; }
-.themeRed2   { --tile-hue: 176, 96, 88; }
-
-.themeRed, .themePurple, .themeTeal, .themeGreen, .themeIndigo,
-.themeCyan, .themeAqua, .themeGreen2, .themeViolet, .themeRed2 {
-  background-image: linear-gradient(
-    135deg,
-    color-mix(in srgb, rgb(var(--tile-hue)) 18%, var(--qm-card)),
-    color-mix(in srgb, rgb(var(--tile-hue)) 7%, var(--qm-card))
-  );
-}
-
 .featuredName {
-  font-size: var(--qm-fs-md, 14px);
-  font-weight: var(--qm-fw-semibold, 600);
+  font-size: var(--se-fs-section, 14px);
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  // 参考图中「5.1 立体环绕声」只在数字前缀后的空格处断行（第一行「5.1」、第二行「立体环绕声」），
+  // 因此禁用 CJK 逐字断行；万一某个语言文案过长，再由 anywhere 兜底避免溢出
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 .checkBadge {
-  display: none;
   position: absolute;
-  right: 5px;
-  bottom: 4px;
+  right: 3px;
+  bottom: 2px;
   width: 16px;
   height: 16px;
-  color: var(--qm-primary);
-  // 由白色描边阴影改为跟随卡片底色的柔光，浅色卡面上也能看清
-  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--qm-card) 90%, transparent));
+  color: #fff;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
 }
 
-// ===== 达人音效列表 =====
+// 精选卡渐变（QQ 音乐音效弹窗实测色，160° 微渐变 + 一层柔和高光）
+.themeRed    { background-color: #ea8383; background-image: linear-gradient(160deg, #ee9393, #e17878); }
+.themePurple { background-color: #7a76a5; background-image: linear-gradient(160deg, #827eb0, #726ea0); }
+.themeTeal   { background-color: #7faad6; background-image: linear-gradient(160deg, #8ab4e0, #6390bc); }
+.themeGreen  { background-color: #70c48b; background-image: linear-gradient(160deg, #7ccb97, #65bd82); }
+.themeIndigo { background-color: #737dab; background-image: linear-gradient(160deg, #7c86b4, #6a74a2); }
+.themeCyan   { background-color: #78c3cc; background-image: linear-gradient(160deg, #82c9d1, #6fbcc6); }
+.themeAqua   { background-color: #6db6aa; background-image: linear-gradient(160deg, #75bbaf, #64b0a4); }
+.themeGreen2 { background-color: #71bfc2; background-image: linear-gradient(160deg, #7bc5c8, #68b9bc); }
+.themeViolet { background-color: #d0a1d0; background-image: linear-gradient(160deg, #d8abd8, #c897c8); }
+.themeRed2   { background-color: #c4615a; background-image: linear-gradient(160deg, #cb6d67, #b64d47); }
+
+// ===== 达人音效：2 列 =====
 .masterGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px 18px;
+  gap: 10px;
 }
 .masterAdd {
   display: flex;
-  flex-flow: column nowrap;
   align-items: center;
   justify-content: center;
-  gap: var(--qm-sp-1, 4px);
-  min-height: 40px;
-  border-radius: var(--qm-radius-xs, 6px);
-  background-color: var(--qm-field, rgba(0, 0, 0, 0.04));
-  color: var(--qm-text-3, #999);
-  font-size: var(--qm-fs-xs, 12px);
+  height: 36px;
+  border-radius: 4px;
+  background-color: var(--se-field, #f8f8f8);
+  color: var(--se-text-weak, #666);
   cursor: pointer;
-  transition: background-color @transition-fast, color @transition-fast;
+  transition: background-color var(--qm-t-fast, 150ms ease), color var(--qm-t-fast, 150ms ease);
 
-  svg { width: 18px; height: 18px; }
+  svg { width: var(--qm-icon); height: var(--qm-icon); }
   &:hover {
-    color: var(--color-primary);
-    background-color: var(--qm-primary-soft, rgba(0, 0, 0, 0.05));
+    background-color: var(--se-field-hover, #f1f1f1);
+    color: var(--se-text, #333);
   }
 }
 .masterItem {
   position: relative;
+  // 必须 border-box：1px 透明描边若按 content-box 计，会把行高撑到 38 使行距偏离实测的 46
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: var(--qm-sp-3, 8px);
-  min-height: 40px;
-  padding: 0 12px;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px 0 14px;
   border: 1px solid transparent;
-  border-radius: var(--qm-radius-xs, 6px);
-  background-color: var(--qm-field, rgba(0, 0, 0, 0.04));
+  border-radius: 4px;
+  background-color: var(--se-field, #f8f8f8);
   cursor: pointer;
-  transition: background-color @transition-fast, border-color @transition-fast;
+  transition: background-color var(--qm-t-fast, 150ms ease);
 
   &:hover {
-    background-color: var(--qm-hover, rgba(0, 0, 0, 0.06));
+    background-color: var(--se-field-hover, #f1f1f1);
   }
   &.masterActive {
-    border-color: var(--color-primary);
+    border-color: var(--se-accent, #1ecc94);
   }
 }
 .masterName {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: var(--qm-fs-sm, 13px);
-  color: var(--color-font);
+  font-size: var(--se-fs-body, 13px);
+  color: var(--se-text, #333);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .masterActive .masterName {
-  color: var(--color-primary);
+  color: var(--se-accent, #1ecc94);
 }
 .masterDelete {
   flex: none;
@@ -348,24 +344,27 @@ onMounted(() => {
   border-radius: 50%;
   padding: 0;
   background: transparent;
-  color: var(--qm-text-3, #999);
-  font-size: var(--qm-fs-md, 14px);
+  color: var(--se-text-weak, #666);
+  font-size: 15px;
   line-height: 1;
   cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--qm-t-fast, 150ms ease), background-color var(--qm-t-fast, 150ms ease);
 
   &:hover {
-    background-color: var(--color-btn-close, #e74c3c);
+    background-color: #e74c3c;
     color: #fff;
   }
 }
+.masterItem:hover .masterDelete {
+  opacity: 1;
+}
 .masterUse {
   flex: none;
-  font-size: var(--qm-fs-xs, 12px);
-  color: var(--qm-text-3, #999);
-  cursor: pointer;
+  font-size: var(--se-fs-body, 13px);
+  color: var(--se-text, #333);
 }
 .masterItem:hover .masterUse {
-  color: var(--color-primary);
+  color: var(--se-accent, #1ecc94);
 }
 </style>
-

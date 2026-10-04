@@ -47,13 +47,35 @@ const writeMeta = async(filePath, meta, picPath) => {
   const flacProcessor = new FlacProcessor()
   flacProcessor.writeMeta(data)
 
-  reader.pipe(flacProcessor).pipe(writer).on('finish', () => {
-    fs.unlink(filePath, err => {
-      if (err) return console.log(err.message)
+  return new Promise((resolve, reject) => {
+    let settled = false
+    const fail = (err) => {
+      if (settled) return
+      settled = true
+      fs.unlink(tempPath, () => {})
+      reject(err)
+    }
+    // 任一环节出错都必须 reject，否则调用方的 await 会永久挂起
+    reader.on('error', fail)
+    writer.on('error', fail)
+    flacProcessor.on('error', fail)
+
+    writer.on('finish', () => {
+      if (settled) return
+      settled = true
+      // 直接 rename 覆盖原文件（POSIX rename 与 Windows MoveFileEx 均为原子替换）。
+      // 旧实现先 unlink 再 rename，两步之间崩溃会导致原歌曲永久丢失。
       fs.rename(tempPath, filePath, err => {
-        if (err) console.log(err.message)
+        if (err) {
+          fs.unlink(tempPath, () => {})
+          reject(err)
+          return
+        }
+        resolve()
       })
     })
+
+    reader.pipe(flacProcessor).pipe(writer)
   })
 }
 
@@ -68,14 +90,13 @@ module.exports = (filePath, meta, proxy) => {
   let picPath = filePath.replace(/\.flac$/, '') + (ext ? ext.replace(extReg, '$1') : '.jpg')
 
   if (picUrl.includes('music.126.net')) picUrl += `${picUrl.includes('?') ? '&' : '?'}param=500y500`
-  download(picUrl, picPath, proxy).then(success => {
-    if (success) {
-      writeMeta(filePath, meta, picPath).finally(() => {
-        fs.unlink(picPath, err => {
-          if (err) console.log(err.message)
-        })
+  return download(picUrl, picPath, proxy).then(success => {
+    if (!success) return writeMeta(filePath, meta)
+    return writeMeta(filePath, meta, picPath).finally(() => {
+      fs.unlink(picPath, err => {
+        if (err) console.log(err.message)
       })
-    } else writeMeta(filePath, meta)
+    })
   })
 }
 

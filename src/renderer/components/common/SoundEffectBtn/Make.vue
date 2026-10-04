@@ -75,7 +75,7 @@
           <div v-if="expandUid === item.uid" :class="$style.paramArea">
             <label v-for="p in getFx(item.fxId).params" :key="p.key" :class="$style.paramRow">
               <span :class="$style.paramLabel">{{ $t(p.label) }}</span>
-              <base-slider-bar
+              <se-slider
                 :class="$style.paramSlider"
                 :value="item.params[p.key] ?? p.def"
                 :min="p.min"
@@ -121,6 +121,7 @@
 import { computed, ref } from '@common/utils/vueTools'
 import { dialog } from '@renderer/plugins/Dialog'
 import { playDjEffect } from '@renderer/plugins/player'
+import SeSlider from './SeSlider.vue'
 
 const view = ref<'home' | 'general' | 'dj'>('home')
 
@@ -271,7 +272,9 @@ const handleImportFile = (event: Event) => {
 }
 
 // ===== DJ 音效 =====
-const djCards = [
+type DjType = 'clap' | 'twist' | 'jump' | 'shake' | 'leg' | 'knock'
+// id 显式收敛成字面量联合，避免模板里 card.id 被推断为 string 而无法传给 playDj
+const djCards: Array<{ id: DjType, themeCls: string }> = [
   { id: 'clap', themeCls: 'djBlue' },
   { id: 'twist', themeCls: 'djTeal' },
   { id: 'jump', themeCls: 'djPink' },
@@ -279,7 +282,7 @@ const djCards = [
   { id: 'leg', themeCls: 'djIndigo' },
   { id: 'knock', themeCls: 'djGreen' },
 ]
-const playDj = (type: 'clap' | 'twist' | 'jump' | 'shake' | 'leg' | 'knock') => {
+const playDj = (type: DjType) => {
   playDjEffect(type)
 }
 </script>
@@ -295,8 +298,8 @@ const playDj = (type: 'clap' | 'twist' | 'jump' | 'shake' | 'leg' | 'knock') => 
 .subHeader {
   display: flex;
   align-items: center;
-  gap: var(--qm-sp-4, 10px);
-  margin-bottom: 14px;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 .backBtn {
   display: flex;
@@ -307,154 +310,147 @@ const playDj = (type: 'clap' | 'twist' | 'jump' | 'shake' | 'leg' | 'knock') => 
   border: none;
   border-radius: 50%;
   background: transparent;
-  color: var(--color-font);
+  color: var(--se-text, #333);
   cursor: pointer;
-  transition: background-color @transition-fast;
+  transition: background-color var(--qm-t-fast, 150ms ease);
 
-  svg { width: 18px; height: 18px; }
-  &:hover {
-    background-color: var(--qm-hover, rgba(0, 0, 0, 0.06));
-  }
+  svg { width: var(--qm-icon-sm); height: var(--qm-icon-sm); }
+  &:hover { background-color: rgba(0, 0, 0, 0.06); }
 }
 .subTitle {
   flex: 1;
   text-align: center;
   margin-right: 30px;
-  font-size: var(--qm-fs-lg, 15px);
-  font-weight: var(--qm-fw-semibold, 600);
-  color: var(--color-font);
+  font-size: var(--se-fs-section, 14px);
+  font-weight: 600;
+  color: var(--se-text, #333);
 }
 
 // ===== 主页三卡片 =====
 .cardGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 22px;
-  padding: 48px 20px 0;
+  gap: 20px;
+  padding: 34px 10px 0;
 }
 .bigCard {
   display: flex;
   flex-flow: column nowrap;
   align-items: center;
-  gap: var(--qm-sp-5, 12px);
-  padding: 34px 16px 28px;
-  border: 1px solid var(--qm-line-1, rgba(0, 0, 0, 0.08));
-  border-radius: var(--qm-radius-md, 10px);
-  background: transparent;
+  gap: 12px;
+  padding: 30px 16px 26px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background-color: var(--se-field, #f8f8f8);
   cursor: pointer;
-  transition: box-shadow @transition-fast, transform @transition-fast, border-color @transition-fast;
+  transition: background-color var(--qm-t-fast, 150ms ease), border-color var(--qm-t-fast, 150ms ease);
 
   &:hover {
-    border-color: var(--color-primary);
-    box-shadow: var(--qm-shadow-1, 0 4px 12px rgba(0, 0, 0, 0.08));
-    transform: translateY(-2px);
+    border-color: var(--se-accent, #1ecc94);
+    background-color: var(--se-field-hover, #f1f1f1);
   }
 }
 .bigIcon {
-  width: 44px;
-  height: 44px;
-  color: var(--color-font);
+  width: 40px;
+  height: 40px;
+  color: var(--se-text, #333);
 }
 .bigName {
-  font-size: var(--qm-fs-lg, 15px);
-  font-weight: var(--qm-fw-semibold, 600);
-  color: var(--color-font);
+  font-size: var(--se-fs-section, 14px);
+  font-weight: 600;
+  color: var(--se-text, #333);
 }
 .bigDesc {
-  font-size: var(--qm-fs-xs, 12px);
+  font-size: var(--se-fs-aux, 12px);
   line-height: 1.6;
-  color: var(--qm-text-3, #888);
+  color: var(--se-text-weak, #666);
   text-align: center;
-  max-width: 100%;
 }
 .homeFooter {
   display: flex;
   justify-content: center;
   gap: 40px;
-  padding: 40px 0 8px;
+  padding: 36px 0 8px;
 }
 .footerLink {
   border: none;
   background: transparent;
-  font-size: var(--qm-fs-sm, 13px);
-  color: var(--color-font);
+  font-size: var(--se-fs-body, 13px);
+  color: var(--se-text-weak, #666);
   cursor: pointer;
 
-  &:hover {
-    color: var(--color-primary);
-  }
+  &:hover { color: var(--se-accent, #1ecc94); }
 }
 
 // ===== 通用音效编辑器 =====
 .genToolbar {
   display: flex;
   align-items: center;
-  gap: var(--qm-sp-5, 12px);
-  margin-bottom: var(--qm-sp-7, 16px);
+  gap: 12px;
+  margin-bottom: 16px;
 }
 .genName {
   width: 160px;
   padding: 6px 10px;
   border: none;
-  border-radius: var(--qm-radius-xs, 6px);
-  background: transparent;
-  font-size: var(--qm-fs-md, 14px);
-  font-weight: var(--qm-fw-semibold, 600);
-  color: var(--color-font);
+  border-radius: 4px;
+  background: var(--se-field, #f8f8f8);
+  font-size: var(--se-fs-body, 13px);
+  font-weight: 600;
+  color: var(--se-text, #333);
   box-sizing: border-box;
 
-  &:focus {
-    outline: none;
-    background-color: var(--qm-field, rgba(0, 0, 0, 0.04));
-  }
+  &:focus { outline: none; box-shadow: 0 0 0 2px rgba(30, 204, 148, 0.3); }
 }
 .genPhone {
   margin-left: auto;
-  font-size: var(--qm-fs-xs, 12px);
-  color: var(--qm-text-3, #aaa);
+  font-size: var(--se-fs-aux, 12px);
+  color: var(--se-text-weak, #666);
 }
 .genSwitch {
   position: relative;
-  width: 40px;
-  height: 22px;
+  width: 36px;
+  height: 20px;
   border: none;
-  border-radius: var(--qm-radius-chip, 999px);
-  background-color: var(--qm-line-2, rgba(0, 0, 0, 0.12));
+  border-radius: 999px;
+  background-color: #d8d8d8;
   cursor: pointer;
-  transition: background-color @transition-normal;
   padding: 0;
+  transition: background-color var(--qm-t-base, 200ms ease);
 
   .genSwitchDot {
     position: absolute;
     top: 2px;
     left: 2px;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     background-color: #fff;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-    transition: left @transition-normal;
+    transition: left var(--qm-t-base, 200ms ease);
   }
   &.genSwitchOn {
-    background-color: var(--color-primary);
-    .genSwitchDot { left: 20px; }
+    background-image: linear-gradient(90deg, #21d4b2, var(--se-accent-switch, #1edaaa));
+    .genSwitchDot { left: 18px; }
   }
 }
 .genSwitchLabel {
-  font-size: var(--qm-fs-xs, 12px);
-  color: var(--qm-text-3, #999);
+  font-size: var(--se-fs-aux, 12px);
+  color: var(--se-text-weak, #666);
 }
 .genPill {
   border: none;
-  border-radius: var(--qm-radius-chip, 999px);
-  padding: 6px 16px;
-  background-color: color-mix(in srgb, var(--color-primary) 18%, transparent);
-  color: var(--color-primary);
-  font-size: var(--qm-fs-xs, 12px);
+  border-radius: 4px;
+  padding: 6px 14px;
+  background-color: var(--se-field, #f8f8f8);
+  color: var(--se-text, #333);
+  font-size: var(--se-fs-aux, 12px);
   cursor: pointer;
+  transition: background-color var(--qm-t-fast, 150ms ease), color var(--qm-t-fast, 150ms ease);
 
   &:hover {
-    background-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+    background-color: var(--se-accent, #1ecc94);
+    color: #fff;
   }
 }
 
@@ -465,41 +461,41 @@ const playDj = (type: 'clap' | 'twist' | 'jump' | 'shake' | 'leg' | 'knock') => 
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--qm-sp-4, 10px);
+  margin-bottom: 10px;
 
   b {
-    font-size: var(--qm-fs-md, 14px);
-    color: var(--color-font);
+    font-size: var(--se-fs-section, 14px);
+    color: var(--se-text, #333);
   }
 }
 .addLocalBtn {
   border: none;
-  border-radius: var(--qm-radius-chip, 999px);
-  padding: 7px 16px;
-  background-color: var(--color-primary);
+  border-radius: 4px;
+  padding: 6px 14px;
+  background-color: var(--se-accent, #1ecc94);
   color: #fff;
-  font-size: var(--qm-fs-xs, 12px);
+  font-size: var(--se-fs-aux, 12px);
   cursor: pointer;
 }
 .addGroup {
   margin: 0 0 8px;
-  font-size: var(--qm-fs-xs, 12px);
-  color: var(--qm-text-3, #999);
+  font-size: var(--se-fs-aux, 12px);
+  color: var(--se-text-weak, #666);
 }
 .fxGrid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: var(--qm-sp-4, 10px);
+  gap: 10px;
 }
 .fxBtn {
-  height: 32px;
+  height: 30px;
   border: none;
-  border-radius: var(--qm-radius-xs, 6px);
-  background-color: var(--qm-field, rgba(0, 0, 0, 0.05));
-  color: var(--color-font);
-  font-size: var(--qm-fs-xs, 12px);
+  border-radius: 4px;
+  background-color: var(--se-field, #f8f8f8);
+  color: var(--se-text, #333);
+  font-size: var(--se-fs-aux, 12px);
   cursor: pointer;
-  transition: background-color @transition-fast, color @transition-fast;
+  transition: background-color var(--qm-t-fast, 150ms ease), color var(--qm-t-fast, 150ms ease);
   box-sizing: border-box;
   max-width: 100%;
   overflow: hidden;
@@ -508,38 +504,39 @@ const playDj = (type: 'clap' | 'twist' | 'jump' | 'shake' | 'leg' | 'knock') => 
   padding: 0 6px;
 
   &:hover {
-    background-color: var(--qm-primary-soft, rgba(0, 0, 0, 0.06));
-    color: var(--color-primary);
+    background-color: var(--se-field-hover, #f1f1f1);
+    color: var(--se-accent, #1ecc94);
   }
 }
 .addBigBtn {
   width: 100%;
-  height: 52px;
+  height: 48px;
   margin-bottom: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: var(--qm-radius-sm, 8px);
-  background-color: var(--qm-field, rgba(0, 0, 0, 0.05));
-  color: var(--qm-text-3, #999);
+  border-radius: 4px;
+  background-color: var(--se-field, #f8f8f8);
+  color: var(--se-text-weak, #666);
   cursor: pointer;
 
-  svg { width: 20px; height: 20px; }
+  svg { width: var(--qm-icon); height: var(--qm-icon); }
   &:hover {
-    color: var(--color-primary);
+    background-color: var(--se-field-hover, #f1f1f1);
+    color: var(--se-text, #333);
   }
 }
 
 .chainList {
   display: flex;
   flex-flow: column nowrap;
-  gap: var(--qm-sp-3, 8px);
+  gap: 8px;
 }
 .chainItem {
   position: relative;
-  border-radius: var(--qm-radius-sm, 8px);
-  background-color: var(--qm-field, rgba(0, 0, 0, 0.04));
+  border-radius: 4px;
+  background-color: var(--se-field, #f8f8f8);
 }
 .chainHead {
   width: 100%;
@@ -549,22 +546,18 @@ const playDj = (type: 'clap' | 'twist' | 'jump' | 'shake' | 'leg' | 'knock') => 
   padding: 10px 40px 10px 14px;
   border: none;
   background: transparent;
-  color: var(--color-font);
-  font-size: var(--qm-fs-sm, 13px);
+  color: var(--se-text, #333);
+  font-size: var(--se-fs-body, 13px);
   cursor: pointer;
 
-  &:hover {
-    color: var(--color-primary);
-  }
+  &:hover { color: var(--se-accent, #1ecc94); }
 }
 .arrow {
   width: 16px;
   height: 16px;
-  transition: transform @transition-fast;
+  transition: transform var(--qm-t-fast, 150ms ease);
 
-  &.arrowOpen {
-    transform: rotate(180deg);
-  }
+  &.arrowOpen { transform: rotate(180deg); }
 }
 .chainDelete {
   position: absolute;
@@ -578,13 +571,13 @@ const playDj = (type: 'clap' | 'twist' | 'jump' | 'shake' | 'leg' | 'knock') => 
   border: none;
   border-radius: 50%;
   background: transparent;
-  color: var(--qm-text-3, #999);
-  font-size: var(--qm-fs-lg, 15px);
+  color: var(--se-text-weak, #666);
+  font-size: 15px;
   line-height: 1;
   cursor: pointer;
 
   &:hover {
-    background-color: var(--color-btn-close, #e74c3c);
+    background-color: #e74c3c;
     color: #fff;
   }
 }
@@ -592,19 +585,19 @@ const playDj = (type: 'clap' | 'twist' | 'jump' | 'shake' | 'leg' | 'knock') => 
   padding: 4px 14px 12px;
   display: flex;
   flex-flow: column nowrap;
-  gap: var(--qm-sp-3, 8px);
+  gap: 10px;
 }
 .paramRow {
   display: flex;
   align-items: center;
-  gap: var(--qm-sp-4, 10px);
+  gap: 14px;
   min-width: 0;
 }
 .paramLabel {
   flex: none;
-  width: 70px;
-  font-size: var(--qm-fs-xs, 12px);
-  color: var(--color-font);
+  width: 108px;
+  font-size: var(--se-fs-body, 13px);
+  color: var(--se-text, #333);
 }
 .paramSlider {
   flex: 1 1 auto;
@@ -612,10 +605,10 @@ const playDj = (type: 'clap' | 'twist' | 'jump' | 'shake' | 'leg' | 'knock') => 
 }
 .paramValue {
   flex: none;
-  width: 36px;
+  width: 40px;
   text-align: right;
-  font-size: var(--qm-fs-xs, 12px);
-  color: var(--qm-text-3, #999);
+  font-size: var(--se-fs-aux, 12px);
+  color: var(--se-text-weak, #666);
   font-variant-numeric: tabular-nums;
 }
 
@@ -624,71 +617,61 @@ const playDj = (type: 'clap' | 'twist' | 'jump' | 'shake' | 'leg' | 'knock') => 
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
-  padding-top: var(--qm-sp-7, 16px);
+  padding-top: 16px;
 }
 .djAdd {
   display: flex;
   flex-flow: column nowrap;
   align-items: center;
   justify-content: center;
-  gap: var(--qm-sp-2, 6px);
-  min-height: 118px;
-  border-radius: var(--qm-radius-sm, 8px);
-  background-color: var(--qm-field, rgba(0, 0, 0, 0.05));
-  color: var(--qm-text-3, #999);
-  font-size: var(--qm-fs-sm, 13px);
+  gap: 6px;
+  min-height: 112px;
+  border-radius: 4px;
+  background-color: var(--se-field, #f8f8f8);
+  color: var(--se-text-weak, #666);
+  font-size: var(--se-fs-body, 13px);
   cursor: pointer;
+  transition: background-color var(--qm-t-fast, 150ms ease), color var(--qm-t-fast, 150ms ease);
 
-  svg { width: 22px; height: 22px; }
+  svg { width: var(--qm-icon); height: var(--qm-icon); }
   &:hover {
-    color: var(--color-primary);
+    background-color: var(--se-field-hover, #f1f1f1);
+    color: var(--se-text, #333);
   }
 }
 .djCard {
-  min-height: 118px;
+  min-height: 112px;
   display: flex;
   flex-flow: column nowrap;
   align-items: center;
   justify-content: center;
-  gap: var(--qm-sp-3, 8px);
-  border: 1px solid var(--qm-line-1);
-  border-radius: var(--qm-radius-card, 10px);
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
   cursor: pointer;
-  // 与「精选音效」一致：低饱和柔和渐变 + 主题墨色文字，去掉了原来的白字 + 重描边阴影
-  background-color: var(--qm-card);
-  color: var(--qm-text-1);
-  transition: transform var(--qm-t-fast), border-color var(--qm-t-fast);
+  transition: border-color var(--qm-t-fast, 150ms ease), transform var(--qm-t-fast, 150ms ease);
 
   &:hover {
+    border-color: var(--se-accent, #1ecc94);
     transform: translateY(-1px);
-    border-color: var(--qm-line-2);
   }
-  &:active {
-    transform: scale(0.99);
-  }
+  &:active { transform: scale(0.99); }
 }
 .djName {
-  font-size: var(--qm-fs-xl, 16px);
-  font-weight: var(--qm-fw-semibold, 600);
+  font-size: var(--se-fs-section, 14px);
+  font-weight: 600;
+  color: var(--se-text, #333);
 }
 .djDesc {
-  font-size: var(--qm-fs-xs, 12px);
-  color: var(--qm-text-3);
+  font-size: var(--se-fs-aux, 12px);
+  color: var(--se-text-weak, #666);
 }
 
-// 色相族：与精选音效卡同一套取值方式（改这两个百分比即可整体调浓淡）
-.djBlue   { --tile-hue: 74, 157, 196; }
-.djTeal   { --tile-hue: 79, 179, 165; }
-.djPink   { --tile-hue: 201, 106, 99; }
-.djPurple { --tile-hue: 142, 124, 195; }
-.djIndigo { --tile-hue: 107, 127, 199; }
-.djGreen  { --tile-hue: 90, 164, 105; }
-
-.djBlue, .djTeal, .djPink, .djPurple, .djIndigo, .djGreen {
-  background-image: linear-gradient(
-    135deg,
-    color-mix(in srgb, rgb(var(--tile-hue)) 18%, var(--qm-card)),
-    color-mix(in srgb, rgb(var(--tile-hue)) 7%, var(--qm-card))
-  );
-}
+// DJ 卡底色：与精选卡同一档低饱和色，保持面板整体观感一致
+.djBlue   { background-image: linear-gradient(160deg, #dfeaf6, #d2e1f2); }
+.djTeal   { background-image: linear-gradient(160deg, #daefe9, #cee9e1); }
+.djPink   { background-image: linear-gradient(160deg, #f7e3e2, #f2d8d6); }
+.djPurple { background-image: linear-gradient(160deg, #e6e4f2, #dddaf0); }
+.djIndigo { background-image: linear-gradient(160deg, #e0e4f1, #d8dcee); }
+.djGreen  { background-image: linear-gradient(160deg, #e0efe2, #d5ead8); }
 </style>

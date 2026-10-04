@@ -1,123 +1,67 @@
 <template>
-  <material-popup-btn :class="$style.btnContent">
-    <button :class="$style.btn" :aria-label="isMute ? $t('player__volume_muted') : `${$t('player__volume')}${parseInt(volume * 100)}%`" @wheel="handleWheel">
-      <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 24 24" space="preserve">
-        <use :xlink:href="icon" />
-      </svg>
+  <material-popup-btn ref="popupRef" :class="$style.btnContent">
+    <button
+      :class="$style.btn"
+      :aria-label="isMute ? $t('player__volume_muted') : `${$t('player__volume')}${volumePercent}%`"
+      ignore-tip
+     @wheel="handleWheel"
+>
+      <svg-icon :name="volumeIcon" />
     </button>
     <template #content>
-      <div :class="$style.setting">
-        <div :class="$style.info">
-          <span>{{ Math.trunc(localVolume * 100) }}%</span>
-          <base-checkbox
-            id="player__volume_mute"
-            :model-value="isMute"
-            :label="$t('player__volume_mute_label')"
-            @update:model-value="saveVolumeIsMute($event)"
-          />
-        </div>
-        <base-slider-bar :class="$style.slider" :value="localVolume" :min="0" :max="1" :step="0.01" @change="handleUpdateVolume" />
+      <!-- 向上弹出的竖版音量条：与主播放栏共用同一实现 -->
+      <div @click.stop @contextmenu.stop>
+        <common-volume-popup />
       </div>
     </template>
   </material-popup-btn>
 </template>
 
 <script setup>
-import { computed, ref, watch } from '@common/utils/vueTools'
-// import useNextTogglePlay from '@renderer/utils/compositions/useNextTogglePlay'
-// import useToggleDesktopLyric from '@renderer/utils/compositions/useToggleDesktopLyric'
-// import { musicInfo, playMusicInfo } from '@renderer/store/player/state'
-import { saveVolumeIsMute } from '@renderer/store/setting'
-import { volume, isMute } from '@renderer/store/player/volume'
+import { ref } from '@common/utils/vueTools'
+import useVolumeControl from '@renderer/utils/compositions/useVolumeControl'
+
+const popupRef = ref(null)
+
+const {
+  isMute,
+  volume,
+  volumeIcon,
+  volumePercent,
+} = useVolumeControl()
 
 const handleWheel = (event) => {
   window.app_event.setVolume(Math.round(volume.value * 100 + (-event.deltaY / 100 * 2)) / 100)
 }
 
-// 本地值：拖动时立即更新（实时生效），音量状态变化（滚轮/主进程同步）时回同步
-const localVolume = ref(volume.value)
-watch(volume, (val) => {
-  localVolume.value = val
+defineExpose({
+  hide() { popupRef.value?.hide() },
 })
-
-const handleUpdateVolume = (val) => {
-  localVolume.value = val
-  window.app_event.setVolume(val)
-}
-
-const icon = computed(() => {
-  return isMute.value
-    ? '#icon-volume-mute-outline'
-    : volume.value == 0
-      ? '#icon-volume-off-outline'
-      : volume.value < 0.3
-        ? '#icon-volume-low-outline'
-        : volume.value < 0.7
-          ? '#icon-volume-medium-outline'
-          : '#icon-volume-high-outline'
-})
-
 </script>
 
 <style lang="less" module>
 @import '@renderer/assets/styles/layout.less';
+@import '@renderer/assets/styles/qq-icon.less';
+
 .btnContent {
   flex: none;
   height: 100%;
 }
 
+// 统一图标按钮：三态一致（默认 72% → 悬停 100% + 加深 → 按下缩放 → 禁用 40% 不可点）
+// 尺寸由使用方通过 --qm-volume-size 控制（播放栏 32 / 详情页底栏 20）
 .btn {
+  .qm-icon-btn-strong();
+
   position: relative;
-  // color: var(--color-button-font);
-  justify-content: center;
-  align-items: center;
-  transition: color @transition-normal;
-  cursor: pointer;
-  background-color: transparent;
-  border: none;
-  width: 24px;
-  display: flex;
-  flex-flow: column nowrap;
-  padding: 0;
+  width: var(--qm-volume-size, 32px);
+  height: var(--qm-volume-size, 32px);
+  border-radius: var(--qm-radius-sm, 8px);
 
-  svg {
-    transition: opacity @transition-fast;
-    opacity: .6;
-    filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.2));
-  }
-  &:hover {
-    svg {
-      opacity: .9;
-    }
-  }
-  &:active {
-    svg {
-      opacity: 1;
-    }
-  }
+  &:hover:not(:disabled) { background-color: var(--qm-hover); }
+
+  // 图标尺寸单独用变量下传：组件内的规则与使用方的覆盖规则
+  // 特异性相同，胜负由 CSS Module 注入顺序决定（换文件顺序就回退）
+  :global(.svg-icon) { width: var(--qm-volume-btn-icon, var(--qm-icon)); height: var(--qm-volume-btn-icon, var(--qm-icon)); }
 }
-
-.setting {
-  display: flex;
-  flex-flow: column nowrap;
-  padding: 2px 3px;
-  gap: var(--qm-sp-3, 8px);
-  width: 140px;
-}
-
-.info {
-  display: flex;
-  flex-flow: row nowrap;
-  justify-content: space-between;
-  align-items: center;
-  font-size: var(--qm-fs-sm, 13px);
-  span {
-    line-height: 1.2;
-  }
-}
-
-.slider {
-  width: 100%;
-}
-
 </style>

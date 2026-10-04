@@ -121,8 +121,8 @@ export default {
       border-radius: var(--qm-radius-card, 10px);
 
       svg {
-        width: 18px;
-        height: 18px;
+        width: var(--qm-icon-sm);
+        height: var(--qm-icon-sm);
         fill: none;
         stroke: currentColor;
         stroke-width: 2;
@@ -197,8 +197,8 @@ export default {
       // 首页 / 末页跳转：弱化为纯图标，避免与相邻的翻页箭头混淆
       &.jump {
         svg {
-          width: 16px;
-          height: 16px;
+          width: var(--qm-icon-xs);
+          height: var(--qm-icon-xs);
         }
 
         span,

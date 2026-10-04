@@ -1,4 +1,5 @@
 import { onMounted, onBeforeUnmount, watch, reactive, ref } from '@common/utils/vueTools'
+import { getRootOrigin } from '@renderer/core/globalData'
 
 
 export default ({ visible, location, onHide }) => {
@@ -73,8 +74,9 @@ export default ({ visible, location, onHide }) => {
   }, { immediate: true })
 
   watch(location, location => {
-    menuStyles.left = location.x - window.lx.rootOffset + 2 + 'px'
-    menuStyles.top = location.y - window.lx.rootOffset + 'px'
+    const origin = getRootOrigin()
+    menuStyles.left = location.x - origin.x + 2 + 'px'
+    menuStyles.top = location.y - origin.y + 'px'
     // nextTick(() => {
     if (show) {
       if (menuStyles.transitionProperty != transition2) menuStyles.transitionProperty = transition2

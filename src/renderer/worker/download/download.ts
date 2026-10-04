@@ -224,7 +224,7 @@ const createTask = async(downloadInfo: LX.Download.ListItem, savePath: string, s
   dls.set(downloadInfo.id, createDownload(downloadOptions))
 }
 
-export const updateUrl = (id: string, url: string) => {
+export const updateUrl = async(id: string, url: string) => {
   const task = tasks.get(id)
   if (!task) return
   task.metadata.url = url
@@ -232,6 +232,8 @@ export const updateUrl = (id: string, url: string) => {
   const dl = dls.get(id)
   if (!dl) return
   dl.refreshUrl(url)
+  // 必须先停止旧请求：否则旧连接仍会向写流写入数据，与新连接的数据交叉导致文件错乱
+  await dl.stop().catch(() => {})
   dl.start().catch(err => {
     sendAction(id, {
       action: 'error',

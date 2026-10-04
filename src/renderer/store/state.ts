@@ -56,6 +56,7 @@ export const openAPI = reactive<{
   bindLan: boolean
   address?: string
   message?: string
+  token?: string
 }>({
   enable: false,
   port: '23330',

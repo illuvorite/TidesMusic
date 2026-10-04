@@ -2,7 +2,7 @@ import path from 'node:path'
 import { BrowserWindow } from 'electron'
 import { debounce, getPlatform, isLinux, isWin } from '@common/utils'
 import { initWindowSize, minHeight, minWidth } from './utils'
-import { mainSend } from '@common/mainIpc'
+import { mainSend, registerTrustedSender } from '@common/mainIpc'
 import { encodePath } from '@common/utils/electron'
 
 // require('./event')
@@ -142,6 +142,8 @@ export const createWindow = () => {
       backgroundThrottling: false,
     },
   })
+
+  registerTrustedSender(browserWindow.webContents.id)
 
   const winURL = process.env.NODE_ENV !== 'production' ? 'http://localhost:9081/lyric.html' : `file://${path.join(encodePath(__dirname), 'lyric.html')}`
   void browserWindow.loadURL(winURL + `?os=${getPlatform()}&dark=${shouldUseDarkColors}&theme=${encodeURIComponent(JSON.stringify(theme))}`)

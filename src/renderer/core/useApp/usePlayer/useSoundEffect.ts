@@ -6,11 +6,16 @@ import {
   setConvolver,
   setPannerSoundR,
   setPannerSpeed,
+  setPannerEnable,
   startPanner,
   stopPanner,
   setConvolverMainGain,
   setConvolverSendGain,
   setPitchShifter,
+  setEnhanceBass,
+  setEnhanceHifi,
+  setEnhanceDynamic,
+  setEnhanceBalance,
 } from '@renderer/plugins/player'
 
 import { appSetting } from '@renderer/store/setting'
@@ -53,6 +58,8 @@ const loadBuffer = async(name: string) => new Promise<AudioBuffer>((resolve, rej
 
 export default () => {
   // console.log(appSetting['player.soundEffect.panner.enable'])
+  // 未启用环绕强度时 panner 不参与链路（否则停泊在原点也会平白吃掉 ~3dB）
+  setPannerEnable(!!appSetting['player.soundEffect.panner.enable'])
   if (appSetting['player.soundEffect.panner.enable']) startPanner()
   setPannerSoundR(appSetting['player.soundEffect.panner.soundR'] / 10)
   setPannerSpeed(2 * (appSetting['player.soundEffect.panner.speed'] / 10))
@@ -74,9 +81,16 @@ export default () => {
   if (appSetting['player.soundEffect.pitchShifter.playbackRate'] != 1) {
     setPitchShifter(appSetting['player.soundEffect.pitchShifter.playbackRate'])
   }
+  // 增强效果链（超重低音/高保真度/动态推进/声道平衡）：
+  // 全为默认值时 setEnhance* 既不建节点、也不建 AudioContext，保持干声零处理
+  setEnhanceBass(appSetting['player.soundEffect.enhance.bass'])
+  setEnhanceHifi(appSetting['player.soundEffect.enhance.hifi'])
+  setEnhanceDynamic(appSetting['player.soundEffect.enhance.dynamic'])
+  setEnhanceBalance(appSetting['player.soundEffect.enhance.balance'])
 
 
   watch(() => appSetting['player.soundEffect.panner.enable'], (enable) => {
+    setPannerEnable(!!enable)
     if (enable) {
       startPanner()
     } else {
@@ -154,6 +168,19 @@ export default () => {
 
   watch(() => appSetting['player.soundEffect.pitchShifter.playbackRate'], (playbackRate) => {
     setPitchShifter(playbackRate)
+  })
+
+  watch(() => appSetting['player.soundEffect.enhance.bass'], (v) => {
+    setEnhanceBass(v)
+  })
+  watch(() => appSetting['player.soundEffect.enhance.hifi'], (v) => {
+    setEnhanceHifi(v)
+  })
+  watch(() => appSetting['player.soundEffect.enhance.dynamic'], (v) => {
+    setEnhanceDynamic(v)
+  })
+  watch(() => appSetting['player.soundEffect.enhance.balance'], (v) => {
+    setEnhanceBalance(v)
   })
 
 

@@ -1,7 +1,7 @@
 <template>
   <div :class="$style.page">
-    <!-- 头部：大封面 + 榜单名 + 更新时间 + 操作（仿 QQ 乐馆榜单详情） -->
-    <header :class="$style.head">
+    <!-- 头部：大封面 + 榜单名 + 更新时间 + 操作（仿 QQ 乐馆榜单详情）；下滑列表时收起 -->
+    <header :class="[$style.head, { [$style.headCollapsed]: isHeadCollapsed }]">
       <div :class="$style.cover">
         <img v-if="cover" :src="cover" alt="">
         <span v-else :class="$style.coverEmpty"><svg-icon name="music" /></span>
@@ -22,71 +22,85 @@
             </svg>
             全部播放
           </button>
+          <button type="button" :class="$style.btnGhost" :disabled="loading || !list.length" @click="loveAll">
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+              <path d="M12 20s-7-4.6-7-9.4A4.1 4.1 0 0 1 12 7.6a4.1 4.1 0 0 1 7 3c0 4.8-7 9.4-7 9.4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            全部收藏
+          </button>
           <button type="button" :class="$style.btnGhost" @click="handleBack">返回</button>
         </div>
       </div>
     </header>
 
     <!-- 歌曲列表：序号 + 缩略图 + 歌名 / 歌手 / 专辑 / 时长 -->
-    <div :class="$style.body" class="qm-scroll">
+    <div :class="$style.body" class="qm-scroll" @scroll="handleHeadScroll">
       <div v-if="loading && !list.length" :class="$style.tip">正在加载榜单…</div>
       <div v-else-if="!list.length" :class="$style.tip">
         <p>暂时没有取到榜单歌曲，检查音源设置后再试试</p>
         <button type="button" :class="$style.btnGhost" @click="handleBack">返回乐馆</button>
       </div>
       <template v-else>
-        <div :class="$style.thead">
-          <span :class="$style.theadNum">歌曲</span>
-          <span :class="$style.theadCol" style="width: 20%;">歌手</span>
-          <span :class="$style.theadCol" style="width: 24%;">专辑</span>
-          <span :class="$style.theadCol" style="width: 56px; text-align: right;">时长</span>
+        <div class="thead">
+          <table>
+            <thead>
+              <!-- 参考图列头：曲序 · 歌曲 · 歌手 · 专辑 · 时长 -->
+              <tr>
+                <th class="nobreak" :class="$style.colNum">曲序</th>
+                <th :class="$style.colCover" />
+                <th class="nobreak">
+                  <span>歌曲</span>
+                </th>
+                <th class="nobreak" :class="$style.colSinger">歌手</th>
+                <th class="nobreak" :class="$style.colAlbum">专辑</th>
+                <th class="nobreak" :class="$style.colTime">时长</th>
+              </tr>
+            </thead>
+          </table>
         </div>
-        <ul :class="$style.list">
+        <ul class="list" :class="$style.list">
           <li
             v-for="(item, index) in list" :key="item.id"
-            :class="[$style.row, { [$style.rowActive]: isPlayingItem(item) }]"
+            class="list-item" :class="{ active: isPlayingItem(item), 'row-alt': index % 2 === 1 }"
             @dblclick="playFrom(index)"
           >
-            <span :class="$style.num">{{ pad2(index + 1) }}</span>
-            <span :class="$style.thumb">
-              <img v-if="getCover(item)" :src="getCover(item)" alt="" loading="lazy">
-              <span v-else :class="$style.thumbEmpty"><svg-icon name="music" /></span>
-            </span>
-            <button
-              type="button"
-              :class="[$style.love, { [$style.loveActive]: isLoved(item) }]"
-              :title="isLoved(item) ? '取消收藏' : '收藏到我喜欢的音乐'"
-              @click.stop="toggleItemLove(item)"
-            >
-              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
-                <path d="M12 20.5s-7.2-4.4-9.6-9.1A5.4 5.4 0 0 1 12 5.6a5.4 5.4 0 0 1 9.6 5.8c-2.4 4.7-9.6 9.1-9.6 9.1z" :fill="isLoved(item) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
-              </svg>
-            </button>
-            <span :class="$style.nameCell">
-              <span :class="$style.name" :title="item.name">{{ item.name }}</span>
-              <em v-if="qualityTag(item)" :class="$style.tag">{{ qualityTag(item) }}</em>
-              <span :class="$style.rowBtns">
-                <button type="button" aria-label="播放" title="播放" @click.stop="playFrom(index)">
-                  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-                    <path d="M8 5.4v13.2l11-6.6z" fill="currentColor" />
-                  </svg>
-                </button>
-                <button type="button" aria-label="添加到歌单" title="添加到歌单" @click.stop="showAdd(item)">
-                  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-                    <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-                  </svg>
-                </button>
-              </span>
-            </span>
-            <span :class="$style.singer" :title="item.singer">{{ item.singer }}</span>
-            <span :class="$style.album" :title="item.meta?.albumName">{{ item.meta?.albumName || '—' }}</span>
-            <span :class="$style.time">{{ item.interval || '--:--' }}</span>
+            <div class="list-item-cell" :class="$style.colNum">{{ String(index + 1).padStart(2, '0') }}</div>
+            <div class="list-item-cell cover">
+              <div class="row-cover">
+                <img v-if="getCover(item)" :src="getCover(item)" alt="" loading="lazy">
+                <span v-else class="row-cover-empty"><svg-icon name="music" /></span>
+                <span class="row-cover-play" @click.stop="playFrom(index)">
+                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M8 5.4v13.2l11-6.6z" fill="currentColor" /></svg>
+                </span>
+              </div>
+            </div>
+            <div class="list-item-cell auto name">
+              <div class="name-wrap">
+                <div class="name-main">
+                  <span class="select name" :title="item.name">{{ item.name }}</span>
+                  <em v-if="qualityTag(item)" class="no-select badge badge-theme-primary">{{ qualityTag(item) }}</em>
+                  <button type="button" class="row-play" aria-label="播放" title="播放" @click.stop="playFrom(index)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.4v13.2l11-6.6z" fill="currentColor" /></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="list-item-cell actions">
+              <material-list-buttons
+                :index="index" :play-btn="false" :download-btn="false" :more-btn="false"
+                :liked="isLoved(item)" @btn-click="handleRowBtn"
+              />
+            </div>
+            <div class="list-item-cell" :class="$style.colSinger"><span class="select" :title="item.singer">{{ item.singer || '—' }}</span></div>
+            <div class="list-item-cell" :class="$style.colAlbum"><span class="select" :title="item.meta?.albumName">{{ item.meta?.albumName || '—' }}</span></div>
+            <div class="list-item-cell" :class="$style.colTime"><span class="no-select">{{ item.interval || '--:--' }}</span></div>
           </li>
         </ul>
       </template>
     </div>
 
-    <common-list-add-modal v-model:show="isShowAdd" :music-info="addMusicInfo" />
+    <!-- 「添加到」锚定菜单（QQ 版式，替代旧弹窗） -->
+    <base-menu v-model="isShowAddMenu" :menus="addMenuItems" :xy="addMenuLocation" :anchor-rect="addMenuAnchorRect" item-name="name" @menu-click="handleAddMenuClick" />
   </div>
 </template>
 
@@ -101,17 +115,41 @@ import { setTempList } from '@renderer/store/list/action'
 import { playMusicInfo, isPlay } from '@renderer/store/player/state'
 import { getInitialSource, getSourceName } from '@renderer/utils/personalRecommend'
 import useLovedList from '@renderer/utils/compositions/useLovedList'
+import useListAddMenu from '@renderer/utils/compositions/useListAddMenu'
+import useHeadCollapse from '@renderer/utils/compositions/useHeadCollapse'
 
 const { isLoved, loadLoved, toggleLove } = useLovedList()
+// 页头滚动收起：下滑自动收起，上滑 / 回到顶部恢复
+const { isHeadCollapsed, handleHeadScroll } = useHeadCollapse()
 void loadLoved()
-const toggleItemLove = async(item) => { await toggleLove(item) }
 
-// 「添加到歌单」弹窗
-const isShowAdd = ref(false)
-const addMusicInfo = ref(null)
-const showAdd = (item) => {
-  addMusicInfo.value = item
-  isShowAdd.value = true
+// 行内操作按钮（喜欢 / 添加到歌单）
+const handleRowBtn = ({ action, index, event }) => {
+  const item = list.value[index]
+  if (!item) return
+  if (action === 'like') void toggleLove(item)
+  else if (action === 'listAdd') showAdd(event, item)
+}
+
+// 「全部收藏」：跳过已收藏的，避免重复 IPC
+const loveAll = () => {
+  if (!list.value.length) return
+  for (const item of list.value) {
+    if (!isLoved(item)) void toggleLove(item)
+  }
+}
+
+// 「添加到」锚定菜单（与右键菜单同款卡片）
+const {
+  isShow: isShowAddMenu,
+  location: addMenuLocation,
+  anchorRect: addMenuAnchorRect,
+  menus: addMenuItems,
+  openMenu: openAddMenu,
+  handleMenuClick: handleAddMenuClick,
+} = useListAddMenu()
+const showAdd = (event, item) => {
+  openAddMenu(event?.currentTarget, item)
 }
 
 const route = useRoute()
@@ -133,8 +171,6 @@ const today = computed(() => {
   const pad = (num) => String(num).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 })
-
-const pad2 = (num) => String(num).padStart(2, '0')
 
 const getCover = (item) => item.meta?.picUrl || ''
 
@@ -197,13 +233,24 @@ onMounted(() => { void load() })
   align-items: center;
   gap: var(--qm-s5);
   padding: var(--qm-s6) var(--qm-content-pad-right) var(--qm-s5) var(--qm-content-pad-left);
+  overflow: hidden;
+  max-height: 280px;
+  transition: max-height .3s ease, opacity .22s ease, padding .3s ease;
+}
+
+.headCollapsed {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .cover {
   flex: none;
   position: relative;
-  width: 132px;
-  height: 132px;
+  // 参考图实测 170×170
+  width: 170px;
+  height: 170px;
   border-radius: var(--qm-radius-card);
   overflow: hidden;
   background-color: rgba(0, 0, 0, .04);
@@ -239,9 +286,10 @@ onMounted(() => { void load() })
 
 .title {
   margin: 0;
-  font-size: var(--qm-font-title-xl);
+  // 参考图实测字高 31px（30px 字号）
+  font-size: 30px;
   font-weight: var(--qm-fw-bold, 700);
-  line-height: 32px;
+  line-height: 1.05;
   color: var(--qm-text-1);
 }
 
@@ -320,7 +368,34 @@ onMounted(() => { void load() })
 .list {
   display: flex;
   flex-flow: column nowrap;
+
+  // 列宽（参考图实测：曲序 2.7% / 歌曲 7% / 歌手 51.8% / 专辑 72.8% / 时长 93.9%）
+  // 行内是 div，需压过全局 `.list .list-item .list-item-cell { flex: none }`，故写到 4 级
+  :global(.list-item) {
+    :global(.list-item-cell).colNum {
+      flex: 0 0 44px;
+      padding: 0;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      color: var(--qm-text-4);
+    }
+    :global(.list-item-cell).colSinger { flex: 0 0 22%; }
+    :global(.list-item-cell).colAlbum { flex: 0 0 22%; }
+    :global(.list-item-cell).colTime {
+      flex: 0 0 10%;
+      font-variant-numeric: tabular-nums;
+      color: var(--qm-text-4);
+    }
+  }
 }
+
+// 表头同名列（th 是 table-cell，按 width 生效；padding 归零以便与行内序号列同心）
+.colNum { width: 44px; padding: 0; text-align: center; }
+// 缩略图占位列：让表头「歌曲」与行内歌名（封面右侧）对齐
+.colCover { width: 50px; padding: 0; }
+.colSinger { width: 22%; }
+.colAlbum { width: 22%; }
+.colTime { width: 10%; }
 
 .row {
   display: flex;
@@ -377,7 +452,7 @@ onMounted(() => { void load() })
   justify-content: center;
   color: var(--qm-text-5);
 
-  :global(.svg-icon) { width: 16px; height: 16px; fill: currentColor; }
+  :global(.svg-icon) { width: var(--qm-icon-xs); height: var(--qm-icon-xs); fill: currentColor; }
 }
 
 // 行内收藏心形（常显，仿 QQ）

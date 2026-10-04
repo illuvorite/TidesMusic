@@ -17,14 +17,10 @@
         <div :class="$style.label">{{ item.musicInfo.interval }}</div>
         <div :class="$style.btns">
           <button type="button" :class="$style.btn" @click="handlePlay(index)">
-            <svg v-once version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="50%" viewBox="0 0 287.386 287.386" space="preserve">
-              <use xlink:href="#icon-testPlay" />
-            </svg>
+            <svg-icon name="headphones" />
           </button>
           <button type="button" :class="$style.btn" @click="handleRemove(index)">
-            <svg v-once version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="50%" viewBox="0 0 212.982 212.982" space="preserve">
-              <use xlink:href="#icon-delete" />
-            </svg>
+            <svg-icon name="delete" />
           </button>
         </div>
       </div>
@@ -216,7 +212,7 @@ export default {
   }
 
   svg {
-    height: 16px;
+    height: var(--qm-icon-xs);
   }
 
   &:hover {

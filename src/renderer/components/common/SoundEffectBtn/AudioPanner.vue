@@ -1,5 +1,5 @@
 <template>
-  <div :class="$style.contnet">
+  <div :class="$style.content">
     <div class="player__sound_effect_title" :class="$style.header">
       <h3>{{ $t('player__sound_effect_panner') }}</h3>
       <base-checkbox
@@ -10,15 +10,15 @@
         @update:model-value="updateEnabled"
       />
     </div>
-    <div :class="$style.eqList">
-      <div :class="$style.eqItem">
+    <div :class="$style.list">
+      <div :class="$style.item">
         <span :class="$style.label">{{ $t('player__sound_effect_panner_sound_speed') }}</span>
-        <base-slider-bar :class="$style.slider" :value="appSetting['player.soundEffect.panner.speed']" :min="1" :max="50" @change="handleUpdateSpeed" />
+        <se-slider :value="appSetting['player.soundEffect.panner.speed']" :min="1" :max="50" @change="handleUpdateSpeed" />
         <span :class="[$style.value, { [$style.active]: appSetting['player.soundEffect.panner.speed'] != 25 }]">{{ appSetting['player.soundEffect.panner.speed'] }}</span>
       </div>
-      <div :class="$style.eqItem">
+      <div :class="$style.item">
         <span :class="$style.label">{{ $t('player__sound_effect_panner_sound_r') }}</span>
-        <base-slider-bar :class="$style.slider" :value="appSetting['player.soundEffect.panner.soundR']" :min="1" :max="30" @change="handleUpdateSoundR" />
+        <se-slider :value="appSetting['player.soundEffect.panner.soundR']" :min="1" :max="30" @change="handleUpdateSoundR" />
         <span :class="[$style.value, { [$style.active]: appSetting['player.soundEffect.panner.soundR'] != 5 }]">{{ appSetting['player.soundEffect.panner.soundR'] }}</span>
       </div>
     </div>
@@ -26,18 +26,11 @@
 </template>
 
 <script setup>
-// import { reactive } from '@common/utils/vueTools'
 import { setMediaDeviceId } from '@renderer/plugins/player'
 import { appSetting, saveMediaDeviceId, updateSetting } from '@renderer/store/setting'
-
-// const setting = reactive({
-//   enabled: false,
-//   soundR: 5,
-//   speed: 25,
-// })
+import SeSlider from './SeSlider.vue'
 
 const updateEnabled = async(enabled) => {
-  // console.log(enabled)
   if (appSetting['player.mediaDeviceId'] != 'default') {
     await setMediaDeviceId('default').catch(_ => _)
     saveMediaDeviceId('default')
@@ -58,74 +51,63 @@ const handleUpdateSoundR = (value) => {
 const handleUpdateSpeed = (value) => {
   updateSetting({ 'player.soundEffect.panner.speed': Math.round(value) })
 }
-
-
 </script>
 
 <style lang="less" module>
 @import '@renderer/assets/styles/layout.less';
-.contnet {
-  padding-top: 0;
+.content {
+  user-select: none;
+  min-width: 0;
   display: flex;
   flex-flow: column nowrap;
-  gap: var(--qm-sp-4, 10px);
   min-height: 0;
-  flex: none;
 }
 .header {
   display: flex;
   flex-flow: row nowrap;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 5px;
-  // padding-top: 5px;
+
+  h3 {
+    margin: 0;
+    font-size: var(--se-fs-section, 14px);
+    font-weight: 600;
+    color: var(--se-text, #333);
+  }
 }
-.eqList {
+.checkbox {
+  margin-right: 4px;
+  font-size: var(--se-fs-body, 13px);
+}
+.list {
   display: flex;
   flex-flow: column nowrap;
-  gap: var(--qm-sp-6, 15px);
+  gap: 19px;
   width: 100%;
+  max-width: 520px;
 }
-.eqItem {
+.item {
   display: flex;
   flex-flow: row nowrap;
-  gap: var(--qm-sp-3, 8px);
+  align-items: center;
+  gap: 14px;
 }
 .label {
   flex: none;
-  // width: 50px;
-  font-size: var(--qm-fs-xs, 12px);
+  width: 124px;
+  font-size: var(--se-fs-body, 13px);
+  color: var(--se-text, #333);
 }
 .value {
   flex: none;
-  width: 40px;
-  font-size: var(--qm-fs-xs, 12px);
-  text-align: center;
+  width: 36px;
+  text-align: right;
+  font-size: var(--se-fs-body, 13px);
+  color: var(--se-text-weak, #666);
+  font-variant-numeric: tabular-nums;
 
   &.active {
-    color: var(--color-primary-font);
+    color: var(--se-accent, #1ecc94);
   }
 }
-
-.footer {
-  display: flex;
-  flex-flow: row nowrap;
-  // justify-content: space-between;
-  justify-content: center;
-  align-items: center;
-  // font-size: 13px;
-  span {
-    line-height: 1.2;
-  }
-}
-
-.slider {
-  flex: auto;
-}
-
-.checkbox {
-  margin-right: var(--qm-sp-4, 10px);
-  font-size: var(--qm-fs-sm, 13px);
-}
-
 </style>

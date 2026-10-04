@@ -16,32 +16,16 @@
             :class="[$style.likeBtn, { [$style.iconBtnActive]: isLiked }]"
             :aria-label="isLiked ? '取消喜欢' : $t('list__collect')"
             :disabled="!playMusicInfo.musicInfo"
-            :title="isLiked ? '取消喜欢' : $t('list__collect')"
-            @click="toggleLove"
-          >
-            <svg
-              version="1.1"
-              xmlns="http://www.w3.org/2000/svg"
-              xlink="http://www.w3.org/1999/xlink"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              space="preserve"
-            >
-              <path
-                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-              />
-            </svg>
+           @click="toggleLove"
+>
+            <svg-icon :name="isLiked ? 'heart' : 'heart-outline'" />
           </button>
           <button
             :class="[$style.iconBtn, { [$style.iconBtnActive]: isShowPlayComment }]"
             :aria-label="$t('comment__show')"
-            :title="$t('comment__show')"
-            @click="toggleComment"
-          >
-            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 24 24" space="preserve">
-              <use xlink:href="#icon-comment" />
-            </svg>
+           @click="toggleComment"
+>
+            <svg-icon name="comment" />
           </button>
         </div>
       </div>
@@ -49,23 +33,14 @@
       <!-- 中间：循环 / 上一首 / 播放-暂停 / 下一首 / 音量（必须居中） -->
       <div :class="$style.centerGroup">
         <common-toggle-play-mode-btn :class="$style.modeBtn" />
-        <button :class="$style.playBtnPrev" :aria-label="$t('player__prev')" :title="$t('player__prev')" @click="playPrev()">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 1024 1024" space="preserve">
-            <use xlink:href="#icon-prevMusic" />
-          </svg>
+        <button :class="$style.playBtnPrev" :aria-label="$t('player__prev')" @click="playPrev()">
+          <svg-icon name="prev" />
         </button>
-        <button :class="$style.mainPlayBtn" :aria-label="isPlay ? $t('player__pause') : $t('player__play')" :title="isPlay ? $t('player__pause') : $t('player__play')" @click="togglePlay">
-          <svg v-if="isPlay" version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 1024 1024" space="preserve">
-            <use xlink:href="#icon-pause" />
-          </svg>
-          <svg v-else version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 1024 1024" space="preserve">
-            <use xlink:href="#icon-play" />
-          </svg>
+        <button :class="$style.mainPlayBtn" :aria-label="isPlay ? $t('player__pause') : $t('player__play')" @click="togglePlay">
+          <svg-icon :name="isPlay ? 'pause' : 'play'" />
         </button>
-        <button :class="$style.playBtnNext" :aria-label="$t('player__next')" :title="$t('player__next')" @click="playNext()">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 1024 1024" space="preserve">
-            <use xlink:href="#icon-nextMusic" />
-          </svg>
+        <button :class="$style.playBtnNext" :aria-label="$t('player__next')" @click="playNext()">
+          <svg-icon name="next" />
         </button>
         <common-volume-btn :class="$style.volumeBtn" />
       </div>
@@ -163,6 +138,7 @@ const toggleComment = () => {
 
 <style lang="less" module>
 @import '@renderer/assets/styles/layout.less';
+@import '@renderer/assets/styles/qq-icon.less';
 
 .footer {
   flex: 0 0 120px;
@@ -259,7 +235,10 @@ const toggleComment = () => {
   justify-self: center;
 }
 
-// 循环 / 音量：20×20
+// 循环 / 音量：外壳固定 20×20，图标居中溢出
+// 尺寸下传用变量（组件内规则与使用方覆盖规则特异性相同，写死会被 CSS Module 注入顺序左右）
+// 图标比「上一首 / 播放 / 下一首」再小一档：循环 16px、音量 20px
+// （实测 24/32 时这两枚的图形明显大于中间三键，整排轻重失衡）
 .modeBtn,
 .volumeBtn {
   flex: 0 0 20px;
@@ -270,6 +249,10 @@ const toggleComment = () => {
   justify-content: center;
   opacity: 0.7;
   transition: opacity @transition-normal;
+  --qm-playmode-size: 20px;
+  --qm-volume-size: 20px;
+  --qm-playmode-btn-icon: var(--qm-icon-xs);
+  --qm-volume-btn-icon: var(--qm-icon);
   &:hover { opacity: 1; }
 }
 
@@ -473,6 +456,35 @@ const toggleComment = () => {
     filter: drop-shadow(0 0 2px rgba(255, 77, 109, 0.4));
   }
 }
+
+// ===== 图标统一（覆盖上方各按钮的历史写法，保证整排观感一致）=====
+// 详情页是深色画布，颜色必须用 --color-button-font 一系（--qm-text-* 在这里会变深而看不见）
+.playBtnPrev,
+.mainPlayBtn,
+.playBtnNext,
+.likeBtn,
+.iconBtn {
+  .qm-icon-btn-strong();
+
+  opacity: 1;
+  color: var(--color-button-font);
+
+  :global(.svg-icon) {
+    width: var(--qm-icon-lg);
+    height: var(--qm-icon-lg);
+  }
+}
+
+// 选中态：爱心 / 评论面板开启（品牌红，保持详情页原有语义色）
+.likeBtn.iconBtnActive,
+.likeBtn[data-active='true'],
+.iconBtn.iconBtnActive,
+.iconBtn[data-active='true'] {
+  color: #ff4d6d;
+}
+
+// 循环 / 音量两个子组件的图标尺寸已由上面的变量下传，这里不再重复声明
+// （同特异性的两条规则谁生效取决于 CSS Module 注入顺序，会随机回退）
 
 // ===== 状态文案（保留以兼容现有状态栏） =====
 .statusLabel {

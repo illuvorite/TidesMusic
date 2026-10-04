@@ -18,9 +18,7 @@
           </div>
           <div :class="$style.btns">
             <button :class="$style.btn" :disabled="fetchingListStatus[list.id]" outline="outline" :aria-label="$t('list_update_modal__update')" @click.stop="handleUpdate(list)">
-              <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" style="transform: rotate(45deg);" viewBox="0 0 24 24" space="preserve">
-                <use xlink:href="#icon-refresh" />
-              </svg>
+              <svg-icon name="refresh" />
             </button>
           </div>
         </li>
@@ -192,8 +190,8 @@ export default {
   }
 
   svg {
-    height: 22px;
-    width: 22px;
+    height: var(--qm-icon);
+    width: var(--qm-icon);
   }
 
   &:hover {

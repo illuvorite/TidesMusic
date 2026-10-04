@@ -313,8 +313,8 @@ const handleListContextMenu = (event: MouseEvent, listInfo: LX.List.MyListInfo, 
   color: currentColor;
 
   :global(.svg-icon) {
-    width: 20px;
-    height: 20px;
+    width: var(--qm-icon);
+    height: var(--qm-icon);
     fill: currentColor;
   }
 }

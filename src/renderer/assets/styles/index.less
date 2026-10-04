@@ -1,6 +1,7 @@
 @import './reset.less';
 @import './animate.less';
 @import './layout.less';
+@import './qq-popup.less';
 
 *, *::after, *::before {
 	-webkit-user-drag: none;
@@ -478,6 +479,16 @@
   --qm-toolbar-h:          48px;
   --qm-player-h:           72px;
   --qm-row-h:              44px;
+
+  // —— 图标统一规范 ——
+  // 画法：全部 24×24 网格；描边型 stroke-width 1.7 + round 线帽/连接；
+  //      仅「播放控制(prev/next/play/pause)」「已收藏红心」「更多三点」等少量图形用实心。
+  // 尺寸：四档，不要再写 14/15/22/26/30/34 这类离群值。
+  //   xs 16 菜单项/标签内嵌 · sm 18 列表行内操作 · 默认 20 播放栏与详情页控件 · lg 24 详情页主控制键
+  --qm-icon-xs:            16px;
+  --qm-icon-sm:            18px;
+  --qm-icon:               20px;
+  --qm-icon-lg:            24px;
   --qm-s1: 4px;
   --qm-s2: 8px;
   --qm-s3: 12px;
@@ -644,18 +655,19 @@ body {
 // ============================================================
 //  歌曲行（QQ 版式）：封面 + 双行「歌名/歌手」 + 行内操作
 //  所有歌曲展示页共用：歌单详情 / 搜索 / 榜单 / 我的列表 / 推荐页
+//  取值依据：参考图实测（封面 x16 起、40×40、行高 58、操作列整行居中）
 // ============================================================
 .list-item-cell.cover {
   flex: none !important;
   width: 50px;
-  padding: 0 10px 0 6px !important;
+  padding: 0 1px 0 9px !important;
 }
 
 .row-cover {
   position: relative;
   width: 40px;
   height: 40px;
-  border-radius: var(--qm-radius-xs, 6px);
+  border-radius: var(--qm-radius-2xs, 4px);
   overflow: hidden;
   background-color: rgba(0, 0, 0, .05);
 
@@ -712,7 +724,7 @@ body {
   display: flex;
   flex-flow: row nowrap;
   align-items: center;
-  gap: var(--qm-sp-1, 4px);
+  gap: var(--qm-sp-2, 6px);
   min-width: 0;
 
   .name {
@@ -740,15 +752,58 @@ body {
 
 .list-item.active .name-main .name { color: var(--qm-text-active); }
 
-// 行内操作按钮：默认常显（QQ 移动端在 hover 才显示，桌面版常显更好点）
-.list-item-cell.actions {
-  flex: none !important;
-  padding: 0 6px !important;
+// 行内「播放」小按钮：中性灰描边方块 + 实心三角（实测 21×15、圆角 3）
+.row-play {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 21px;
+  height: 15px;
+  padding: 0;
+  border: 1px solid var(--qm-text-5);
+  border-radius: 3px;
+  background-color: transparent;
+  color: var(--qm-text-4);
+  cursor: pointer;
+  transition: color var(--qm-t-fast), border-color var(--qm-t-fast), background-color var(--qm-t-fast);
+
+  svg { width: 9px; height: 9px; fill: currentColor; }
+
+  &:hover {
+    color: var(--qm-text-1);
+    border-color: var(--qm-text-3);
+    background-color: var(--qm-hover);
+  }
+}
+
+// 行内操作按钮：桌面端默认隐藏，悬停该行才出现（对齐参考图——仅悬停行可见）
+// 采用整行居中定位，避免被弹性列（歌名）宽度推来推去。
+// 选择器写到 4 级：下方 `.list .list-item .list-item-cell` 里有 `position: relative`，
+// 优先级更高会把 absolute 顶掉（表现为按钮被 left:50% 推到行外）。
+.list .list-item .list-item-cell.actions {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--qm-t-fast);
+}
+
+.list .list-item:hover .list-item-cell.actions {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .badge {
   display: inline-block;
-  padding: 0 4px;
+  padding: 0 3px;
   height: 15px;
   line-height: 14px;
   font-size: 10px;
@@ -756,7 +811,7 @@ body {
   white-space: nowrap;
   vertical-align: middle;
   border: 1px solid var(--qm-primary-border);
-  border-radius: var(--qm-radius-2xs, 4px);
+  border-radius: 3px;
   color: var(--qm-primary);
   transform: scale(0.95);
   transform-origin: left center;
@@ -930,6 +985,14 @@ a:focus-visible {
     .center();
     color: var(--qm-text-4);
   }
+
+  // 列头右侧的排序指示（参考图「歌曲/歌手」旁的上下双三角，纯装饰）
+  .thead-sort {
+    flex: none;
+    margin-left: 5px;
+    color: var(--qm-text-5);
+    vertical-align: -2px;
+  }
 }
 table {
   width: 100%;
@@ -941,7 +1004,8 @@ table {
     font-size: var(--qm-font-aux);
     font-weight: var(--qm-fw-regular, 400);
     text-align: left;
-    line-height: 36px;
+    // 参考图表头实测 31px 高（y0-30）
+    line-height: 31px;
     padding: 0 10px;
     color: var(--qm-text-4);
     user-select: none;
@@ -964,6 +1028,10 @@ table {
   .list-item {
     position: relative;
     height: 100%;
+    // 非虚拟列表页面（榜单详情 / 推荐歌单）没有行高包装层，用 min-height 兜住行高。
+    // 3.625rem：html 的 font-size 跟随「字号设置」(默认 16px)，故 3.625rem = 58px，
+    // 与虚拟列表的 itemHeight（fontSize × 3.625）同源，字号调大时一起放大。
+    min-height: 3.625rem;
     display: flex;
     flex-flow: row nowrap;
     align-items: center;
@@ -973,8 +1041,15 @@ table {
     box-sizing: border-box;
     font-size: var(--qm-fs-sm, 13px);
 
+    // 斑马纹：参考图相邻行底色差约 1.8% 墨色（深色下 #1D1D1F / #212123）
+    // 虚拟列表每行外层包了一层绝对定位 div，无法用 nth-child，改由模板传 index 判定
+    &.row-alt {
+      background-color: color-mix(in srgb, var(--color-1000) 1.8%, transparent);
+    }
+
     &:hover {
-      background-color: var(--qm-hover);
+      // 参考图悬停行底色比页面底亮约 4.5% 墨色（深色下 #272729）
+      background-color: color-mix(in srgb, var(--color-1000) 4.5%, transparent);
     }
     &.active {
       background-color: var(--qm-primary-soft);
@@ -1033,6 +1108,8 @@ table {
         white-space: initial;
         text-overflow: initial;
         align-items: center;
+        // 与封面列右侧留白对齐：参考图歌名起点 x66（封面右缘 x55 + 11）
+        padding-left: 9px;
 
         >.name {
           .mixin-ellipsis-1();

@@ -7,8 +7,12 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
-    "rootDir": "./",
-    "outDir": "./dist",
+    // 说明：本项目由 webpack + ts-loader 打包，从不使用 tsc 直接输出，
+    // 因此 rootDir/outDir 对产物没有作用。而 allowJs 会把 node_modules 中被 import
+    // 的 JS 纳入编译程序——当 node_modules 是指向工作区外（软链）的目录时，
+    // 这些文件落在 rootDir 之外，会稳定报 6 条 TS6059 并阻断生产构建，故移除。
+    // "rootDir": "./",
+    // "outDir": "./dist",
     // "paths": {                                           /* Specify a set of entries that re-map imports to additional lookup locations. */
     //   "@common/*": ["common/*"],
     //   "@renderer/*": ["renderer/*"],

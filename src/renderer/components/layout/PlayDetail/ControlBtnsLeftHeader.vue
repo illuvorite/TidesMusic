@@ -1,8 +1,7 @@
 <template lang="pug">
 div(:class="$style.header")
   button(type="button" :class="$style.btn" :aria-label="$t('player__hide_detail_tip')" ignore-tip :title="$t('player__hide_detail_tip')" @click="hide")
-    svg(width="20" height="20" viewBox="0 0 24 24" aria-hidden="true")
-      use(xlink:href="#icon-chevron-down")
+    svg-icon(name="chevron-down")
 </template>
 
 
@@ -46,10 +45,7 @@ const hide = () => {
       opacity @transition-base,
       transform @transition-fast;
 
-    svg {
-      display: block;
-      fill: currentColor;
-    }
+    :global(.svg-icon) { width: var(--qm-icon-xs); height: var(--qm-icon-xs); }
 
     &:hover {
       opacity: 1;

@@ -5,19 +5,15 @@
       <div class="thead">
         <table>
           <thead>
-            <tr v-if="actionButtonsVisible">
-              <th class="num" style="width: 40px;">#</th>
-              <th style="width: 50px;"></th>
-              <th class="nobreak">{{ $t('music_name') }} / {{ $t('music_singer') }}</th>
-              <th class="nobreak" style="width: 150px;"></th>
-              <th class="nobreak" style="width: 22%;">{{ $t('music_album') }}</th>
-              <th class="nobreak" style="width: 9%;">{{ $t('music_time') }}</th>
-            </tr>
-            <tr v-else>
-              <th class="num" style="width: 40px;">#</th>
-              <th style="width: 50px;"></th>
-              <th class="nobreak">{{ $t('music_name') }} / {{ $t('music_singer') }}</th>
-              <th class="nobreak" style="width: 150px;"></th>
+            <!-- 参考图列头：歌曲/歌手（含排序指示）· 专辑 · 时长；无序号列 -->
+            <tr>
+              <th class="nobreak">
+                <span>{{ $t('music_name') }} / {{ $t('music_singer') }}</span>
+                <svg class="thead-sort" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                  <path d="M5.4 6.6 8 3.4l2.6 3.2z" fill="currentColor" />
+                  <path d="M5.4 9.4 8 12.6l2.6-3.2z" fill="currentColor" />
+                </svg>
+              </th>
               <th class="nobreak" style="width: 27%;">{{ $t('music_album') }}</th>
               <th class="nobreak" style="width: 10%;">{{ $t('music_time') }}</th>
             </tr>
@@ -29,10 +25,9 @@
           <base-virtualized-list v-if="actionButtonsVisible" ref="listRef" :list="list" key-name="id" :item-height="listItemHeight" container-class="scroll" content-class="list" @contextmenu.capture="handleListRightClick">
             <template #default="{ item, index }">
               <div
-                class="list-item" :class="[{ selected: rightClickSelectedIndex == index }, { active: selectedList.includes(item) }]"
+                class="list-item" :class="[{ selected: rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { 'row-alt': index % 2 === 1 }]"
                 @click="handleListItemClick($event, index)" @contextmenu="handleListItemRightClick($event, index)"
               >
-                <div class="list-item-cell no-select num" style="flex: 0 0 40px;" @click.stop>{{ index + 1 }}</div>
                 <div class="list-item-cell cover">
                   <div class="row-cover">
                     <img v-if="getCoverUrl(item)" :src="getCoverUrl(item)" alt="" loading="lazy">
@@ -44,7 +39,7 @@
                     </span>
                   </div>
                 </div>
-                <div class="list-item-cell auto name" style="padding-left: 0;">
+                <div class="list-item-cell auto name">
                   <div class="name-wrap">
                     <div class="name-main">
                       <span class="select name" :aria-label="item.name">{{ item.name }}</span>
@@ -52,6 +47,12 @@
                       <span v-else-if="item.meta._qualitys.ape || item.meta._qualitys.flac || item.meta._qualitys.wav" class="no-select badge badge-theme-primary">SQ</span>
                       <span v-else-if="item.meta._qualitys['320k']" class="no-select badge badge-theme-secondary">HQ</span>
                       <span v-if="sourceTag" class="no-select badge badge-theme-tertiary">{{ item.source }}</span>
+                      <button
+                        type="button" class="row-play" :aria-label="$t('list__play')" :title="$t('list__play')"
+                        @click.stop="handleListBtnClick({ action: 'play', index })"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.4v13.2l11-6.6z" fill="currentColor" /></svg>
+                      </button>
                     </div>
                     <div class="name-sub">
                       <span class="select name-sub-text" :aria-label="item.singer">{{ item.singer }}</span>
@@ -64,8 +65,8 @@
                     :download-btn="assertApiSupport(item.source)" @btn-click="handleListBtnClick"
                   />
                 </div>
-                <div class="list-item-cell" style="flex: 0 0 22%;"><span class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span></div>
-                <div class="list-item-cell" style="flex: 0 0 9%;"><span class="no-select">{{ item.interval || '--/--' }}</span></div>
+                <div class="list-item-cell" style="flex: 0 0 27%;"><span class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span></div>
+                <div class="list-item-cell" style="flex: 0 0 10%;"><span class="no-select">{{ item.interval || '--/--' }}</span></div>
               </div>
             </template>
             <template #footer>
@@ -77,10 +78,9 @@
           <base-virtualized-list v-else ref="listRef" :list="list" key-name="id" :item-height="listItemHeight" container-class="scroll" content-class="list" @contextmenu.capture="handleListRightClick">
             <template #default="{ item, index }">
               <div
-                class="list-item" :class="[{ selected: rightClickSelectedIndex == index }, { active: selectedList.includes(item) }]"
+                class="list-item" :class="[{ selected: rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { 'row-alt': index % 2 === 1 }]"
                 @click="handleListItemClick($event, index)" @contextmenu="handleListItemRightClick($event, index)"
               >
-                <div class="list-item-cell no-select num" style="flex: 0 0 40px;" @click.stop>{{ index + 1 }}</div>
                 <div class="list-item-cell cover">
                   <div class="row-cover">
                     <img v-if="getCoverUrl(item)" :src="getCoverUrl(item)" alt="" loading="lazy">
@@ -92,7 +92,7 @@
                     </span>
                   </div>
                 </div>
-                <div class="list-item-cell auto name" style="padding-left: 0;">
+                <div class="list-item-cell auto name">
                   <div class="name-wrap">
                     <div class="name-main">
                       <span class="select name" :aria-label="item.name">{{ item.name }}</span>
@@ -100,6 +100,12 @@
                       <span v-else-if="item.meta._qualitys.ape || item.meta._qualitys.flac || item.meta._qualitys.wav" class="no-select badge badge-theme-primary">SQ</span>
                       <span v-else-if="item.meta._qualitys['320k']" class="no-select badge badge-theme-secondary">HQ</span>
                       <span v-if="sourceTag" class="no-select badge badge-theme-tertiary">{{ item.source }}</span>
+                      <button
+                        type="button" class="row-play" :aria-label="$t('list__play')" :title="$t('list__play')"
+                        @click.stop="handleListBtnClick({ action: 'play', index })"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.4v13.2l11-6.6z" fill="currentColor" /></svg>
+                      </button>
                     </div>
                     <div class="name-sub">
                       <span class="select name-sub-text" :aria-label="item.singer">{{ item.singer }}</span>
@@ -139,6 +145,8 @@
     <common-download-modal v-model:show="isShowDownload" :music-info="selectedDownloadMusicInfo" teleport="#view" />
     <common-download-multiple-modal v-model:show="isShowDownloadMultiple" :list="selectedList" teleport="#view" @confirm="removeAllSelect" />
     <base-menu v-model="isShowItemMenu" :menus="menus" :xy="menuLocation" item-name="name" @menu-click="handleMenuClick" />
+    <!-- 行内「+」按钮的「添加到」菜单（QQ 版式，替代旧弹窗） -->
+    <base-menu v-model="isShowAddMenu" :menus="addMenuItems" :xy="addMenuLocation" :anchor-rect="addMenuAnchorRect" item-name="name" @menu-click="handleAddMenuClick" />
   </div>
 </template>
 
@@ -153,6 +161,7 @@ import useMusicDownload from './useMusicDownload'
 import useMusicAdd from './useMusicAdd'
 import useMusicActions from './useMusicActions'
 import useLovedList from '@renderer/utils/compositions/useLovedList'
+import useListAddMenu from '@renderer/utils/compositions/useListAddMenu'
 import { getCoverUrl, loadCover } from '@renderer/utils/compositions/useCoverLoader'
 import { appSetting } from '@renderer/store/setting'
 export default {
@@ -276,6 +285,9 @@ export default {
         clipboardWriteText(str)
       })
     }
+    // 行内「+」按钮的「添加到」菜单（与右键菜单同款卡片）
+    const addMenu = useListAddMenu()
+
     // 收藏（我喜欢）
     const { isLoved, loadLoved, toggleLove } = useLovedList()
     void loadLoved()
@@ -297,7 +309,7 @@ export default {
           handleSearch(index)
           break
         case 'listAdd':
-          handleShowMusicAddModal(index, true)
+          addMenu.openMenu(event?.currentTarget, props.list[index])
           break
         case 'like':
           void toggleLove(props.list[index])
@@ -338,6 +350,13 @@ export default {
       isShowItemMenu,
       menuLocation,
       handleMenuClick,
+
+      isShowAddMenu: addMenu.isShow,
+      addMenuLocation: addMenu.location,
+      addMenuAnchorRect: addMenu.anchorRect,
+      addMenuItems: addMenu.menus,
+      handleAddMenuClick: addMenu.handleMenuClick,
+      openAddMenu: addMenu.openMenu,
 
       handleListRightClick,
       assertApiSupport,

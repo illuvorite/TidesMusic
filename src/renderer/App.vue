@@ -12,7 +12,6 @@
       </div>
     </div>
     <layout-play-bar id="player" />
-    <layout-icons />
     <layout-change-log-modal />
     <layout-update-modal />
     <layout-pact-modal />

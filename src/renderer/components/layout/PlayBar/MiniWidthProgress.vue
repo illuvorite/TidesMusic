@@ -12,22 +12,23 @@
         <div :class="$style.title" :title="title">{{ title || '未在播放' }}</div>
         <div :class="$style.artist" :title="musicInfo.singer">{{ musicInfo.singer || '—' }}</div>
       </div>
-      <button :class="[$style.iconBtn, { [$style.liked]: isLiked }]" :aria-label="isLiked ? '取消喜欢' : '喜欢'" :title="isLiked ? '取消喜欢' : '喜欢'" @click="toggleLove">
+      <!-- 快捷操作：去掉原生 title 气泡（与弹窗重叠，QQ 播放栏也没有原生提示） -->
+      <button :class="[$style.iconBtn, { [$style.liked]: isLiked }]" :aria-label="isLiked ? '取消喜欢' : '喜欢'" @click="toggleLove">
         <svg-icon :name="isLiked ? 'heart' : 'heart-outline'" />
       </button>
-      <button :class="$style.iconBtn" aria-label="评论" title="评论" @click="showComments">
+      <button :class="$style.iconBtn" aria-label="评论" @click="showComments">
         <svg-icon name="comment" />
       </button>
       <material-popup-btn ref="moreBtnRef">
-        <button :class="$style.iconBtn" :aria-label="'更多'">
+        <button :class="$style.iconBtn" :aria-label="'更多'" ignore-tip>
           <svg-icon name="more-h" />
         </button>
         <template #content>
-          <div :class="$style.moreMenu">
-            <button :class="$style.menuItem" @click="handleMoreAction('copyName')">复制歌曲名</button>
-            <button :class="$style.menuItem" @click="handleMoreAction('copyInfo')">复制歌曲信息</button>
-            <button :class="$style.menuItem" @click="handleMoreAction('goLocation')">跳转到所在列表</button>
-            <button :class="$style.menuItem" @click="handleMoreAction('addTo')">添加到歌单</button>
+          <div class="qm-menu" :class="$style.moreMenu">
+            <button class="qm-menu-item" @click.stop="handleMoreAction('copyName')">复制歌曲名</button>
+            <button class="qm-menu-item" @click.stop="handleMoreAction('copyInfo')">复制歌曲信息</button>
+            <button class="qm-menu-item" @click.stop="handleMoreAction('goLocation')">跳转到所在列表</button>
+            <button class="qm-menu-item" @click.stop="handleMoreAction('addTo')">添加到歌单</button>
           </div>
         </template>
       </material-popup-btn>
@@ -36,32 +37,19 @@
     <!-- 中：进度 + 控制 -->
     <div :class="$style.center">
       <div :class="$style.controls">
-        <material-popup-btn ref="modeBtnRef" :class="$style.modeBtnWrap">
-          <button :class="$style.iconBtn" :aria-label="playModeName" :title="playModeName">
-            <svg-icon :name="playModeIcon" />
-          </button>
-          <template #content>
-            <div :class="$style.popupMenu">
-              <button
-                v-for="opt in playModeOptions" :key="opt.mode"
-                :class="[$style.menuItem, { [$style.menuItemActive]: appSetting['player.togglePlayMethod'] == opt.mode }]"
-                @click="selectPlayMode(opt.mode)"
-              >
-                <svg-icon :name="opt.icon" :class="$style.menuIcon" />
-                <span>{{ opt.label }}</span>
-              </button>
-            </div>
-          </template>
-        </material-popup-btn>
-        <button :class="$style.iconBtn" aria-label="上一曲" title="上一曲" @click="playPrev()">
+        <!-- 两端（循环 / 音量）与中间三键拉开距离，见 .modeBtn / .volumeBtn 的 margin -->
+        <common-toggle-play-mode-btn :class="$style.modeBtn" />
+        <button :class="$style.iconBtn" aria-label="上一曲" @click="playPrev()">
           <svg-icon name="prev" />
         </button>
-        <button :class="[$style.iconBtn, $style.playBtn]" :aria-label="isPlay ? '暂停' : '播放'" :title="isPlay ? '暂停' : '播放'" @click="togglePlay">
+        <button :class="[$style.iconBtn, $style.playBtn]" :aria-label="isPlay ? '暂停' : '播放'" @click="togglePlay">
           <svg-icon :name="isPlay ? 'pause' : 'play'" />
         </button>
-        <button :class="$style.iconBtn" aria-label="下一曲" title="下一曲" @click="playNext()">
+        <button :class="$style.iconBtn" aria-label="下一曲" @click="playNext()">
           <svg-icon name="next" />
         </button>
+        <!-- 音量：紧挨「下一首」，向上弹出竖版音量条（与播放详情页共用同一组件） -->
+        <common-volume-btn :class="$style.volumeBtn" />
       </div>
       <div v-if="variant !== 'full'" :class="[$style.progress, { [$style.progressWide]: variant === 'middle' }]">
         <span :class="$style.time">{{ nowPlayTimeStr }}</span>
@@ -77,56 +65,24 @@
       </div>
     </div>
 
-    <!-- 右：辅助操作 -->
+    <!-- 右：辅助操作（音量已移到中间「下一首」旁边） -->
     <div :class="$style.right">
       <!-- full：进度条已移到播放栏底部通栏，时间合并显示在这里 -->
       <span v-if="variant === 'full'" :class="$style.timeInline">{{ nowPlayTimeStr }} / {{ maxPlayTimeStr }}</span>
-      <material-popup-btn>
-        <button :class="$style.iconBtn" :aria-label="isMute ? '取消静音' : '音量'" :title="isMute ? '取消静音' : `音量：${volumePercent}%`">
-          <svg-icon :name="volumeIcon" />
-        </button>
-        <template #content>
-          <div :class="$style.volumePanel">
-            <div :class="$style.volumeInfo">
-              <button :class="$style.muteBtn" :title="isMute ? '取消静音' : '静音'" @click.stop="toggleMute">
-                <svg-icon :name="volumeIcon" />
-              </button>
-              <span :class="$style.volumeText">{{ isMute ? '已静音' : `${volumePercent}%` }}</span>
-            </div>
-            <div :class="$style.volumeSliderWrap" @wheel.stop="handleVolumeWheel">
-              <common-progress-bar
-                :class-name="$style.volumeBar" :progress="volumeProgress" @change="handleUpdateVolume"
-              />
-            </div>
-            <div :class="$style.volumeStep">
-              <button :class="$style.stepBtn" title="减少音量" @click.stop="stepVolume(-1)">−</button>
-              <button :class="$style.stepBtn" title="增加音量" @click.stop="stepVolume(1)">+</button>
-            </div>
-          </div>
-        </template>
-      </material-popup-btn>
       <material-popup-btn ref="qualityBtnRef">
-        <button :class="[$style.textBtn, $style.qualityBtn]" :aria-label="`音质：${qualityLabel}`" :title="`音质：${qualityLabel}`">
+        <button :class="[$style.textBtn, $style.qualityBtn]" :aria-label="`音质：${qualityLabel}`" ignore-tip>
           {{ qualityLabel }}
         </button>
         <template #content>
-          <div :class="$style.popupMenu">
-            <button
-              v-for="opt in qualityOptions" :key="opt.value"
-              :class="[$style.menuItem, { [$style.menuItemActive]: appSetting['player.playQuality'] == opt.value }]"
-              @click="selectQuality(opt.value)"
-            >
-              <span>{{ opt.label }}</span>
-            </button>
-          </div>
+          <common-quality-popup @select="qualityBtnRef?.hide()" />
         </template>
       </material-popup-btn>
       <common-sound-effect-btn :class="$style.soundEffectBtn" teleport="#root" />
-      <button :class="[$style.iconBtn, { [$style.active]: isDesktopLyricOn }]" aria-label="桌面歌词" :title="isDesktopLyricOn ? '桌面歌词：开' : '桌面歌词：关'" @click="toggleLyric">
+      <button :class="[$style.iconBtn, { [$style.active]: isDesktopLyricOn }]" aria-label="桌面歌词" @click="toggleLyric">
         <svg-icon name="lyrics" />
       </button>
       <material-popup-btn ref="playlistBtnRef" @mouseenter="refreshPlayQueue">
-        <button :class="$style.iconBtn" aria-label="播放列表" title="播放列表">
+        <button :class="$style.iconBtn" aria-label="播放列表" ignore-tip>
           <svg-icon name="list-lines" />
         </button>
         <template #content>
@@ -134,12 +90,11 @@
             <div :class="$style.playlistPopupHeader">
               <span :class="$style.playlistPopupTitle">播放队列</span>
               <button
-                :class="$style.playlistTool" aria-label="清空稍后播放" title="清空稍后播放"
-                @click.stop="handleClearQueue"
-              >
-                <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
-                  <path d="M6 7h12M10 7V5h4v2M8 7l.8 12h6.4L16 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
-                </svg>
+                :class="$style.playlistTool" aria-label="清空稍后播放"
+                ignore-tip
+               @click.stop="handleClearQueue"
+>
+                <svg-icon name="delete" />
               </button>
             </div>
             <div :class="$style.playlistPopupMeta">共 {{ playQueue.length }} 首歌曲</div>
@@ -154,12 +109,10 @@
                 <span :class="$style.playlistPopupCover">
                   <img v-if="getCoverUrl(item.musicInfo)" :src="getCoverUrl(item.musicInfo)" alt="" loading="lazy">
                   <span v-else :class="$style.playlistPopupCoverEmpty">
-                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                      <path d="M12 3v10.5a3 3 0 1 1-2-2.8V5.2l7-1.5v8.3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
+                    <svg-icon name="music" />
                   </span>
                   <span :class="$style.playlistPopupPlay" @click.stop="handlePlayFromQueue(item)">
-                    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M8 5.4v13.2l11-6.6z" fill="currentColor" /></svg>
+                    <svg-icon name="play" />
                   </span>
                 </span>
                 <span :class="$style.playlistPopupInfo">
@@ -174,26 +127,16 @@
                 <span :class="$style.playlistPopupActions">
                   <button
                     :class="[$style.playlistAction, { [$style.playlistActionLiked]: isLoved(item.musicInfo) }]"
-                    aria-label="收藏" title="收藏到我喜欢的音乐"
-                    @click.stop="toggleItemLove(item.musicInfo)"
-                  >
-                    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-                      <path
-                        d="M12 20.5s-7.2-4.4-9.6-9.1A5.4 5.4 0 0 1 12 5.6a5.4 5.4 0 0 1 9.6 5.8c-2.4 4.7-9.6 9.1-9.6 9.1z"
-                        :fill="isLoved(item.musicInfo) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"
-                      />
-                    </svg>
+                    aria-label="收藏到我喜欢的音乐"
+                   @click.stop="toggleItemLove(item.musicInfo)"
+>
+                    <svg-icon :name="isLoved(item.musicInfo) ? 'heart' : 'heart-outline'" />
                   </button>
-                  <button :class="$style.playlistAction" aria-label="添加到歌单" title="添加到歌单" @click.stop="handleShowMusicAdd(item.musicInfo)">
-                    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-                      <circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.6" />
-                      <path d="M12 8.6v6.8M8.6 12h6.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-                    </svg>
+                  <button :class="$style.playlistAction" aria-label="添加到歌单" ignore-tip @click.stop="handleShowMusicAdd($event, item.musicInfo)">
+                    <svg-icon name="playlist-add" />
                   </button>
-                  <button :class="$style.playlistAction" aria-label="从队列中移除" title="从队列中移除" @click.stop="handleRemoveFromQueue(index)">
-                    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-                      <path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-                    </svg>
+                  <button :class="$style.playlistAction" aria-label="从队列中移除" ignore-tip @click.stop="handleRemoveFromQueue(index)">
+                    <svg-icon name="close" />
                   </button>
                 </span>
               </div>
@@ -214,7 +157,8 @@
         :emit-playback-progress="true"
       />
     </div>
-    <common-list-add-modal v-model:show="isShowAddMusicTo" :music-info="addMusicInfo || playMusicInfo.musicInfo" />
+    <!-- 「添加到」锚定菜单（QQ 版式，替代旧弹窗；队列行 + 更多菜单共用） -->
+    <base-menu v-model="isShowAddMenu" :menus="addMenuItems" :xy="addMenuLocation" :anchor-rect="addMenuAnchorRect" item-name="name" @menu-click="handleAddMenuClick" />
   </div>
 </template>
 
@@ -222,7 +166,7 @@
 import { computed, ref, watch } from '@common/utils/vueTools'
 import { useRouter } from '@common/utils/vueRouter'
 import { clipboardWriteText } from '@common/utils/electron'
-import { appSetting, updateSetting, saveVolumeIsMute } from '@renderer/store/setting'
+import { appSetting } from '@renderer/store/setting'
 import {
   isShowPlayerDetail,
   musicInfo,
@@ -245,33 +189,21 @@ import {
   clearTempPlayeList,
 } from '@renderer/store/player/action'
 import useLovedList from '@renderer/utils/compositions/useLovedList'
+import useListAddMenu from '@renderer/utils/compositions/useListAddMenu'
 import { getCoverUrl } from '@renderer/utils/compositions/useCoverLoader'
 import { loveList, allMusicList } from '@renderer/store/list/state'
 
 import { formatMusicName } from '@renderer/utils'
 import { LIST_IDS } from '@common/constants'
 import usePlayProgress from '@renderer/utils/compositions/usePlayProgress'
-import useNextTogglePlay from '@renderer/utils/compositions/useNextTogglePlay'
 import useToggleDesktopLyric from '@renderer/utils/compositions/useToggleDesktopLyric'
-import { volume, isMute, setMute, setVolume } from '@renderer/store/player/volume'
-import { setVolume as setPlayerVolume, setMute as setPlayerMute } from '@renderer/plugins/player'
 
-const PLAY_QUALITY_LIST = ['128k', '320k', 'flac', 'flac24bit']
 const PLAY_QUALITY_LABEL = {
   '128k': '标准',
   '320k': '较高',
   flac: '极高',
   flac24bit: '无损',
 }
-const PLAY_QUALITY_OPTIONS = PLAY_QUALITY_LIST.map(v => ({ value: v, label: PLAY_QUALITY_LABEL[v] || v }))
-
-const PLAY_MODE_OPTIONS = [
-  { mode: 'listLoop', label: '列表循环', icon: 'repeat' },
-  { mode: 'random', label: '随机播放', icon: 'shuffle' },
-  { mode: 'list', label: '列表播放', icon: 'list-ordered' },
-  { mode: 'singleLoop', label: '单曲循环', icon: 'repeat-once' },
-  { mode: 'none', label: '关闭循环', icon: 'play-circle-outline' },
-]
 
 export default {
   name: 'CorePlayBar',
@@ -291,10 +223,8 @@ export default {
     const isLiked = ref(false)
     const isDesktopLyricOn = ref(appSetting['desktopLyric.enable'] || false)
     const moreBtnRef = ref(null)
-    const modeBtnRef = ref(null)
     const qualityBtnRef = ref(null)
     const playlistBtnRef = ref(null)
-    const isShowAddMusicTo = ref(false)
     const playQueue = ref([])
     // 喜欢状态（按歌名+歌手去重，跨平台同曲不会重复收藏）
     const queueLoved = useLovedList()
@@ -369,10 +299,10 @@ export default {
     // ===== 播放队列（QQ 版式：行内收藏 / 添加 / 移除） =====
     const isLoved = (info) => queueLoved.isLoved(info)
     const toggleItemLove = async(info) => { await queueLoved.toggleLove(info) }
-    const addMusicInfo = ref(null)
-    const handleShowMusicAdd = (info) => {
-      addMusicInfo.value = info
-      isShowAddMusicTo.value = true
+    // 「添加到」锚定菜单（与右键菜单同款卡片）
+    const addMenu = useListAddMenu()
+    const handleShowMusicAdd = (event, info) => {
+      addMenu.openMenu(event?.currentTarget, info)
     }
     const handleClearQueue = () => {
       clearTempPlayeList()
@@ -402,26 +332,10 @@ export default {
           handleToMusicLocation()
           break
         case 'addTo':
-          isShowAddMusicTo.value = true
+          addMenu.openMenu(moreBtnRef.value?.$el, musicInfo)
           break
       }
     }
-
-    // ===== 循环 / 随机 / 单曲 =====
-    const {
-      nextTogglePlayName,
-      toggleNextPlayMode,
-    } = useNextTogglePlay()
-    const playModeIcon = computed(() => {
-      switch (appSetting['player.togglePlayMethod']) {
-        case 'random': return 'shuffle'
-        case 'singleLoop': return 'repeat-once'
-        case 'list': return 'list-ordered'
-        case 'none': return 'play-circle-outline'
-        default: return 'repeat' // listLoop
-      }
-    })
-    const playModeName = nextTogglePlayName
 
     // ===== 桌面歌词 =====
     const { toggleDesktopLyric } = useToggleDesktopLyric()
@@ -487,49 +401,6 @@ export default {
       return `${m}:${s.toString().padStart(2, '0')}`
     }
 
-    // ===== 播放模式（选项式） =====
-    const playModeOptions = PLAY_MODE_OPTIONS
-    const selectPlayMode = (mode) => {
-      modeBtnRef.value?.hide()
-      if (appSetting['player.togglePlayMethod'] === mode) return
-      toggleNextPlayMode(mode)
-    }
-
-    // ===== 音质（选项式） =====
-    const qualityOptions = PLAY_QUALITY_OPTIONS
-    const selectQuality = (value) => {
-      qualityBtnRef.value?.hide()
-      if (appSetting['player.playQuality'] === value) return
-      updateSetting({ 'player.playQuality': value })
-    }
-
-    // ===== 音量 / 静音 =====
-    const toggleMute = () => {
-      saveVolumeIsMute(!isMute.value)
-      setMute(!isMute.value)
-      setPlayerMute(!isMute.value)
-    }
-    const volumeIcon = computed(() => {
-      if (isMute.value) return 'volume-mute-outline'
-      if (volume.value == 0) return 'volume-off-outline'
-      if (volume.value < 0.3) return 'volume-low-outline'
-      if (volume.value < 0.7) return 'volume-medium-outline'
-      return 'volume-high-outline'
-    })
-    const volumeProgress = computed(() => volume.value)
-    const volumePercent = computed(() => Math.round(volume.value * 100))
-    const handleUpdateVolume = (val) => {
-      setVolume(val)
-      setPlayerVolume(val)
-    }
-    const stepVolume = (direction) => {
-      const next = Math.min(1, Math.max(0, Math.round((volume.value + direction * 0.05) * 100) / 100))
-      handleUpdateVolume(next)
-    }
-    const handleVolumeWheel = (event) => {
-      handleUpdateVolume(Math.round(volume.value * 100 + (-event.deltaY / 100 * 2)) / 100)
-    }
-
     return {
       appSetting,
       musicInfo,
@@ -549,22 +420,18 @@ export default {
       showComments,
       moreBtnRef,
       handleMoreAction,
-      isShowAddMusicTo,
-      addMusicInfo,
+      isShowAddMenu: addMenu.isShow,
+      addMenuLocation: addMenu.location,
+      addMenuAnchorRect: addMenu.anchorRect,
+      addMenuItems: addMenu.menus,
+      handleAddMenuClick: addMenu.handleMenuClick,
       isLoved,
       toggleItemLove,
       handleShowMusicAdd,
       handleClearQueue,
       getCoverUrl,
-      modeBtnRef,
-      playModeIcon,
-      playModeName,
-      playModeOptions,
-      selectPlayMode,
       qualityBtnRef,
       qualityLabel,
-      qualityOptions,
-      selectQuality,
       toggleLyric,
       isDesktopLyricOn,
       playlistBtnRef,
@@ -574,15 +441,6 @@ export default {
       handlePlayFromQueue,
       handleRemoveFromQueue,
       formatDuration,
-      toggleMute,
-      volume,
-      isMute,
-      volumeIcon,
-      volumeProgress,
-      volumePercent,
-      handleUpdateVolume,
-      stepVolume,
-      handleVolumeWheel,
       nowPlayTimeStr,
       maxPlayTimeStr,
       progress,
@@ -597,6 +455,7 @@ export default {
 <style lang="less" module>
 @import '@renderer/assets/styles/layout.less';
 @import '@renderer/assets/styles/home-tokens.less';
+@import '@renderer/assets/styles/qq-icon.less';
 
 .player {
   position: relative;
@@ -664,7 +523,7 @@ export default {
   align-items: center;
   justify-content: center;
   color: var(--color-primary);
-  :global(.svg-icon) { width: 22px; height: 22px; fill: currentColor; }
+  :global(.svg-icon) { width: var(--qm-icon); height: var(--qm-icon); }
 }
 
 .info {
@@ -689,27 +548,22 @@ export default {
   .mixin-ellipsis-1();
 }
 
+// 播放栏图标按钮：统一交互三态（默认 72% → 悬停 100% → 禁用 40%）+ 统一 20px 图标
 .iconBtn {
-  width: 30px;
-  height: 30px;
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: 0;
-  border-radius: var(--qm-radius-sm, 8px);
-  color: var(--color-font-label, rgba(0,0,0,0.55));
-  cursor: pointer;
-  transition: background-color @transition-fast, color @transition-fast, transform @transition-fast, box-shadow @transition-fast;
-  &:hover {
-    background-color: var(--color-button-background-hover, rgba(0,0,0,0.06));
-    color: var(--color-font);
-  }
-  &:active { transform: scale(0.92); }
-  :global(.svg-icon) { width: 16px; height: 16px; fill: currentColor; transition: transform @transition-fast; }
+  .qm-icon-btn();
 
-  // 已收藏：心形变红（liked 类加在按钮上，颜色由 svg 的 currentColor 继承）
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: var(--qm-radius-sm, 8px);
+  color: var(--color-font-label, rgba(0, 0, 0, 0.55));
+
+  &:hover:not(:disabled) {
+    color: var(--color-font);
+    background-color: var(--color-button-background-hover, rgba(0, 0, 0, 0.06));
+  }
+
+  // 已收藏：心形用危险色（实心/描边由 heart / heart-outline 两个图标表达）
   &.liked { color: var(--color-danger); }
 }
 
@@ -731,7 +585,14 @@ export default {
       inset 0 1px 0 rgba(255,255,255,0.20);
   }
   &:active { transform: scale(0.95); }
-  :global(.svg-icon) { width: 18px; height: 18px; fill: currentColor; }
+  // 主播放键：图标 24px 且始终满不透明（白三角在绿色圆钮上不能做 72% 淡化）
+  :global(.svg-icon) { width: var(--qm-icon-lg); height: var(--qm-icon-lg); opacity: 1; }
+  &:hover:not(:disabled) { color: #fff; }
+  &:disabled {
+    background: var(--qm-text-5);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
 }
 
 /* ========== 中：控制 + 进度 ========== */
@@ -747,6 +608,16 @@ export default {
   display: flex;
   align-items: center;
   gap: var(--qm-sp-2, 6px);
+}
+
+// 音量放到「下一首」旁边后，两端（循环 / 音量）需要与中间三键拉开一点距离
+// 只加单侧 margin：中间三键彼此的 6px 间距不变
+.modeBtn {
+  margin-right: 16px;
+}
+
+.volumeBtn {
+  margin-left: 16px;
 }
 
 .progress {
@@ -834,153 +705,23 @@ export default {
   letter-spacing: 0.5px;
 }
 
-/* ========== 音量面板 ========== */
-.volumePanel {
-  width: 200px;
-  padding: 10px 12px 6px;
-  display: flex;
-  flex-flow: column nowrap;
-  gap: var(--qm-sp-3, 8px);
-  font-size: var(--qm-fs-xs, 12px);
-}
-
-.volumeInfo {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--color-font-label, rgba(0,0,0,0.55));
-}
-
-.muteBtn {
-  width: 26px;
-  height: 26px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: 0;
-  border-radius: var(--qm-radius-xs, 6px);
-  color: var(--color-font);
-  cursor: pointer;
-  &:hover { background-color: var(--color-button-background-hover, rgba(0,0,0,0.06)); }
-  :global(.svg-icon) { width: 16px; height: 16px; fill: currentColor; }
-}
-
-.volumeText {
-  font-variant-numeric: tabular-nums;
-  font-size: var(--qm-fs-xs, 12px);
-}
-
-.volumeSliderWrap {
-  padding: 6px 0;
-}
-
-.volumeBar {
-  height: 6px;
-  border-radius: var(--qm-radius-chip, 999px);
-  background: var(--color-button-background, rgba(0,0,0,0.08));
-  cursor: pointer;
-  transition: height @transition-fast;
-  &:hover { height: 8px; }
-}
-
-.volumeStep {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--qm-sp-2, 6px);
-}
-
-.stepBtn {
-  flex: 1;
-  height: 24px;
-  background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: var(--qm-radius-xs, 6px);
-  font-size: var(--qm-fs-md, 14px);
-  font-weight: var(--qm-fw-semibold, 600);
-  color: var(--color-font);
-  cursor: pointer;
-  transition: background-color @transition-fast, color @transition-fast, border-color @transition-fast, transform @transition-fast;
-  &:hover { background-color: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-accent); }
-  &:active { transform: scale(0.95); }
-}
-
-/* ========== 弹出菜单（播放模式 / 音质） ========== */
-.popupMenu {
-  display: flex;
-  flex-flow: column nowrap;
-  min-width: 140px;
-  padding: 4px 0;
-  font-size: var(--qm-fs-xs, 12px);
-  // 外层面板（Popup.vue）已经是白卡，这里不要再画一层，否则会出现双重白边
-}
-
-.modeBtnWrap {
-  display: inline-flex;
-  align-items: center;
-}
-
-.menuItem {
-  display: flex;
-  align-items: center;
-  gap: var(--qm-sp-3, 8px);
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border: 0;
-  padding: 8px 12px;
-  font-size: var(--qm-fs-xs, 12px);
-  color: var(--color-font);
-  cursor: pointer;
-  transition: background-color @transition-fast;
-  &:hover { background-color: var(--color-button-background-hover, rgba(0,0,0,0.06)); }
-  &:active { background-color: var(--color-button-background, rgba(0,0,0,0.08)); }
-}
-
-.menuItemActive {
-  color: var(--color-accent);
-  font-weight: var(--qm-fw-semibold, 600);
-  background-color: var(--color-accent-soft);
-}
-
-.menuIcon {
-  width: 14px;
-  height: 14px;
-  flex: none;
-  fill: currentColor;
-}
-
 /* ========== 音效按钮（包装 common-sound-effect-btn） ========== */
 .soundEffectBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
+  .qm-icon-btn();
+
+  width: 32px;
+  height: 32px;
   border-radius: var(--qm-radius-sm, 8px);
-  color: var(--color-font-label, rgba(0,0,0,0.55));
-  cursor: pointer;
-  transition: background-color @transition-fast, color @transition-fast, transform @transition-fast;
-  &:hover {
-    background-color: var(--color-button-background-hover, rgba(0,0,0,0.06));
+  color: var(--color-font-label, rgba(0, 0, 0, 0.55));
+  &:hover:not(:disabled) {
     color: var(--color-font);
-  }
-  &:active { transform: scale(0.92); }
-  :global(.svg-icon) {
-    width: 18px;
-    height: 18px;
-    fill: currentColor;
+    background-color: var(--color-button-background-hover, rgba(0, 0, 0, 0.06));
   }
 }
 
-/* ========== 更多菜单 ========== */
+/* ========== 更多菜单（结构走全局 .qm-menu，这里只定宽度） ========== */
 .moreMenu {
-  display: flex;
-  flex-flow: column nowrap;
-  min-width: 140px;
-  padding: 4px 0;
-  font-size: var(--qm-fs-xs, 12px);
+  min-width: 150px;
 }
 
 /* ========== 播放队列弹窗（向上，仿 QQ 音乐） ========== */
@@ -1023,6 +764,7 @@ export default {
 
   svg { fill: none; }
   &:hover { color: var(--qm-primary); background-color: var(--qm-primary-soft); }
+  :global(.svg-icon) { width: var(--qm-icon-xs); height: var(--qm-icon-xs); }
 }
 
 .playlistPopupMeta {
@@ -1082,6 +824,7 @@ export default {
   width: 100%;
   height: 100%;
   color: var(--qm-text-5);
+  :global(.svg-icon) { width: var(--qm-icon-sm); height: var(--qm-icon-sm); }
 }
 
 .playlistPopupPlay {
@@ -1096,6 +839,7 @@ export default {
   transition: opacity @transition-fast;
 
   svg { fill: currentColor; }
+  :global(.svg-icon) { width: var(--qm-icon-xs); height: var(--qm-icon-xs); }
 }
 
 .playlistPopupInfo {
@@ -1153,6 +897,7 @@ export default {
 
   svg { fill: currentColor; }
   &:hover { color: var(--qm-primary); background-color: var(--qm-primary-soft); }
+  :global(.svg-icon) { width: var(--qm-icon-xs); height: var(--qm-icon-xs); }
 }
 
 .playlistActionLiked {

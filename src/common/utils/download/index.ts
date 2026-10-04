@@ -62,7 +62,8 @@ export const createDownload = ({
   dl.on('completed', () => {
     onCompleted()
   }).on('error', (err: any) => {
-    if (err.message === 'socket hang up') return
+    // socket hang up 是网络抖动时的常见错误，交由上层统一处理与重试，
+    // 此处静默吞掉会让任务永远停留在运行中且不再重试
     onError(err)
   }).on('start', () => {
     onStart()

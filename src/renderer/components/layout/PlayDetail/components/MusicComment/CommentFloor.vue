@@ -13,8 +13,7 @@ div(:class="$style.container")
                 time(v-if="item.timeStr" :class="$style.label") {{ timeFormat(item.timeStr) }}
                 div(v-if="item.location" :class="$style.label") {{ $t('comment__location', { location: item.location }) }}
             div(v-if="item.likedCount != null" :class="$style.likes")
-              svg(:class="$style.likesIcon" version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" space="preserve")
-                use(xlink:href="#icon-thumbs-up")
+              svg-icon(name="thumbs-up" :class="$style.likesIcon")
               | {{ item.likedCount }}
           p.select(:class="$style.comment_text") {{ item.text }}
           div(v-if="item.images?.length" :class="$style.comment_images")
@@ -62,7 +61,8 @@ export default {
 // }
 
 .listItem {
-  border-bottom: 1px dashed var(--color-primary-alpha-700);
+  // 面板已是不透明深色，分隔线用中性白 alpha，避免依赖主题色令牌在详情页内失真
+  border-bottom: 1px dashed rgba(255, 255, 255, .08);
 }
 
 .content {
@@ -76,7 +76,9 @@ export default {
 }
 .avatar {
   width: 40px;
-  border-radius: var(--qm-radius-2xs, 4px);
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
   box-shadow: 0 0 2px rgba(0, 0, 0, .15);
 }
 .right {
@@ -92,7 +94,7 @@ export default {
   width: 100%;
   height: 40px;
   line-height: 1.3;
-  color: var(--color-450);
+  color: rgba(255, 255, 255, .5);
 }
 .baseInfo {
   height: 100%;
@@ -113,7 +115,7 @@ export default {
   flex: 0 1 auto;
   min-width: 0;
   .mixin-ellipsis-1();
-  color: var(--color-650);
+  color: var(--qm-primary);
 }
 .label {
   flex: none;
@@ -126,12 +128,13 @@ export default {
   text-align: right;
   padding-top: 3px;
   align-self: flex-start;
+  color: rgba(255, 255, 255, .55);
 }
 .likesIcon {
   width: 12px;
   height: 12px;
   margin-right: 3px;
-  color: var(--color-primary-alpha-500);
+  color: var(--qm-primary);
 }
 .comment_text {
   text-align: justify;
@@ -166,7 +169,7 @@ export default {
     margin-right: var(--qm-sp-4, 10px);
   }
 
-  background-color: var(--color-primary-light-500-alpha-700);
+  background-color: rgba(255, 255, 255, .07);
 }
 
 

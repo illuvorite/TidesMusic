@@ -1,5 +1,5 @@
 <template>
-  <div :class="$style.contnet">
+  <div :class="$style.content">
     <div class="player__sound_effect_title" :class="$style.header">
       <h3>
         {{ $t('player__sound_effect_pitch_shifter') }}
@@ -7,17 +7,12 @@
       </h3>
       <base-btn min @click="handleSetPreset(1)">{{ $t('player__sound_effect_pitch_shifter_reset_btn') }}</base-btn>
     </div>
-    <div :class="$style.eqList">
-      <div :class="$style.eqItem">
-        <span :class="$style.label">{{ playbackRate.toFixed(2) }}x</span>
-        <base-slider-bar :class="$style.slider" :value="playbackRate * 100" :min="50" :max="150" @change="handleUpdatePlaybackRate" />
+    <div :class="$style.list">
+      <div :class="$style.item">
+        <span :class="[$style.value, { [$style.active]: playbackRate !== 1 }]">{{ playbackRate.toFixed(2) }}x</span>
+        <se-slider :value="playbackRate * 100" :min="50" :max="150" @change="handleUpdatePlaybackRate" />
       </div>
     </div>
-    <!-- <div :class="$style.saveList">
-      <base-btn v-for="num in semitones" :key="num" min @click="handleSetSemitones(num)">{{ $t(`player__sound_effect_pitch_shifter_preset_semitones`, { num: num > 0 ? `+${num}` : num }) }}</base-btn>
-      <base-btn v-for="item in userPresetList" :key="item.id" min @click="handleSetPreset(item.playbackRate)" @contextmenu="handleRemovePreset(item.id)">{{ item.name }}</base-btn>
-      <AddPitchShifterPresetBtn v-if="userPresetList.length < 31" />
-    </div> -->
   </div>
 </template>
 
@@ -25,16 +20,7 @@
 import { computed } from '@common/utils/vueTools'
 import { setMediaDeviceId } from '@renderer/plugins/player'
 import { appSetting, saveMediaDeviceId, updateSetting } from '@renderer/store/setting'
-// import AddPitchShifterPresetBtn from './AddPitchShifterPresetBtn.vue'
-// import { getUserPitchShifterPresetList, removeUserPitchShifterPreset } from '@renderer/store/soundEffect'
-// import { semitones } from '@renderer/plugins/player'
-
-// const setting = reactive({
-//   enabled: false,
-//   soundR: 5,
-//   speed: 25,
-// })
-
+import SeSlider from './SeSlider.vue'
 
 const playbackRate = computed(() => appSetting['player.soundEffect.pitchShifter.playbackRate'])
 
@@ -46,104 +32,56 @@ const handleSetPreset = async(value) => {
   updateSetting({ 'player.soundEffect.pitchShifter.playbackRate': value })
 }
 
-// const handleSetSemitones = (value) => {
-//   // https://zpl.fi/pitch-shifting-in-web-audio-api/
-//   handleSetPreset(2 ** (value / 12))
-// }
-
 const handleUpdatePlaybackRate = (value) => {
   value = parseFloat((Math.round(value) / 100).toFixed(2))
   void handleSetPreset(value)
 }
-
-
-// const userPresetList = ref([])
-
-// const handleRemovePreset = id => {
-//   removeUserPitchShifterPreset(id)
-// }
-
-// onMounted(() => {
-//   getUserPitchShifterPresetList().then(list => {
-//     userPresetList.value = list
-//   })
-// })
-
-
 </script>
 
 <style lang="less" module>
 @import '@renderer/assets/styles/layout.less';
-.contnet {
-  padding-top: 14px;
-  position: relative;
+.content {
+  user-select: none;
+  min-width: 0;
   display: flex;
   flex-flow: column nowrap;
-  gap: var(--qm-sp-4, 10px);
   min-height: 0;
-  flex: none;
 }
 .header {
   display: flex;
   flex-flow: row nowrap;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 5px;
-  // padding-top: 5px;
+
+  h3 {
+    margin: 0;
+    font-size: var(--se-fs-section, 14px);
+    font-weight: 600;
+    color: var(--se-text, #333);
+  }
 }
-.eqList {
+.list {
   display: flex;
   flex-flow: column nowrap;
-  gap: var(--qm-sp-6, 15px);
+  gap: 19px;
   width: 100%;
+  max-width: 520px;
 }
-.eqItem {
+.item {
   display: flex;
   flex-flow: row nowrap;
-  gap: var(--qm-sp-3, 8px);
-}
-.label {
-  flex: none;
-  // width: 50px;
-  font-size: var(--qm-fs-xs, 12px);
+  align-items: center;
+  gap: 14px;
 }
 .value {
   flex: none;
-  width: 40px;
-  font-size: var(--qm-fs-xs, 12px);
-  text-align: center;
+  width: 44px;
+  font-size: var(--se-fs-body, 13px);
+  color: var(--se-text-weak, #666);
+  font-variant-numeric: tabular-nums;
 
   &.active {
-    color: var(--color-primary-font);
+    color: var(--se-accent, #1ecc94);
   }
 }
-
-.footer {
-  display: flex;
-  flex-flow: row nowrap;
-  // justify-content: space-between;
-  justify-content: center;
-  align-items: center;
-  // font-size: 13px;
-  span {
-    line-height: 1.2;
-  }
-}
-
-.slider {
-  flex: auto;
-}
-
-.checkbox {
-  margin-right: var(--qm-sp-4, 10px);
-  font-size: var(--qm-fs-sm, 13px);
-}
-
-.saveList {
-  display: flex;
-  flex-flow: row wrap;
-  margin-top: var(--qm-sp-4, 10px);
-  gap: var(--qm-sp-4, 10px);
-}
-
 </style>

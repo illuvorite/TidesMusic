@@ -156,8 +156,13 @@ export default {
       return list
     }
 
-    const updateView = (currentScrollTop = dom_scrollContainer.value.scrollTop) => {
-      // const currentScrollTop = this.$refs.dom_scrollContainer.scrollTop
+    const updateView = (currentScrollTop) => {
+      // 不要把 `dom_scrollContainer.value.scrollTop` 放进默认参数：默认参数在调用时求值，
+      // 组件卸载后 ref 为 null，迟到的 setTimeout / resize 回调会抛
+      // `Cannot read properties of null (reading 'scrollTop')`。
+      const scrollEl = dom_scrollContainer.value
+      if (!scrollEl) return
+      if (currentScrollTop == null) currentScrollTop = scrollEl.scrollTop
       const itemHeight = props.itemHeight
       const currentStartIndex = Math.floor(currentScrollTop / itemHeight)
       const scrollContainerHeight = dom_scrollContainer.value.clientHeight

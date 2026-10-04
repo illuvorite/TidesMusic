@@ -3,13 +3,17 @@ import { decodeName } from './util'
 
 // https://github.com/lyswhut/lx-music-desktop/issues/296#issuecomment-683285784
 const enc_key = Buffer.from([0x40, 0x47, 0x61, 0x77, 0x5e, 0x32, 0x74, 0x47, 0x51, 0x36, 0x31, 0x2d, 0xce, 0xd2, 0x6e, 0x69], 'binary')
+// KRC 文件本身限制 10MB，但解码后是完全可控的 DEFLATE 流，
+// 不限制输出长度时少量输入即可膨胀到GB 级导致进程 OOM
+const MAX_INFLATE_SIZE = 8 * 1024 * 1024
 const decodeLyric = str => new Promise((resolve, reject) => {
-  if (!str.length) return
+  // 空输入必须 resolve，否则调用方的 await 会永久挂起
+  if (!str.length) return resolve('')
   const buf_str = Buffer.from(str, 'base64').subarray(4)
   for (let i = 0, len = buf_str.length; i < len; i++) {
     buf_str[i] = buf_str[i] ^ enc_key[i % 16]
   }
-  inflate(buf_str, (err, result) => {
+  inflate(buf_str, { maxOutputLength: MAX_INFLATE_SIZE }, (err, result) => {
     if (err) return reject(err)
     resolve(result.toString())
   })
