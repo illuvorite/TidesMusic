@@ -13,8 +13,6 @@ const address = [
   [`https://fastly.jsdelivr.net/gh/${author}/${name}/publish/version.json`, 'direct'],
   [`https://gcore.jsdelivr.net/gh/${author}/${name}/publish/version.json`, 'direct'],
   ['https://registry.npmmirror.com/lx-music-desktop-version-info/latest', 'npm'],
-  ['https://gitee.com/lyswhut/lx-music-desktop-versions/raw/master/version.json', 'direct'],
-  ['http://cdn.stsky.cn/lx-music/desktop/version.json', 'direct'],
 ]
 
 const request = async(url, retryNum = 0) => {
