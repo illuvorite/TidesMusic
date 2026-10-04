@@ -280,9 +280,41 @@ declare global {
       'player.soundEffect.panner.speed': number
 
       /**
+       * 3D立体环绕开关（环绕节点按需串入链路，中性时完全旁路）
+       */
+      'player.soundEffect.panner.enable': boolean
+
+      /**
+       * 3D立体环绕半径
+       */
+      'player.soundEffect.panner.soundR': number
+
+      /**
        * 升降声调
        */
       'player.soundEffect.pitchShifter.playbackRate': number
+
+      // ===== 增强链（旧版音效内核：按需插入，全中性时完全旁路）=====
+
+      /**
+       * 超重低音（低频架滤波器增益）
+       */
+      'player.soundEffect.enhance.bass': number
+
+      /**
+       * 高保真度（高频架滤波器增益）
+       */
+      'player.soundEffect.enhance.hifi': number
+
+      /**
+       * 动态推进（压限器阈值）
+       */
+      'player.soundEffect.enhance.dynamic': number
+
+      /**
+       * 声道平衡（声像位置 -1~1）
+       */
+      'player.soundEffect.enhance.balance': number
 
       // ===== 面板底部的 6 个连续音效参数（均对应真实音频节点）=====
 

@@ -177,20 +177,6 @@ const loading = ref(false)
 // 榜单接口一次返回全部歌曲（tx 最多 300 首），不是服务端分页；
 // 全量塞进普通 <ul> 会明显卡顿，因此做客户端增量渲染。
 const PAGE_STEP = 60
-const visibleCount = ref(PAGE_STEP)
-const visibleList = computed(() => list.value.slice(0, visibleCount.value))
-const loadError = ref(false)
-const bodyRef = ref(null)
-
-const handleScroll = () => {
-  const el = bodyRef.value
-  if (!el) return
-  // 距底部 320px 内再追加一屏
-  if (el.scrollHeight - el.scrollTop - el.clientHeight > 320) return
-  if (visibleCount.value >= list.value.length) return
-  visibleCount.value = Math.min(visibleCount.value + PAGE_STEP, list.value.length)
-}
-
 const today = computed(() => {
   const date = new Date()
   const pad = (num) => String(num).padStart(2, '0')

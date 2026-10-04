@@ -68,7 +68,13 @@ const defaultSetting: LX.AppSetting = {
   'player.soundEffect.biquadFilter.hz8000': 0,
   'player.soundEffect.biquadFilter.hz16000': 0,
   'player.soundEffect.panner.speed': 25,
+  'player.soundEffect.panner.enable': false,
+  'player.soundEffect.panner.soundR': 5,
   'player.soundEffect.pitchShifter.playbackRate': 1,
+  'player.soundEffect.enhance.bass': 0,
+  'player.soundEffect.enhance.hifi': 0,
+  'player.soundEffect.enhance.dynamic': 0,
+  'player.soundEffect.enhance.balance': 0,
   // ===== 面板底部的 6 个连续音效参数（每一项都对应真实音频节点）=====
   // 高保真度：highshelf 8kHz，0~100 → 0~+9dB
   'player.soundEffect.hifi': 0,

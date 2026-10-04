@@ -1,6 +1,8 @@
 interface HTMLAudioElementChrome extends HTMLAudioElement {
   setSinkId: (id: string) => Promise<void>
 }
+// 转出 audioEffects 中的预设常量（音效面板 presets.ts 从本模块取用）
+export { eqPresets, surroundModes } from './audioEffects'
 let audio: HTMLAudioElementChrome | null = null
 let audioContext: AudioContext
 let mediaSource: MediaElementAudioSourceNode

@@ -137,9 +137,6 @@ const list = ref([])
 const loading = ref(false)
 const hasStyle = ref(true)
 
-// 收藏（我喜欢）——行内红心按钮
-const { isLoved, loadLoved, toggleLove } = useLovedList()
-void loadLoved()
 const source = ref((() => {
   const query = route.query.source
   if (typeof query === 'string' && getAvailableSources().includes(query)) return query
