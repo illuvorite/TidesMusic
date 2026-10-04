@@ -25,7 +25,9 @@ const route = useRoute()
 
 const getListData = async(source: LX.OnlineSource, tabId: string, sortId: string, page: number) => {
   // console.log(source, tabId, sortId, page)
-  await getAndSetList(source, tabId, sortId, page).then(() => {
+  // 快速切页时，音源 SDK 的共享请求对象会把这里的请求 cancel 掉（reject「取消http请求」），
+  // 此时组件可能已卸载 —— 必须就地吞掉，避免未捕获 rejection 打断后续渲染调度。
+  await getAndSetList(source, tabId, sortId, page).catch(() => {}).then(() => {
     if (listInfo.key == window.lx.songListInfo.songlistKey && window.lx.songListInfo.songlistPosition) {
       void nextTick(() => {
         list_ref.value?.scrollTo(window.lx.songListInfo.songlistPosition)

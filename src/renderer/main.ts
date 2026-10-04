@@ -79,6 +79,23 @@ void getSetting().then(setting => {
     .use(router)
     // .use(store)
     .use(i18nPlugin)
+  // 全局错误兜底：防止渲染期异常把整棵组件树打断（表现为「点多了页面变白什么都没有」）。
+  // 「取消http请求」是快速切页时的正常取消路径（音源 SDK 单例请求对象互相 cancel），静默忽略。
+  app.config.errorHandler = (err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.includes('取消') && msg.includes('请求')) return
+    console.log('[vue errorHandler]', err)
+  }
+  window.addEventListener('unhandledrejection', (e: PromiseRejectionEvent) => {
+    const msg = e.reason instanceof Error ? e.reason.message : String(e.reason ?? '')
+    // 页面快速切换时，上一个页面的在线请求会被音源 SDK 的共享请求对象取消，
+    // 这些 Promise 的消费方（已卸载组件）来不及 catch —— 属于正常路径，吞掉即可。
+    if (msg.includes('取消') && msg.includes('请求')) {
+      e.preventDefault()
+      return
+    }
+    console.log('[unhandledrejection]', e.reason)
+  })
   initPlugins(app)
   mountComponents(app)
   app.mount('#root')
