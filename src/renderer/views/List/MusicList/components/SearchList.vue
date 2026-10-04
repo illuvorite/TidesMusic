@@ -280,7 +280,7 @@ export default {
       font-size: 13.5px;
       line-height: @height-toolbar * 0.52 + 5px;
       &::placeholder {
-        color: var(--color-button-font);
+        color: var(--qm-text-3);
         font-size: .98em;
       }
     }
@@ -295,15 +295,15 @@ export default {
       cursor: pointer;
       height: 100%;
       padding: 6px 9px;
-      color: var(--color-button-font);
+      color: var(--qm-text-3);
       transition: background-color .2s ease;
       opacity: 0.8;
 
       &:hover {
-        background-color: var(--color-button-background-hover);
+        background-color: var(--qm-hover);
       }
       &:active {
-        background-color: var(--color-button-background-active);
+        background-color: var(--qm-hover-strong);
       }
     }
   }

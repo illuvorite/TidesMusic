@@ -43,7 +43,10 @@ const request = (url, options, callback) => {
     // data.content_type = 'multipart/form-data'
     options.json = false
   }
-  options.response_timeout = options.timeout
+  // keep-alive 连接池可能复用被服务端静默关闭的死连接（写入后永远等不到响应，
+  // needle 默认 response_timeout=0 会无限挂起 → 界面一直"获取失败"）。
+  // 给一个兜底响应超时，让失败尽快暴露并允许上层重试（新请求会新建连接）。
+  options.response_timeout = options.timeout ?? 15000
 
   return needle.request(options.method || 'get', url, data, options, (err, resp, body) => {
     if (!err) {
@@ -73,21 +76,35 @@ const buildHttpPromose = (url, options) => {
   let obj = {
     isCancelled: false,
     cancelHttp: () => {
-      if (!obj.requestObj) return obj.isCancelled = true
+      // 先标记已取消：httpFetch 的自动重试据此跳过，避免把「主动取消」的请求重新发一遍
+      // （原实现只在「请求尚未建立」的分支里标记，导致已取消的请求仍被重试，
+      //  同一 URL 会被发 3 次，既浪费带宽又容易触发音源平台的 403 限流）
+      obj.isCancelled = true
+      if (!obj.requestObj) return
       cancelHttp(obj.requestObj)
       obj.requestObj = null
-      obj.promise = obj.cancelHttp = null
-      obj.cancelFn(new Error(requestMsg.cancelRequest))
-      obj.cancelFn = null
+      obj.promise = null
+      // 不再把 cancelHttp 置空：重复调用会变成安全的空操作，
+      // 否则第二次取消会抛 "cancelHttp is not a function"
+      if (obj.cancelFn) {
+        obj.cancelFn(new Error(requestMsg.cancelRequest))
+        obj.cancelFn = null
+      }
     },
   }
   obj.promise = new Promise((resolve, reject) => {
+    // ⚠️ 不要把 `obj.cancelFn = reject` 与紧跟其后的 `debugRequest && console.log(...)`
+    // 相邻书写。生产构建（terser）在关闭模块拼接后会把这两条语句错误地合并成
+    //   obj.cancelFn = reject(false) && console.log(...)
+    // 于是 Promise 在创建瞬间就被 reject(false) 且 cancelFn 变成 undefined，
+    // 造成「所有在线请求立刻失败」——表现为搜索/歌单/榜单/推荐全部拿不到数据。
+    // 因此调试日志一律放在赋值之前，并统一用 if 语句（而不是 && 短路）。
+    if (debugRequest) console.log(`\n---send request------${url}------------`)
     obj.cancelFn = reject
-    debugRequest && console.log(`\n---send request------${url}------------`)
     fetchData(url, options.method, options, (err, resp, body) => {
       // options.isShowProgress && window.api.hideProgress()
-      debugRequest && console.log(`\n---response------${url}------------`)
-      debugRequest && console.log(body)
+      if (debugRequest) console.log(`\n---response------${url}------------`)
+      if (debugRequest) console.log(body)
       obj.requestObj = null
       obj.cancelFn = null
       if (err) return reject(err)
@@ -105,10 +122,15 @@ const buildHttpPromose = (url, options) => {
  * @param {*} url
  * @param {*} options
  */
-export const httpFetch = (url, options = { method: 'get' }) => {
+export const httpFetch = (url, options = { method: 'get' }, retryNum = 0) => {
   const requestObj = buildHttpPromose(url, options)
   requestObj.promise = requestObj.promise.catch(err => {
     // console.log('出错', err)
+    // 网络瞬时故障（TLS 握手卡死被超时切断、连接被拒等，常见于代理/TUN 环境对
+    // 并发连接的干扰）自动重试，最多 2 次；换新连接后成功率显著提升
+    if (retryNum < 2 && !(requestObj && requestObj.isCancelled)) {
+      return httpFetch(url, options, retryNum + 1).promise
+    }
     if (err.message === 'socket hang up') {
       // window.globalObj.apiSource = 'temp'
       return Promise.reject(new Error(requestMsg.unachievable))
@@ -300,7 +322,10 @@ const fetchData = async(url, method, {
     method,
     headers: Object.assign({}, defaultHeaders, headers),
     timeout,
-    agent: getRequestAgent(url),
+    // 无代理时禁用 keep-alive 连接复用（agent: false = 每请求新建连接）：
+    // 复用的空闲连接可能已被服务端静默关闭，写入后永远等不到响应（挂起），
+    // 表现为乐馆/推荐等在线内容一直"获取失败"。新建连接代价约 50~150ms，可靠性优先。
+    agent: getRequestAgent(url) ?? false,
     json: format === 'json',
   }, (err, resp, body) => {
     if (err) return callback(err, null)

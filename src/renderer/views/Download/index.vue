@@ -252,11 +252,11 @@ export default {
   height: 100%;
   display: flex;
   flex-flow: column nowrap;
-  background-color: var(--color-surface-base);
+  background-color: var(--qm-surface);
 
   :global(.list-item) {
     &.active {
-      color: var(--color-accent);
+      color: var(--qm-primary);
     }
   }
 }
@@ -277,7 +277,7 @@ export default {
   align-items: center;
   justify-content: center;
 
-  color: var(--color-button-font);
+  color: var(--qm-text-3);
   opacity: .7;
 }
 
@@ -299,7 +299,7 @@ export default {
 
   p {
     font-size: var(--qm-fs-5xl, 24px);
-    color: var(--color-font-label);
+    color: var(--qm-text-4);
   }
 }
 

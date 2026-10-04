@@ -143,7 +143,7 @@ export default {
   button {
     width: 20px;
     height: 20px;
-    color: var(--color-font);
+    color: var(--qm-text-2);
   }
 
   .footerLeftControlBtn {
@@ -197,13 +197,13 @@ export default {
   border-radius: var(--qm-radius-xs, 6px);
   font-size: 12.5px;
   text-align: left;
-  color: var(--color-font);
+  color: var(--qm-text-2);
   background-color: transparent;
   cursor: pointer;
   transition: background-color @transition-fast, color @transition-fast;
 
   &:hover {
-    background-color: var(--color-button-background-hover);
+    background-color: var(--qm-hover);
   }
 }
 .qualityItemActive {

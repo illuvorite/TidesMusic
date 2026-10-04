@@ -205,6 +205,11 @@ declare global {
       'player.waitPlayEndStopTime': string
 
       /**
+       * 音效总开关（关闭时整条音效链物理旁路，素音直出）
+       */
+      'player.soundEffect.enable': boolean
+
+      /**
        * 环境音效文件名
        */
       'player.soundEffect.convolution.fileName': string | null
@@ -270,16 +275,6 @@ declare global {
       'player.soundEffect.biquadFilter.hz16000': number
 
       /**
-       * 3D立体环绕是否启用
-       */
-      'player.soundEffect.panner.enable': boolean
-
-      /**
-       * 3D立体环绕声音距离
-       */
-      'player.soundEffect.panner.soundR': number
-
-      /**
        * 3D立体环绕速度
        */
       'player.soundEffect.panner.speed': number
@@ -289,25 +284,42 @@ declare global {
        */
       'player.soundEffect.pitchShifter.playbackRate': number
 
-      /**
-       * 超重低音（0~50，实际 lowshelf 增益 = 值 * 0.3 dB）
-       */
-      'player.soundEffect.enhance.bass': number
+      // ===== 面板底部的 6 个连续音效参数（均对应真实音频节点）=====
 
       /**
-       * 高保真度（0~50，实际 highshelf 增益 = 值 * 0.24 dB）
+       * 高保真度（0~100 → highshelf 8kHz 0~+9dB）
        */
-      'player.soundEffect.enhance.hifi': number
+      'player.soundEffect.hifi': number
 
       /**
-       * 动态推进（0~50，映射压限器 threshold/ratio）
+       * 混响强度（0~100 → 卷积混响湿声 0~0.8）
        */
-      'player.soundEffect.enhance.dynamic': number
+      'player.soundEffect.reverb': number
 
       /**
-       * 声道平衡（-50~50，-1~1 pan）
+       * 环绕强度（0~100 → 3D 环绕旋转半径，> 0 即启用）
        */
-      'player.soundEffect.enhance.balance': number
+      'player.soundEffect.surroundStrength': number
+
+      /**
+       * 超重低音（0~100 → lowshelf 200Hz 0~+12dB）
+       */
+      'player.soundEffect.bass': number
+
+      /**
+       * 动态推进（0~100 → DynamicsCompressor 压缩强度）
+       */
+      'player.soundEffect.dynamic': number
+
+      /**
+       * 声道平衡（-50 全左 ~ 50 全右，0 = 居中）
+       */
+      'player.soundEffect.balance': number
+
+      /**
+       * 混响模式：off / small / medium / large（运行时生成 IR）
+       */
+      'player.soundEffect.reverbMode': string
 
       /**
        * 是否启用音频加载失败时自动切歌
@@ -730,6 +742,21 @@ declare global {
        * 是否在离开搜索界面时自动清空搜索结果列表
        */
       'odc.isAutoClearSearchList': boolean
+
+      /**
+       * 是否监听本地曲库目录、在文件变动时提示重新扫描
+       */
+      'local.libraryWatch': boolean
+
+      /**
+       * 是否记录播放历史（关闭后不再写入，「最近播放」与个性化推荐会停止更新）
+       */
+      'player.isSavePlayHistory': boolean
+
+      /**
+       * 播放历史保留条数上限，超出后淘汰最旧的记录
+       */
+      'player.playHistoryMax': number
     }
   }
 

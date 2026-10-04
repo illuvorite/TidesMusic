@@ -32,7 +32,7 @@
             <div :class="$style.heroText">
               <h3 :class="$style.heroTitle">每日30首</h3>
               <p :class="$style.heroSub">根据你的听歌风格<br />为你挑出 30 首歌曲</p>
-              <button type="button" :class="$style.heroPlay" aria-label="播放" @click.stop="playDaily()">
+              <button type="button" :class="$style.heroPlay" :aria-label="$t('play')" @click.stop="playDaily()">
                 <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
                   <path d="M8 5.4v13.2l11-6.6z" fill="currentColor" />
                 </svg>
@@ -83,7 +83,7 @@
           听「{{ similarSeed.name }}」也会喜欢
           <button
             type="button" :class="[$style.likeBtn, { [$style.liked]: isSeedLiked }]"
-            aria-label="收藏这首歌" title="收藏这首歌" @click="toggleSeedLike()"
+            :aria-label="$t('common__collect_song')" :title="$t('common__collect_song')" @click="toggleSeedLike()"
           >
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
               <path
@@ -92,7 +92,7 @@
               />
             </svg>
           </button>
-          <button type="button" :class="$style.roundPlay" aria-label="播放全部" title="播放全部推荐" @click="playSimilar()">
+          <button type="button" :class="$style.roundPlay" :aria-label="$t('common__play_all')" :title="$t('common__play_all')" @click="playSimilar()">
             <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
               <path d="M8 5.4v13.2l11-6.6z" fill="currentColor" />
             </svg>
@@ -125,7 +125,7 @@
               <em v-if="qualityTag(item)" :class="$style.tag">{{ qualityTag(item) }}</em>
             </p>
             <p :class="$style.songSinger">
-              <button type="button" :class="$style.miniPlay" aria-label="播放" title="播放" @click.stop="playSimilar(item)">
+              <button type="button" :class="$style.miniPlay" :aria-label="$t('play')" :title="$t('play')" @click.stop="playSimilar(item)">
                 <svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true">
                   <path d="M8 5.4v13.2l11-6.6z" fill="currentColor" />
                 </svg>
@@ -233,6 +233,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, markRawList } from '@common/utils/vueTools'
+import { useI18n } from '@renderer/plugins/i18n'
 import { useRouter } from '@common/utils/vueRouter'
 import { LIST_IDS } from '@common/constants'
 import { playList } from '@renderer/core/player/action'
@@ -258,6 +259,8 @@ import {
   loadStyleData,
   saveSource,
 } from '@renderer/utils/personalRecommend'
+
+const t = useI18n()
 
 const router = useRouter()
 
@@ -315,7 +318,7 @@ const millionPics = computed(() => {
 const miniCards = computed(() => [
   {
     key: 'brush',
-    name: '刷歌模式',
+    name: t('home__mode_swipe'),
     icon: 'shuffle',
     meta: brushBusy.value
       ? '正在生成队列…'
@@ -326,10 +329,10 @@ const miniCards = computed(() => [
   },
   {
     key: 'million',
-    name: '百万收藏',
+    name: t('home__million_collect'),
     icon: 'crown',
     meta: million.value
-      ? `${million.value.kind === 'playlist' ? million.value.name : '榜单热歌聚合'} · ${million.value.list.length} 首`
+      ? `${million.value.kind === 'playlist' ? million.value.name : t('home__board_hits_mix')} · ${t('home__songs_count', { num: million.value.list.length })}`
       : '平台百万收藏歌曲',
     pics: millionPics.value,
     busy: false,
@@ -337,7 +340,7 @@ const miniCards = computed(() => [
   },
   {
     key: 'radio',
-    name: '电台',
+    name: t('home__radio'),
     icon: 'headphones',
     meta: radioBusy.value
       ? '正在调频…'
@@ -353,19 +356,20 @@ const privateLists = ref([])
 
 async function loadPrivateLists() {
   const ids = [loveList.id, ...userLists.map(item => item.id)].slice(0, 10)
-  const lists = []
-  for (const id of ids) {
+  // 原实现逐个 await（10 次串行读取），首屏要等完最后一本才渲染；
+  // 这些歌单之间互不依赖，改为并发读取，并保持输出顺序与 ids 一致。
+  const lists = await Promise.all(ids.map(async id => {
     const musics = await getListMusics(id).catch(() => [])
     const userInfo = userLists.find(item => item.id === id)
     const isLove = id === loveList.id
-    lists.push({
+    return {
       id,
-      name: isLove ? '我喜欢的音乐' : (userInfo?.name ?? '歌单'),
+      name: isLove ? t('home__my_love') : (userInfo?.name ?? t('home__created_list')),
       label: isLove ? '收藏的歌曲' : (userInfo?.sourceListId ? '收藏的歌单' : '自建歌单'),
       cover: musics[0]?.meta?.picUrl ?? '',
       count: musics.length,
-    })
-  }
+    }
+  }))
   privateLists.value = lists
 }
 
@@ -660,7 +664,7 @@ onMounted(async() => {
   height: 28px;
   padding: 0 12px;
   border: 1px solid var(--qm-primary-border);
-  border-radius: var(--qm-radius-lg, 12px);
+  border-radius: var(--qm-radius-panel);
   font-size: var(--qm-fs-xs, 12px);
   color: var(--qm-primary);
   background-color: var(--qm-primary-soft);
@@ -754,7 +758,7 @@ onMounted(async() => {
   height: 56px;
   border-radius: var(--qm-radius-cover);
   overflow: hidden;
-  background-color: var(--home-tile-bg);
+  background-color: var(--qm-tile-bg);
 
   img { display: block; width: 100%; height: 100%; object-fit: cover; }
 }
@@ -866,7 +870,7 @@ onMounted(async() => {
   aspect-ratio: 1 / 1;
   border-radius: var(--qm-radius-cover);
   overflow: hidden;
-  background-color: var(--home-tile-bg);
+  background-color: var(--qm-tile-bg);
 }
 .coverImg {
   display: block;
@@ -958,7 +962,7 @@ onMounted(async() => {
   gap: 3px;
   height: 18px;
   padding: 0 6px;
-  border-radius: var(--qm-radius-md, 10px);
+  border-radius: var(--qm-radius-card);
   font-size: var(--qm-fs-2xs, 11px);
   line-height: 1;
   color: #fff;
@@ -1069,7 +1073,7 @@ onMounted(async() => {
     bottom: -7px;
     width: 92px;
     height: 92px;
-    border-radius: var(--qm-radius-md, 10px);
+    border-radius: var(--qm-radius-card);
     background-color: #23252B;
     box-shadow: 0 8px 20px rgba(24, 28, 48, .28);
   }
@@ -1080,7 +1084,7 @@ onMounted(async() => {
   display: block;
   width: 100%;
   height: 100%;
-  border-radius: var(--qm-radius-md, 10px);
+  border-radius: var(--qm-radius-card);
   object-fit: cover;
   box-shadow: 0 10px 24px rgba(24, 28, 48, .22);
 }

@@ -4,79 +4,68 @@
       <use xlink:href="#icon-tune-variant" />
     </svg>
   </button>
-  <teleport :to="teleport">
-    <transition enter-active-class="animated fadeIn" leave-active-class="animated fadeOut">
-      <div v-if="visible" :class="$style.container">
-        <div :class="$style.mask" @click="visible = false" />
-        <div :class="$style.panel">
-          <header :class="$style.header">
-            <svg :class="$style.headerIcon" version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" space="preserve">
-              <use xlink:href="#icon-tune-variant" />
+  <material-modal :show="visible" bg-close="bg-close" :teleport="teleport" @close="visible = false">
+    <div :class="$style.panel">
+      <!-- 顶部：标题 + 总开关 + 当前音效名 -->
+      <header :class="$style.header">
+        <div :class="$style.headerLeft">
+          <svg :class="$style.headerIcon" version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" space="preserve">
+            <use xlink:href="#icon-tune-variant" />
+          </svg>
+          <h2 :class="$style.headerTitle">{{ $t('player__sound_effect_title') }}</h2>
+        </div>
+        <div :class="$style.headerRight">
+          <span :class="[$style.status, { [$style.statusOn]: enabled }]">{{ enabled ? $t('player__sound_effect_enabled') : $t('player__sound_effect_disabled') }}</span>
+          <span v-if="enabled" :class="$style.presetName">{{ currentPresetLabel }}</span>
+          <effect-switch :model-value="enabled" @update:model-value="handleMasterToggle" />
+          <button type="button" :class="$style.closeBtn" aria-label="关闭" @click="visible = false">
+            <svg viewBox="0 0 24 24" space="preserve">
+              <path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" />
             </svg>
-            <b :class="$style.headerTitle">{{ $t('player__sound_effect_galaxy_title') }}</b>
+          </button>
+        </div>
+      </header>
+
+      <div :class="$style.body">
+        <!-- 左侧竖向导航 -->
+        <nav :class="$style.nav">
+          <template v-for="(item, index) in tabs" :key="item.key">
+            <span v-if="index === tabs.length - 1" :class="$style.navDivider" />
             <button
               type="button"
-              :class="[$style.switch, { [$style.switchOn]: isAnyActive }]"
-              :aria-label="isAnyActive ? $t('player__sound_effect_state_on') : $t('player__sound_effect_state_off')"
-              @click="handleToggleAll"
+              :class="[$style.navItem, { [$style.navItemActive]: activeTab === item.key }]"
+              @click="activeTab = item.key"
             >
-              <span :class="$style.switchDot" />
+            <svg-icon :class="$style.navIcon" :name="item.icon" />
+            <span :class="$style.navLabel">{{ $t(item.label) }}</span>
+            <span v-if="navSubLabel(item.key)" :class="$style.navSub">{{ navSubLabel(item.key) }}</span>
             </button>
-            <span :class="$style.headerState">{{ isAnyActive ? $t('player__sound_effect_state_on') : $t('player__sound_effect_state_off') }}</span>
-            <span v-if="isAnyActive" :class="$style.headerPreset">{{ eqPresetText }}</span>
-            <button type="button" :class="$style.closeBtn" aria-label="close" @click="visible = false">
-              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                <path d="M5.8 5.8 18.2 18.2M18.2 5.8 5.8 18.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-              </svg>
-            </button>
-          </header>
-          <div :class="$style.body">
-            <nav :class="$style.side">
-              <button
-                v-for="tab in tabs"
-                :key="tab.id"
-                type="button"
-                :class="[$style.navBtn, { [$style.navBtnActive]: activeTab === tab.id }]"
-                :aria-label="tab.label"
-                @click="activeTab = tab.id"
-              >
-                <svg :class="$style.navIcon" viewBox="0 0 24 24" aria-hidden="true" v-html="tab.icon" />
-                <span :class="$style.navLabel">{{ tab.label }}</span>
-                <b v-if="tab.sub" :class="$style.navSub">{{ tab.sub }}</b>
-              </button>
-            </nav>
-            <main class="scroll" :class="$style.main">
-              <div v-show="activeTab === 'recommend'">
-                <AudioConvolution />
-              </div>
-              <div v-show="activeTab === 'acoustic'" :class="$style.acousticPanel">
-                <AudioPanner />
-                <PitchShifter />
-              </div>
-              <div v-show="activeTab === 'eq'">
-                <BiquadFilter />
-              </div>
-              <div v-show="activeTab === 'make'">
-                <Make />
-              </div>
-            </main>
-          </div>
-          <p v-if="showTip" :class="$style.tip">{{ $t('player__sound_effect_features_tip') }}</p>
+          </template>
+        </nav>
+
+        <!-- 内容区 -->
+        <div :class="['scroll', $style.content, { [$style.contentDisabled]: !enabled }]">
+          <PresetTiles v-if="activeTab === 'preset'" />
+          <EqPanel v-else-if="activeTab === 'eq'" />
+          <AdvancedPanel v-else-if="activeTab === 'advanced'" />
+          <PitchPanel v-else />
         </div>
       </div>
-    </transition>
-  </teleport>
+
+      <p v-if="showTip" :class="$style.tip">{{ $t('player__sound_effect_features_tip') }}</p>
+    </div>
+  </material-modal>
 </template>
 
 <script setup>
-import { ref, computed, watch } from '@common/utils/vueTools'
-import BiquadFilter from './BiquadFilter.vue'
-import AudioPanner from './AudioPanner.vue'
-import AudioConvolution from './AudioConvolution.vue'
-import PitchShifter from './PitchShifter.vue'
-import Make from './Make.vue'
+import { computed, ref, watch } from '@common/utils/vueTools'
 import { appSetting, updateSetting } from '@renderer/store/setting'
-import { freqs, freqsPreset } from '@renderer/plugins/player'
+import { matchSoundPreset, matchEqTile, readEffectState, soundPresets, eqTiles } from './presets'
+import PresetTiles from './PresetTiles.vue'
+import EqPanel from './EqPanel.vue'
+import AdvancedPanel from './AdvancedPanel.vue'
+import PitchPanel from './PitchPanel.vue'
+import EffectSwitch from './ui/EffectSwitch.vue'
 
 defineProps({
   teleport: {
@@ -86,99 +75,57 @@ defineProps({
 })
 
 const visible = ref(false)
+const activeTab = ref('preset')
+
+const tabs = [
+  { key: 'preset', label: 'player__sound_effect_tab_preset', icon: 'music' },
+  { key: 'advanced', label: 'player__sound_effect_tab_acoustic', icon: 'headphones' },
+  { key: 'eq', label: 'player__sound_effect_biquad_filter', icon: 'equalizer' },
+  { key: 'pitch', label: 'player__sound_effect_tab_make', icon: 'tune-variant' },
+]
+
+/** 总开关：关闭时整条音效链物理旁路（素音直出），各音效设置保留 */
+const enabled = computed(() => appSetting['player.soundEffect.enable'])
+
+const currentPresetLabel = computed(() => {
+  const state = readEffectState(appSetting)
+  const soundKey = matchSoundPreset(state)
+  if (soundKey) return soundPresets.find(item => item.key === soundKey)?.label ?? ''
+  const eqKey = matchEqTile(state.eq)
+  if (eqKey && eqKey !== 'custom') return eqTiles.find(item => item.key === eqKey)?.label ?? ''
+  return '自定义'
+})
+
+/** 选中项下方的小字（与参考图一致：显示当前音效名） */
+const navSubLabel = (key) => {
+  if (key === 'preset') {
+    const state = readEffectState(appSetting)
+    const soundKey = matchSoundPreset(state)
+    return soundKey ? soundPresets.find(item => item.key === soundKey)?.label ?? '' : ''
+  }
+  if (key === 'eq') {
+    const state = readEffectState(appSetting)
+    const eqKey = matchEqTile(state.eq)
+    if (!eqKey || eqKey === 'custom') return ''
+    return eqTiles.find(item => item.key === eqKey)?.label ?? ''
+  }
+  return ''
+}
+
+const handleMasterToggle = (value) => {
+  updateSetting({ 'player.soundEffect.enable': value })
+}
 
 const showTip = ref(false)
 
 watch(visible, (visible) => {
   if (visible) showTip.value = appSetting['player.mediaDeviceId'] != 'default'
 })
-
-// 当前均衡器预设（关闭 / 内置预设名 / 自定义）
-const eqPreset = computed(() => {
-  const vals = freqs.map(f => appSetting[`player.soundEffect.biquadFilter.hz${f}`])
-  if (vals.every(v => v === 0)) return { i18n: 'close' }
-  for (const preset of freqsPreset) {
-    if (freqs.every((f, i) => preset[`hz${f}`] === vals[i])) return { i18n: preset.name }
-  }
-  return { i18n: 'custom' }
-})
-const eqPresetText = computed(() => window.i18n.t(`player__sound_effect_biquad_filter_preset_${eqPreset.value.i18n}`))
-
-// 是否有任一音效生效
-const isAnyActive = computed(() => {
-  if (freqs.some(f => appSetting[`player.soundEffect.biquadFilter.hz${f}`] !== 0)) return true
-  if (appSetting['player.soundEffect.panner.enable']) return true
-  if (appSetting['player.soundEffect.convolution.fileName']) return true
-  if (appSetting['player.soundEffect.pitchShifter.playbackRate'] !== 1) return true
-  return false
-})
-
-// 总开关：一键关闭全部音效（与各子功能的原有逻辑一致，仅批量复位）
-const handleToggleAll = () => {
-  if (!isAnyActive.value) return
-  const setting = {}
-  for (const f of freqs) setting[`player.soundEffect.biquadFilter.hz${f}`] = 0
-  setting['player.soundEffect.panner.enable'] = false
-  setting['player.soundEffect.panner.soundR'] = 0
-  setting['player.soundEffect.convolution.fileName'] = ''
-  setting['player.soundEffect.pitchShifter.playbackRate'] = 1
-  updateSetting(setting)
-  // 同步关闭通用音效链的「开启效果」状态，防止其后续再写全局音效
-  try {
-    const raw = localStorage.getItem('lx_galaxy_general_chain')
-    if (raw) {
-      const data = JSON.parse(raw)
-      if (data.enabled) {
-        data.enabled = false
-        localStorage.setItem('lx_galaxy_general_chain', JSON.stringify(data))
-      }
-    }
-  } catch {}
-}
-
-const activeTab = ref('recommend')
-
-const tabs = computed(() => {
-  return [
-    {
-      id: 'recommend',
-      label: window.i18n.t('player__sound_effect_tab_recommend'),
-      sub: '',
-      icon: '<path d="M9.2 17.6V6l9-1.7v11.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.9" cy="17.7" r="2.3" fill="currentColor"/><circle cx="15.9" cy="15.5" r="2.3" fill="currentColor"/>',
-    },
-    {
-      id: 'acoustic',
-      label: window.i18n.t('player__sound_effect_tab_acoustic'),
-      sub: '',
-      icon: '<path d="M4.2 13.2a7.8 7.8 0 0 1 15.6 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><rect x="3.2" y="12.8" width="4.2" height="6.4" rx="1.8" fill="currentColor"/><rect x="16.6" y="12.8" width="4.2" height="6.4" rx="1.8" fill="currentColor"/>',
-    },
-    {
-      id: 'eq',
-      label: window.i18n.t('player__sound_effect_biquad_filter'),
-      sub: isAnyActive.value ? eqPresetText.value : '',
-      icon: '<path d="M6 4v16M12 4v16M18 4v16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="6" cy="14.5" r="2" fill="currentColor"/><circle cx="12" cy="8.5" r="2" fill="currentColor"/><circle cx="18" cy="16.5" r="2" fill="currentColor"/>',
-    },
-    {
-      id: 'make',
-      label: window.i18n.t('player__sound_effect_tab_make'),
-      sub: '',
-      icon: '<path d="M4.5 19.5 14 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M16.2 3.4l.9 2 2 .9-2 .9-.9 2-.9-2-2-.9 2-.9z" fill="currentColor"/><path d="M19.6 9.4l.6 1.3 1.3.6-1.3.6-.6 1.3-.6-1.3-1.3-.6 1.3-.6z" fill="currentColor"/>',
-    },
-  ]
-})
 </script>
-
-<style lang="less">
-@import '@renderer/assets/styles/layout.less';
-// 子组件仍在使用的全局标题样式
-.player__sound_effect_title {
-  font-size: var(--qm-fs-md, 14px);
-  padding-bottom: var(--qm-sp-3, 8px);
-}
-</style>
 
 <style lang="less" module>
 @import '@renderer/assets/styles/layout.less';
+
 .btn {
   position: relative;
   justify-content: center;
@@ -209,267 +156,168 @@ const tabs = computed(() => {
   }
 }
 
-.container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 99;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.mask {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.35);
-}
 .panel {
-  position: relative;
-  width: 780px;
-  max-width: 92%;
-  height: 560px;
-  max-height: 90%;
   display: flex;
   flex-flow: column nowrap;
-  background-color: var(--color-main-background, #fff);
-  border-radius: var(--qm-radius-lg, 12px);
-  box-shadow: var(--qm-shadow-3, 0 12px 32px rgba(0, 0, 0, 0.2));
-  overflow: hidden;
+  width: 720px;
+  max-width: 94vw;
+  min-height: 0;
 }
 
-// ===== 标题栏 =====
 .header {
   flex: none;
   display: flex;
   flex-flow: row nowrap;
   align-items: center;
-  gap: var(--qm-sp-4, 10px);
-  padding: 14px 16px 12px 18px;
-  border-bottom: 1px solid var(--qm-line-1, rgba(0, 0, 0, 0.06));
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--qm-line-2, var(--color-primary-light-100-alpha-700));
+}
+.headerLeft {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 .headerIcon {
-  flex: none;
   width: 20px;
   height: 20px;
-  color: var(--color-primary);
-  fill: currentColor;
+  flex: none;
+  fill: var(--color-font);
 }
 .headerTitle {
-  flex: none;
-  font-size: var(--qm-fs-xl, 16px);
-  font-weight: var(--qm-fw-semibold, 600);
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
   color: var(--color-font);
-  margin-right: var(--qm-sp-2, 6px);
+  white-space: nowrap;
 }
-.switch {
-  flex: none;
-  position: relative;
-  width: 36px;
-  height: 20px;
-  border: none;
-  border-radius: var(--qm-radius-chip, 999px);
-  background-color: var(--qm-line-2, rgba(0, 0, 0, 0.12));
-  cursor: pointer;
-  transition: background-color @transition-normal;
-  padding: 0;
+.headerRight {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 8px;
+}
+.status {
+  font-size: 12px;
+  color: var(--color-font-label);
+  &.statusOn {
+    color: #12b981;
+  }
+}
+.presetName {
+  font-size: 12px;
+  color: var(--color-font);
+  white-space: nowrap;
+}
 
-  .switchDot {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background-color: #fff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-    transition: left @transition-normal;
-  }
-  &.switchOn {
-    background-color: var(--color-primary);
-    .switchDot {
-      left: 18px;
-    }
+.body {
+  display: flex;
+  flex-flow: row nowrap;
+  min-height: 0;
+  height: 430px;
+}
+
+.nav {
+  flex: none;
+  width: 104px;
+  display: flex;
+  flex-flow: column nowrap;
+  gap: 4px;
+  padding: 12px 8px;
+  border-right: 1px solid var(--qm-line-2, var(--color-primary-light-100-alpha-700));
+  box-sizing: border-box;
+}
+.navItem {
+  display: flex;
+  flex-flow: column nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 4px;
+  border: none;
+  border-radius: 10px;
+  background-color: transparent;
+  color: var(--color-font-label);
+  cursor: pointer;
+  transition: background-color var(--qm-t-fast, .18s), color var(--qm-t-fast, .18s);
+
+  &:hover {
+    background-color: var(--qm-hover, var(--color-primary-light-100-alpha-700));
   }
 }
-.headerState {
-  flex: none;
-  font-size: var(--qm-fs-sm, 13px);
-  color: var(--color-font);
+.navItemActive {
+  // 参考图：选中态不使用底色，仅图标与文字变为主色
+  color: #12b981;
+  .navIcon {
+    fill: #12b981;
+  }
 }
-.headerPreset {
-  flex: none;
-  font-size: var(--qm-fs-sm, 13px);
-  color: var(--color-primary);
+.navIcon {
+  width: 26px;
+  height: 26px;
+  fill: var(--color-font-label);
+  transition: fill var(--qm-t-fast, .18s);
+}
+.navLabel {
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: center;
+}
+.navSub {
+  font-size: 11px;
+  line-height: 1.1;
+  color: #12b981;
+  text-align: center;
+}
+.navDivider {
+  height: 1px;
+  margin: 8px 12px;
+  background-color: var(--qm-line-2, var(--color-primary-light-100-alpha-700));
 }
 .closeBtn {
   flex: none;
-  margin-left: auto;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--color-font);
-  cursor: pointer;
-  transition: background-color @transition-fast;
-
-  &:hover {
-    background-color: var(--qm-hover, rgba(0, 0, 0, 0.06));
-  }
-}
-
-// ===== 主体：左侧导航 + 内容 =====
-.body {
-  flex: auto;
-  min-height: 0;
-  display: flex;
-  flex-flow: row nowrap;
-}
-.side {
-  flex: none;
-  width: 132px;
-  padding: 14px 10px;
-  display: flex;
-  flex-flow: column nowrap;
-  gap: var(--qm-sp-1, 4px);
-  border-right: 1px solid var(--qm-line-1, rgba(0, 0, 0, 0.06));
-  overflow-y: auto;
-}
-.navBtn {
-  position: relative;
-  display: flex;
-  flex-flow: column nowrap;
-  align-items: center;
-  gap: var(--qm-sp-2, 6px);
-  padding: 14px 6px 12px;
-  border: none;
-  border-radius: var(--qm-radius-md, 10px);
-  background: transparent;
-  color: var(--color-font);
-  cursor: pointer;
-  transition: background-color @transition-fast, color @transition-fast;
-
-  .navIcon {
-    width: 26px;
-    height: 26px;
-  }
-  .navLabel {
-    font-size: var(--qm-fs-sm, 13px);
-    line-height: 1.2;
-  }
-  .navSub {
-    max-width: 100%;
-    font-size: var(--qm-fs-2xs, 11px);
-    font-weight: var(--qm-fw-regular, 400);
-    line-height: 1.2;
-    color: var(--color-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  &:hover {
-    background-color: var(--qm-hover, rgba(0, 0, 0, 0.05));
-  }
-  &.navBtnActive {
-    color: var(--color-primary);
-    background-color: var(--qm-primary-soft, rgba(0, 0, 0, 0.04));
-    .navLabel {
-      font-weight: var(--qm-fw-semibold, 600);
-    }
-  }
-}
-.main {
-  flex: auto;
-  min-width: 0;
-  padding: 16px 20px;
-}
-.acousticPanel {
-  display: flex;
-  flex-flow: column nowrap;
-  gap: var(--qm-sp-1, 4px);
-}
-
-// ===== 音效制作 =====
-.makePanel {
-  display: flex;
-  flex-flow: column nowrap;
-  gap: 18px;
-}
-.makeSection {
-  min-width: 0;
-}
-.makeTitle {
-  margin: 0 0 10px;
-  font-size: var(--qm-fs-md, 14px);
-  font-weight: var(--qm-fw-semibold, 600);
-  color: var(--color-font);
-}
-.chipList {
-  display: flex;
-  flex-flow: row wrap;
-  gap: var(--qm-sp-4, 10px);
-}
-.chip {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--qm-sp-2, 6px);
-  padding: 5px 12px;
-  border-radius: var(--qm-radius-chip, 999px);
-  background-color: var(--qm-field, rgba(0, 0, 0, 0.05));
-  color: var(--color-font);
-  font-size: var(--qm-fs-sm, 13px);
-  cursor: pointer;
-  transition: background-color @transition-fast, color @transition-fast;
-
-  &:hover {
-    background-color: var(--qm-primary-soft, rgba(0, 0, 0, 0.06));
-    color: var(--color-primary);
-  }
-}
-.chipDelete {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  margin-right: -4px;
+  width: 26px;
+  height: 26px;
   border: none;
   border-radius: 50%;
-  padding: 0;
-  background: transparent;
-  color: var(--qm-text-3, #888);
-  font-size: var(--qm-fs-sm, 13px);
-  line-height: 1;
+  background: none;
+  color: var(--color-font-label);
   cursor: pointer;
 
+  svg {
+    width: 15px;
+    height: 15px;
+  }
   &:hover {
-    background-color: var(--color-btn-close, #e74c3c);
-    color: #fff;
+    background-color: var(--qm-hover, var(--color-primary-light-100-alpha-700));
+    color: var(--color-font);
   }
 }
-.makeEmpty {
-  margin: 0;
-  font-size: var(--qm-fs-xs, 12px);
-  line-height: 1.5;
-  color: var(--qm-text-3, #888);
+
+.content {
+  flex: auto;
+  min-width: 0;
+  padding: 14px 16px;
+  box-sizing: border-box;
+  transition: opacity @transition-normal;
+  &.contentDisabled {
+    opacity: .45;
+    pointer-events: none;
+  }
 }
 
 .tip {
   flex: none;
-  padding: 8px 18px 12px;
-  font-size: var(--qm-fs-xs, 12px);
-  line-height: 1.25;
-  color: var(--color-font);
-  border-top: 1px dashed var(--qm-line-1, rgba(0, 0, 0, 0.06));
+  padding: 0 16px 14px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--color-font-label);
 }
 </style>

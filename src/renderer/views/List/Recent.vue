@@ -3,135 +3,120 @@
     <header :class="$style.header">
       <h1 :class="$style.title">
         <svg-icon name="clock" :class="$style.titleIcon" />
-        最近播放
+        {{ $t('recent_play') }}
       </h1>
-      <span :class="$style.count">{{ displayedList.length }} 首</span>
+      <span :class="$style.count">{{ $t('recent__count', { num: list.length }) }}</span>
+
+      <button
+        v-if="list.length"
+        type="button"
+        :class="[$style.clearBtn, { [$style.clearBtnConfirm]: confirmingClear }]"
+        @click="handleClearClick"
+      >
+        {{ confirmingClear ? $t('recent__clear_confirm') : $t('search__clear') }}
+      </button>
     </header>
-    <div :class="$style.content" class="scroll">
-      <div v-if="!displayedList.length" :class="$style.empty">
-        <svg-icon name="clock" :class="$style.emptyIcon" />
-        <p>还没有播放记录</p>
-        <p :class="$style.emptyHint">播放歌曲后会在这里显示</p>
-      </div>
-      <table v-else :class="$style.table">
-        <thead>
-          <tr>
-            <th :class="$style.thNum">#</th>
-            <th>歌曲标题</th>
-            <th :class="$style.thSinger">歌手</th>
-            <th :class="$style.thAlbum">专辑</th>
-            <th :class="$style.thTime">时长</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="(item, index) in displayedList"
-            :key="`${item.musicInfo?.id || ''}_${index}`"
-            :class="[$style.row, { [$style.active]: isPlaying(item) }]"
-            @dblclick="playMusic(item)"
-          >
-            <td :class="$style.tdNum">
-              <span v-if="isPlaying(item)" :class="$style.playingIcon">
-                <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-                  <path d="M8 5v14l11-7z" fill="currentColor" />
-                </svg>
-              </span>
-              <span v-else>{{ index + 1 }}</span>
-            </td>
-            <td :class="$style.tdName">
-              <span>{{ item.musicInfo?.name || '—' }}</span>
-            </td>
-            <td :class="$style.tdSinger">
-              <span>{{ item.musicInfo?.singer || '—' }}</span>
-            </td>
-            <td :class="$style.tdAlbum">
-              <span>{{ item.musicInfo?.meta?.albumName || '—' }}</span>
-            </td>
-            <td :class="$style.tdTime">
-              <span>{{ formatInterval(item.musicInfo?.interval) }}</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+
+    <div :class="$style.body">
+      <!-- 三态统一走公共组件；历史从数据库异步读取，首屏补一个加载态 -->
+      <common-empty-state v-if="playHistoryLoading && !list.length" variant="loading" />
+      <common-empty-state
+        v-else-if="!list.length"
+        icon="clock"
+        :title="$t('recent__empty_title')"
+        :description="$t('recent__empty_desc')"
+      />
+      <!-- 有数据时复用统一在线列表：虚拟滚动 / 右键菜单 / 行内操作 / 统一表头一次到位 -->
+      <material-online-list
+        v-else
+        :page="1"
+        :limit="list.length"
+        :total="list.length"
+        :list="list"
+        :active-index="playingIndex"
+        @play-list="playFrom"
+      />
     </div>
   </div>
 </template>
 
-<script>
-import { computed } from '@common/utils/vueTools'
-import { playedList, isPlay, playInfo } from '@renderer/store/player/state'
-import { playListById } from '@renderer/core/player'
+<script setup>
+import { computed, onBeforeUnmount, onMounted, ref } from '@common/utils/vueTools'
+import { isPlay, playInfo } from '@renderer/store/player/state'
+import { playList } from '@renderer/core/player'
+import { setTempList } from '@renderer/store/list/action'
 import { LIST_IDS } from '@common/constants'
+import {
+  playHistoryList,
+  loadPlayHistory,
+  clearPlayHistoryAction,
+  playHistoryLoading,
+} from '@renderer/store/playHistory'
 
-export default {
-  name: 'Recent',
-  setup() {
-    const displayedList = computed(() => {
-      const src = playedList
-      const seen = new Set()
-      const list = []
-      for (let i = src.length - 1; i >= 0; i--) {
-        const it = src[i]
-        const id = it.musicInfo?.id
-        if (!id || seen.has(id)) continue
-        seen.add(id)
-        list.push(it)
-        if (list.length >= 500) break
-      }
-      return list
-    })
+// 播放历史来自数据库（持久化），不再是播放器内存里的 playedList ——
+// 后者只在随机播放模式下写入，重启即丢，导致本页在默认模式下一直为空。
+const list = computed(() => playHistoryList)
 
-    const isPlaying = (item) => {
-      return isPlay.value && playInfo.value.playInfo?.id === item.musicInfo?.id
-    }
+// 当前播放行：让统一列表能高亮「正在播放的那首」
+const playingIndex = computed(() => {
+  if (!isPlay.value) return -1
+  const id = playInfo.playInfo?.id
+  if (!id) return -1
+  return list.value.findIndex(item => item.id === id)
+})
 
-    const playMusic = (item) => {
-      if (!item.musicInfo) return
-      const ids = displayedList.value.map(it => it.musicInfo.id)
-      const idx = ids.indexOf(item.musicInfo.id)
-      if (idx < 0) return
-      try {
-        playListById(LIST_IDS.DEFAULT, idx)
-      } catch (err) {
-        console.error('playMusic failed:', err)
-      }
-    }
-
-    const formatInterval = (sec) => {
-      if (!sec) return '--:--'
-      const m = Math.floor(sec / 60)
-      const s = Math.floor(sec % 60)
-      return `${m}:${s.toString().padStart(2, '0')}`
-    }
-
-    return {
-      displayedList,
-      isPlaying,
-      playMusic,
-      formatInterval,
-    }
-  },
+// 双击/回车播放：把整个历史列表设为播放队列，再按下标播放。
+// （原实现调用 playListById(LIST_IDS.DEFAULT, idx)，把「下标」当成了歌曲 id，
+//   而 playListById(listId, id) 内部是 find(m => m.id == id)，永远匹配不到 → 点了没反应。）
+const playFrom = async(index) => {
+  if (!list.value.length) return
+  await setTempList('recent_play', [...list.value])
+  playList(LIST_IDS.TEMP, index)
 }
+
+// 清空做了两步确认：首次点击变为「确认清空？」，3 秒内再点才真正清空。
+// 不做成一步到位，是因为播放历史同时是个性化推荐的输入，误清代价较高；
+// 也不用弹窗 —— 清空后页面立刻切成空态，弹窗会显得过重。
+const confirmingClear = ref(false)
+let clearTimer = null
+
+const handleClearClick = () => {
+  if (!confirmingClear.value) {
+    confirmingClear.value = true
+    clearTimer = setTimeout(() => { confirmingClear.value = false }, 3000)
+    return
+  }
+  if (clearTimer) clearTimeout(clearTimer)
+  confirmingClear.value = false
+  void clearPlayHistoryAction()
+}
+
+onMounted(() => {
+  // 进页面时若尚未加载（例如直接刷新到本页），补一次读取
+  void loadPlayHistory()
+})
+
+onBeforeUnmount(() => {
+  if (clearTimer) clearTimeout(clearTimer)
+})
 </script>
 
 <style lang="less" module>
-@import '@renderer/assets/styles/layout.less';
-
 .container {
   display: flex;
   flex-flow: column nowrap;
   height: 100%;
   overflow: hidden;
-  background-color: var(--qm-surface, var(--color-content-background));
+  background-color: var(--qm-surface);
 }
 
 .header {
+  flex: none;
   display: flex;
   align-items: center;
   gap: var(--qm-sp-5, 12px);
   padding: 20px 24px 12px;
-  flex: none;
-  border-bottom: 1px solid var(--color-divider, rgba(0,0,0,0.06));
+  border-bottom: 1px solid var(--qm-line-1);
 }
 
 .title {
@@ -141,113 +126,55 @@ export default {
   margin: 0;
   font-size: var(--qm-fs-3xl, 20px);
   font-weight: var(--qm-fw-bold, 700);
-  color: var(--color-font);
+  color: var(--qm-text-1);
 }
 
 .titleIcon {
   width: 20px;
   height: 20px;
-  color: var(--color-primary);
+  color: var(--qm-primary);
   fill: currentColor;
 }
 
 .count {
   font-size: var(--qm-fs-xs, 12px);
-  color: var(--color-font-label, rgba(0,0,0,0.55));
+  color: var(--qm-text-4);
   font-variant-numeric: tabular-nums;
 }
 
-.content {
+.clearBtn {
+  margin-left: auto;
+  padding: 5px 14px;
+  border: 1px solid var(--qm-line-2);
+  border-radius: var(--qm-radius-chip, 999px);
+  background: transparent;
+  color: var(--qm-text-3);
+  font-size: var(--qm-fs-xs, 12px);
+  cursor: pointer;
+  transition: background-color var(--qm-t-fast), color var(--qm-t-fast), border-color var(--qm-t-fast);
+
+  &:hover {
+    background-color: var(--qm-hover);
+    color: var(--qm-text-1);
+  }
+}
+
+// 二次确认态：用警示色提示这是一次不可撤销的操作
+.clearBtnConfirm {
+  border-color: var(--color-danger, #f44336);
+  color: var(--color-danger, #f44336);
+  background-color: transparent;
+
+  &:hover {
+    background-color: color-mix(in srgb, var(--color-danger, #f44336) 10%, transparent);
+    color: var(--color-danger, #f44336);
+  }
+}
+
+.body {
   flex: auto;
   min-height: 0;
-  overflow: auto;
-  padding: 8px 0;
-}
-
-.empty {
   display: flex;
-  flex-flow: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: var(--color-font-label, rgba(0,0,0,0.45));
-  font-size: var(--qm-fs-md, 14px);
-  gap: var(--qm-sp-3, 8px);
-}
-
-.emptyIcon {
-  width: 64px;
-  height: 64px;
-  opacity: 0.4;
-  fill: currentColor;
-}
-
-.emptyHint {
-  font-size: var(--qm-fs-xs, 12px);
-  opacity: 0.7;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--qm-fs-sm, 13px);
-  color: var(--color-font);
-}
-
-.table th {
-  text-align: left;
-  padding: 10px 16px;
-  font-size: var(--qm-fs-xs, 12px);
-  color: var(--color-font-label, rgba(0,0,0,0.55));
-  font-weight: var(--qm-fw-medium, 500);
-  border-bottom: 1px solid var(--color-divider, rgba(0,0,0,0.06));
-}
-
-.table td {
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--color-divider, rgba(0,0,0,0.04));
-}
-
-.row {
-  cursor: pointer;
-  transition: background-color 150ms ease;
-}
-
-.row:hover {
-  background-color: var(--color-button-background-hover, rgba(0,0,0,0.04));
-}
-
-.row.active {
-  background-color: var(--color-primary-light-300-alpha-700, rgba(0,0,0,0.04));
-}
-
-.thNum, .tdNum {
-  width: 60px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-font-label, rgba(0,0,0,0.55));
-}
-
-.thSinger, .tdSinger {
-  width: 20%;
-}
-
-.thAlbum, .tdAlbum {
-  width: 25%;
-  color: var(--color-font-label, rgba(0,0,0,0.65));
-}
-
-.thTime, .tdTime {
-  width: 80px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-font-label, rgba(0,0,0,0.55));
-}
-
-.playingIcon {
-  color: var(--color-primary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  flex-flow: column nowrap;
 }
 </style>

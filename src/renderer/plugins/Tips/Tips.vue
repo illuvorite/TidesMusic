@@ -86,9 +86,9 @@ export default {
   z-index: 10001;
   font-size: var(--qm-fs-xs, 12px);
   // max-width: 80%;
-  color: var(--color-font);
+  color: var(--qm-text-2);
   border-radius: var(--qm-radius-2xs, 4px);
-  background: var(--color-content-background);
+  background: var(--qm-surface);
   overflow: hidden;
   pointer-events: none;
   // text-align: justify;

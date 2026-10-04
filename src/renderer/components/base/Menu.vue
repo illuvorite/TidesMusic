@@ -92,8 +92,10 @@ export default {
   transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out);
   transition-property: transform, opacity;
   border-radius: var(--qm-radius-card);
-  // 纯白不透明底 + 1px 描边：避免磨砂/半透明底在白色页面上形成一圈多余的白色描边
-  background-color: #fff;
+  // 不透明卡片底 + 1px 描边：避免磨砂/半透明底在页面上形成一圈多余的白色描边。
+  // 必须用 --qm-card（跟随主题：浅色主题白、深色主题深），不要写死 #fff，
+  // 否则深色主题下会白底配浅字 → 内容不可读。
+  background-color: var(--qm-card);
   border: 1px solid var(--qm-line-1);
   box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
   // 层级契约：teleport 到 #root 的右键菜单，需高于播放详情页(65)/设置覆盖层(60)/工具栏(40)，

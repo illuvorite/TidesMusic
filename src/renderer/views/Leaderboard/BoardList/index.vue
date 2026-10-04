@@ -1,5 +1,25 @@
 <template>
-  <ul ref="dom_lists_list" class="scroll" :class="$style.listsContent">
+  <!-- 三态：加载中 / 失败可重试 / 空。原实现无任何态，接口慢或不可用时左栏是一片空白 -->
+  <common-empty-state v-if="loading" variant="loading" compact :class="$style.stateBox" />
+  <common-empty-state
+    v-else-if="loadError"
+    variant="error"
+    compact
+    :class="$style.stateBox"
+    :title="$t('common__board_load_failed')"
+    :description="$t('common__board_none_desc')"
+    :action-text="$t('common__retry')"
+    @action="load(props.source)"
+  />
+  <common-empty-state
+    v-else-if="!list.length"
+    compact
+    :class="$style.stateBox"
+    icon="list-ordered"
+    :title="$t('common__board_none')"
+    :description="$t('common__board_none_switch')"
+  />
+  <ul v-else ref="dom_lists_list" class="scroll" :class="$style.listsContent">
     <li
       v-for="(item, index) in list"
       :key="item.id" :class="[$style.listsItem, { [$style.active]: item.id == boardId }, { [$style.clicked]: rightClickItemIndex == index }]"
@@ -48,6 +68,8 @@ const route = useRoute()
 
 const list = shallowReactive([])
 const rightClickItemIndex = ref(-1)
+const loading = ref(false)
+const loadError = ref(false)
 
 const handleToggleList = (id) => {
   void router.replace({
@@ -79,12 +101,30 @@ const handleMenuClick = (action) => {
 }
 
 
-watch(() => props.source, async(source) => {
-  // const source = (await getLeaderboardSetting()).source as LX.OnlineSource
-  let boardList = boards[source]
-  if (boardList == null) setBoard(boardList = await getBoardsList(source), source)
-  list.splice(0, list.length, ...boardList.list)
-  if (!props.boardId && boardList.list.length) handleToggleList(boardList.list[0].id)
+// 加载榜单目录：补上加载/失败/空三态。
+// 注意 musicSdk[source]?.leaderboard.getBoards() 只在 musicSdk[source] 上做了可选链，
+// 若该音源存在但没有 leaderboard 实现，取 .getBoards 会直接抛错 —— 这里统一用 try/catch 兜住。
+const load = async(source) => {
+  loading.value = true
+  loadError.value = false
+  try {
+    let boardList = boards[source]
+    if (boardList == null) setBoard(boardList = await getBoardsList(source), source)
+    if (!boardList?.list) {
+      loadError.value = true
+      return
+    }
+    list.splice(0, list.length, ...boardList.list)
+    if (!props.boardId && boardList.list.length) handleToggleList(boardList.list[0].id)
+  } catch {
+    loadError.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+watch(() => props.source, (source) => {
+  void load(source)
 }, {
   immediate: true,
 })
@@ -100,31 +140,35 @@ defineExpose({ hideMenu: handleMenuClick })
   flex: auto;
   min-width: 0;
   overflow-y: scroll;
-  // overflow-y: scroll !important;
-  // border-right: 1px solid rgba(0, 0, 0, 0.12);
 }
+
+// 三态容器：与 .listsContent 同样占满左栏，保证切换时布局不跳
+.stateBox {
+  flex: auto;
+  min-width: 0;
+}
+
 .listsItem {
   position: relative;
   transition: .3s ease;
   transition-property: color, background-color;
   background-color: transparent;
   &:hover:not(.active) {
-    background-color: var(--color-primary-background-hover);
+    background-color: var(--qm-hover);
     cursor: pointer;
   }
   &.active {
-    // background-color:
-    color: var(--color-primary);
+    color: var(--qm-primary);
   }
   &.selected {
-    background-color: var(--color-primary-font-active);
+    background-color: var(--qm-hover-strong);
   }
   &.clicked {
-    background-color: var(--color-primary-background-hover);
+    background-color: var(--qm-hover);
   }
   &.editing {
     padding: 0 10px;
-    background-color: var(--color-primary-background-hover);
+    background-color: var(--qm-hover);
     .listsLabel {
       display: none;
     }

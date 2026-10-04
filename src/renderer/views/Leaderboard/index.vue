@@ -116,7 +116,10 @@ export default {
 
 .lists {
   flex: none;
+  // 百分比宽度在小窗口（1000px）下只剩 ~148px，榜单名会被压成一列；
+  // 加 min-width 兜住可读性，大窗口仍按比例伸缩
   width: 14.8%;
+  min-width: 168px;
   display: flex;
   flex-flow: column nowrap;
 }
@@ -158,14 +161,14 @@ export default {
     max-height: 500px;
     box-shadow: var(--qm-shadow-3);
     li {
-      // background-color: var(--color-main-background);
+      // background-color: var(--qm-card);
       line-height: 38px;
       font-size: var(--qm-fs-sm, 13px);
       &:hover {
-        background-color: var(--color-button-background-hover);
+        background-color: var(--qm-hover);
       }
       &:active {
-        background-color: var(--color-button-background-active);
+        background-color: var(--qm-hover-strong);
       }
     }
   }

@@ -1,3 +1,19 @@
+import {
+  EQ_Q,
+  eqPresets,
+  BASS_BOOST_FREQ,
+  BASS_MAX_GAIN,
+  HIFI_FREQ,
+  HIFI_MAX_GAIN,
+  REVERB_MAX_WET,
+  SURROUND_MAX_SOUND_R,
+  dynamicCompressorParams,
+  generateSurroundIR,
+  LOUDNESS_ATTACK,
+  LOUDNESS_RELEASE,
+} from './audioEffects'
+import type { SurroundMode } from './audioEffects'
+
 interface HTMLAudioElementChrome extends HTMLAudioElement {
   setSinkId: (id: string) => Promise<void>
 }
@@ -10,17 +26,8 @@ let analyser: AnalyserNode
 export const freqs = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const
 type Freqs = (typeof freqs)[number]
 let biquads: Map<`hz${Freqs}`, BiquadFilterNode>
-export const freqsPreset = [
-  { name: 'pop', hz31: 6, hz62: 5, hz125: -3, hz250: -2, hz500: 5, hz1000: 4, hz2000: -4, hz4000: -3, hz8000: 6, hz16000: 4 },
-  { name: 'dance', hz31: 4, hz62: 3, hz125: -4, hz250: -6, hz500: 0, hz1000: 0, hz2000: 3, hz4000: 4, hz8000: 4, hz16000: 5 },
-  { name: 'rock', hz31: 7, hz62: 6, hz125: 2, hz250: 1, hz500: -3, hz1000: -4, hz2000: 2, hz4000: 1, hz8000: 4, hz16000: 5 },
-  { name: 'classical', hz31: 6, hz62: 7, hz125: 1, hz250: 2, hz500: -1, hz1000: 1, hz2000: -4, hz4000: -6, hz8000: -7, hz16000: -8 },
-  { name: 'vocal', hz31: -5, hz62: -6, hz125: -4, hz250: -3, hz500: 3, hz1000: 4, hz2000: 5, hz4000: 4, hz8000: -3, hz16000: -3 },
-  { name: 'slow', hz31: 5, hz62: 4, hz125: 2, hz250: 0, hz500: -2, hz1000: 0, hz2000: 3, hz4000: 6, hz8000: 7, hz16000: 8 },
-  { name: 'electronic', hz31: 6, hz62: 5, hz125: 0, hz250: -5, hz500: -4, hz1000: 0, hz2000: 6, hz4000: 8, hz8000: 8, hz16000: 7 },
-  { name: 'subwoofer', hz31: 8, hz62: 7, hz125: 5, hz250: 4, hz500: 0, hz1000: 0, hz2000: 0, hz4000: 0, hz8000: 0, hz16000: 0 },
-  { name: 'soft', hz31: -5, hz62: -5, hz125: -4, hz250: -4, hz500: 3, hz1000: 2, hz2000: 4, hz4000: 4, hz8000: 0, hz16000: 0 },
-] as const
+// 均衡器预设：改用 CeruMusic（澜音）的 8 条预设（含中文显示名 label）
+export const freqsPreset = eqPresets
 export const convolutions = [
   { name: 'telephone', mainGain: 0.0, sendGain: 3.0, source: 'filter-telephone.wav' }, // 电话
   { name: 's2_r4_bd', mainGain: 1.8, sendGain: 0.9, source: 's2_r4_bd.wav' }, // 教堂
@@ -50,6 +57,12 @@ let convolverOutputGainNode: GainNode
 let convolverDynamicsCompressor: DynamicsCompressorNode
 let gainNode: GainNode
 let panner: PannerNode
+// 高级音效节点（移植自 CeruMusic / 澜音）
+let bassBoostNode: BiquadFilterNode
+let hifiNode: BiquadFilterNode
+let balanceNode: StereoPannerNode
+let loudnessCompressorNode: DynamicsCompressorNode
+let loudnessMakeupNode: GainNode
 let pitchShifterNode: AudioWorkletNode
 let pitchShifterNodePitchFactor: AudioParam
 let pitchShifterNodeLoadStatus: 'none' | 'loading' | 'unconnect' | 'connected' = 'none'
@@ -91,7 +104,8 @@ const initBiquadFilter = () => {
     biquads.set(`hz${item}`, filter)
     filter.type = 'peaking'
     filter.frequency.value = item
-    filter.Q.value = 1.4
+    // Q 值取自 CeruMusic（澜音）：1.0（原版为 1.4）
+    filter.Q.value = EQ_Q
     filter.gain.value = 0
   }
 
@@ -104,6 +118,14 @@ const initConvolver = () => {
   convolverSourceGainNode = audioContext.createGain()
   convolverOutputGainNode = audioContext.createGain()
   convolverDynamicsCompressor = audioContext.createDynamicsCompressor()
+  // 混响链的压缩器默认设置为「透明」（threshold 0dB / ratio 1），
+  // 只有混响真正出声时才由 setSurroundMode/setConvolver 收紧，
+  // 避免干声在没有任何音效时被动态压缩（听感上的"加工感"来源之一）。
+  convolverDynamicsCompressor.threshold.value = 0
+  convolverDynamicsCompressor.knee.value = 30
+  convolverDynamicsCompressor.ratio.value = 1
+  convolverDynamicsCompressor.attack.value = 0.003
+  convolverDynamicsCompressor.release.value = 0.25
   convolver = audioContext.createConvolver()
   convolver.connect(convolverOutputGainNode)
   convolverSourceGainNode.connect(convolverDynamicsCompressor)
@@ -118,6 +140,72 @@ const initGain = () => {
   gainNode = audioContext.createGain()
 }
 
+// ===== 高级音效节点（移植自 CeruMusic / 澜音）：低音增强 / 声道平衡 / 响度均衡 =====
+// 关闭时全部处于「参数恒等」状态；当所有音效都关闭时，整条音效链会被物理旁路
+// （见 setAudioGraphBypass），因此默认状态下不会有任何听感染色。
+const initAudioEffects = () => {
+  // 低音增强：lowshelf 200Hz，增益 0 ~ +12dB（面板「超重低音」）
+  bassBoostNode = audioContext.createBiquadFilter()
+  bassBoostNode.type = 'lowshelf'
+  bassBoostNode.frequency.value = BASS_BOOST_FREQ
+  bassBoostNode.gain.value = 0
+
+  // 高保真度：highshelf 8kHz，增益 0 ~ +9dB（面板「高保真度」）
+  hifiNode = audioContext.createBiquadFilter()
+  hifiNode.type = 'highshelf'
+  hifiNode.frequency.value = HIFI_FREQ
+  hifiNode.gain.value = 0
+
+  // 声道平衡：StereoPanner（pan = 0 对立体声输入为恒等）
+  balanceNode = audioContext.createStereoPanner()
+  balanceNode.pan.value = 0
+
+  // 动态推进：压缩器 + makeup gain（默认参数恒等 = 透明）
+  const transparentParams = dynamicCompressorParams(0)
+  loudnessCompressorNode = audioContext.createDynamicsCompressor()
+  loudnessCompressorNode.threshold.value = transparentParams.threshold
+  loudnessCompressorNode.ratio.value = transparentParams.ratio
+  loudnessCompressorNode.knee.value = transparentParams.knee
+  loudnessCompressorNode.attack.value = LOUDNESS_ATTACK
+  loudnessCompressorNode.release.value = LOUDNESS_RELEASE
+
+  loudnessMakeupNode = audioContext.createGain()
+  loudnessMakeupNode.gain.value = transparentParams.makeup
+}
+
+/** 平滑设置 AudioParam，避免开关音效时的爆音 */
+const setAudioParam = (param: AudioParam, value: number, timeConstant = 0.05) => {
+  try {
+    param.setTargetAtTime(value, audioContext.currentTime, timeConstant)
+  } catch {
+    param.value = value
+  }
+}
+
+// ===== 零音效物理旁路 =====
+// 所有音效（均衡器 / 低音增强 / 混响环绕 / 声道平衡 / 响度均衡 / 3D 环绕 / 变调）
+// 都关闭时，让信号直接从 analyser 进 gain，完全跳过中间所有处理节点。
+// 原因：即使各节点参数为 0dB / 1.0（数学上恒等），IIR 滤波器的相位响应、
+// Panner 的立体声下混与重采样等仍会累积成可听的染色，
+// 表现为「没开任何音效，却像叠加了一层音效」。只有物理旁路才能保证素音干净。
+let graphBypassed = false
+
+const routeAnalyserOutput = () => {
+  if (!analyser) return
+  analyser.disconnect()
+  if (graphBypassed) analyser.connect(gainNode)
+  else analyser.connect(biquads.get(`hz${freqs[0]}`)!)
+}
+
+export const setAudioGraphBypass = (bypass: boolean) => {
+  initAdvancedAudioFeatures()
+  if (bypass === graphBypassed) return
+  graphBypassed = bypass
+  if (isConnected) routeAnalyserOutput()
+}
+
+export const isAudioGraphBypassed = () => graphBypassed
+
 const initAdvancedAudioFeatures = () => {
   if (audioContext) return
   if (!audio) throw new Error('audio not defined')
@@ -129,14 +217,24 @@ const initAdvancedAudioFeatures = () => {
   initConvolver()
   initPanner()
   initGain()
-  // source -> analyser -> biquadFilter -> pitchShifter -> [(convolver & convolverSource)->convolverDynamicsCompressor] -> panner -> gain
+  initAudioEffects()
+  // 音频链（处理顺序移植自 CeruMusic，末端保留 lx-music 原有的 3D 环绕与变调）：
+  // source -> analyser -> biquadFilter(EQ×10) -> bassBoost
+  //        -> [(convolverSource & convolver) -> convolverDynamicsCompressor]
+  //        -> balance(StereoPanner) -> loudness(Compressor -> Makeup)
+  //        -> panner -> gain -> destination
   mediaSource = audioContext.createMediaElementSource(audio)
   mediaSource.connect(analyser)
   analyser.connect(biquads.get(`hz${freqs[0]}`)!)
   const lastBiquadFilter = (biquads.get(`hz${freqs.at(-1)!}`)!)
-  lastBiquadFilter.connect(convolverSourceGainNode)
-  lastBiquadFilter.connect(convolver)
-  convolverDynamicsCompressor.connect(panner)
+  lastBiquadFilter.connect(bassBoostNode)
+  bassBoostNode.connect(hifiNode)
+  hifiNode.connect(convolverSourceGainNode)
+  hifiNode.connect(convolver)
+  convolverDynamicsCompressor.connect(balanceNode)
+  balanceNode.connect(loudnessCompressorNode)
+  loudnessCompressorNode.connect(loudnessMakeupNode)
+  loudnessMakeupNode.connect(panner)
   panner.connect(gainNode)
   gainNode.connect(audioContext.destination)
 
@@ -226,9 +324,15 @@ export const setConvolver = (buffer: AudioBuffer | null, mainGain: number, sendG
   if (buffer) {
     convolverSourceGainNode.gain.value = mainGain
     convolverOutputGainNode.gain.value = sendGain
+    // 混响出声时才启用压缩器，抑制混响尾巴的峰值
+    setAudioParam(convolverDynamicsCompressor.threshold, -24)
+    setAudioParam(convolverDynamicsCompressor.ratio, 12)
   } else {
     convolverSourceGainNode.gain.value = 1
     convolverOutputGainNode.gain.value = 0
+    // 无混响时保持透明，避免干声被动态压缩
+    setAudioParam(convolverDynamicsCompressor.threshold, 0)
+    setAudioParam(convolverDynamicsCompressor.ratio, 1)
   }
 }
 
@@ -238,10 +342,85 @@ export const setConvolverMainGain = (gain: number) => {
   convolverSourceGainNode.gain.value = gain
 }
 
-export const setConvolverSendGain = (gain: number) => {
-  if (convolverOutputGainNode.gain.value == gain) return
-  // console.log(gain)
-  convolverOutputGainNode.gain.value = gain
+// ============================================================
+//  均衡器 / 高级音效控制（移植自 CeruMusic / 澜音）
+// ============================================================
+
+/** 直接设置某个 EQ 频段增益（dB，范围 ±12） */
+export const setEqBandGain = (index: number, gain: number) => {
+  initAdvancedAudioFeatures()
+  const node = biquads.get(`hz${freqs[index]}`)
+  if (node) setAudioParam(node.gain, gain)
+}
+
+/** 超重低音：0~100 → lowshelf 200Hz 增益 0~+12dB */
+export const setBassAmount = (amount: number) => {
+  initAdvancedAudioFeatures()
+  setAudioParam(bassBoostNode.gain, Math.max(0, Math.min(100, amount)) / 100 * BASS_MAX_GAIN)
+}
+
+/** 高保真度：0~100 → highshelf 8kHz 增益 0~+9dB */
+export const setHifiAmount = (amount: number) => {
+  initAdvancedAudioFeatures()
+  setAudioParam(hifiNode.gain, Math.max(0, Math.min(100, amount)) / 100 * HIFI_MAX_GAIN)
+}
+
+/** 混响强度：0~100 → 卷积混响湿声 0~0.8（干声始终直通） */
+export const setReverbAmount = (amount: number) => {
+  initAdvancedAudioFeatures()
+  setAudioParam(convolverOutputGainNode.gain, Math.max(0, Math.min(100, amount)) / 100 * REVERB_MAX_WET, 0.2)
+}
+
+/** 环绕强度：0~100 → 3D 环绕旋转半径（0 = 关闭并复位到正中） */
+export const setSurroundStrength = (amount: number) => {
+  initAdvancedAudioFeatures()
+  const value = Math.max(0, Math.min(100, amount))
+  setPannerSoundR(value / 100 * SURROUND_MAX_SOUND_R)
+  if (value > 0) startPanner()
+  else stopPanner()
+}
+
+/** 声道平衡：-1（全左）~ 1（全右），0 = 居中 */
+export const setBalance = (value: number) => {
+  initAdvancedAudioFeatures()
+  setAudioParam(balanceNode.pan, Math.max(-1, Math.min(1, value)))
+}
+
+/**
+ * 环绕混响模式（CeruMusic）：off / small / medium / large
+ * 使用运行时生成的指数衰减噪声 IR，直接复用 lx-music 的卷积混响节点，
+ * 因此不会额外引入第二套混响链路。
+ */
+export const setSurroundMode = (mode: SurroundMode) => {
+  initAdvancedAudioFeatures()
+  if (mode === 'off') {
+    convolver.buffer = null
+    setAudioParam(convolverSourceGainNode.gain, 1)
+    setAudioParam(convolverOutputGainNode.gain, 0, 0.1)
+    // 无混响时把混响链压缩器恢复透明
+    setAudioParam(convolverDynamicsCompressor.threshold, 0)
+    setAudioParam(convolverDynamicsCompressor.ratio, 1)
+    return
+  }
+  convolver.buffer = generateSurroundIR(audioContext, mode)
+  setAudioParam(convolverSourceGainNode.gain, 1)
+  // 湿声大小由「混响强度」统一控制（setReverbAmount），避免两处互相覆盖
+  // 混响真正出声时才启用压缩器，抑制混响尾巴的峰值
+  setAudioParam(convolverDynamicsCompressor.threshold, -24)
+  setAudioParam(convolverDynamicsCompressor.ratio, 12)
+}
+
+/**
+ * 动态推进：0~100 → 压缩器强度（把动态范围过大的曲目压平，并用 makeup gain 补回平均能量）。
+ * 0 时参数恢复恒等（透明），对听感无任何影响。
+ */
+export const setDynamicAmount = (amount: number) => {
+  initAdvancedAudioFeatures()
+  const p = dynamicCompressorParams(amount)
+  setAudioParam(loudnessCompressorNode.threshold, p.threshold)
+  setAudioParam(loudnessCompressorNode.ratio, p.ratio)
+  setAudioParam(loudnessCompressorNode.knee, p.knee)
+  setAudioParam(loudnessMakeupNode.gain, p.makeup)
 }
 
 let pannerInfo = {
@@ -299,7 +478,7 @@ let isConnected = true
 const connectNode = () => {
   if (isConnected) return
   console.log('connect Node')
-  analyser?.connect(biquads.get(`hz${freqs[0]}`)!)
+  routeAnalyserOutput()
   isConnected = true
   if (pitchShifterNodeTempValue == 1 && pitchShifterNodeLoadStatus == 'connected') {
     disconnectPitchShifterNode()
@@ -322,9 +501,9 @@ const connectPitchShifterNode = () => {
   audio!.addEventListener('emptied', disconnectNode)
   if (audio!.paused) disconnectNode()
 
-  const lastBiquadFilter = (biquads.get(`hz${freqs.at(-1)!}`)!)
-  lastBiquadFilter.disconnect()
-  lastBiquadFilter.connect(pitchShifterNode)
+  // 变调节点串在 EQ / 低音增强 / 高保真度之后、混响之前
+  hifiNode.disconnect()
+  hifiNode.connect(pitchShifterNode)
 
   pitchShifterNode.connect(convolver)
   pitchShifterNode.connect(convolverSourceGainNode)
@@ -336,10 +515,9 @@ const connectPitchShifterNode = () => {
 }
 const disconnectPitchShifterNode = () => {
   console.log('disconnect Pitch Shifter Node')
-  const lastBiquadFilter = (biquads.get(`hz${freqs.at(-1)!}`)!)
-  lastBiquadFilter.disconnect()
-  lastBiquadFilter.connect(convolver)
-  lastBiquadFilter.connect(convolverSourceGainNode)
+  hifiNode.disconnect()
+  hifiNode.connect(convolver)
+  hifiNode.connect(convolverSourceGainNode)
   pitchShifterNodeLoadStatus = 'unconnect'
 
   audio!.removeEventListener('playing', connectNode)
@@ -451,6 +629,15 @@ export const setCurrentTime = (time: number) => {
 
 export const setMediaDeviceId = async(mediaDeviceId: string): Promise<void> => {
   if (!audio) return
+  // 音效链路建立后音频由 AudioContext 输出到设备，因此需要同时切换上下文的输出设备，
+  // 否则自定义输出设备不生效（移植自 CeruMusic 的处理方式）
+  if (audioContext && typeof (audioContext as unknown as { setSinkId?: unknown }).setSinkId == 'function') {
+    await (audioContext as unknown as { setSinkId: (id: string) => Promise<void> })
+      .setSinkId(mediaDeviceId)
+      .catch((err: unknown) => {
+        console.warn('set AudioContext sink id failed:', err)
+      })
+  }
   return audio.setSinkId(mediaDeviceId)
 }
 
@@ -573,83 +760,14 @@ export const getErrorCode = () => {
   return audio?.error?.code
 }
 
-// ===== DJ 节奏音效：WebAudio 合成、点按才触发，串接在主输出增益节点上，
-// 不改变音乐自身的处理链路（保留自银河音效扩展） =====
-
-let djNoiseBuffer: AudioBuffer | null = null
-const getDjNoise = () => {
-  if (djNoiseBuffer) return djNoiseBuffer
-  const ctx = getAudioContext()
-  const len = Math.floor(ctx.sampleRate * 0.4)
-  const buffer = ctx.createBuffer(1, len, ctx.sampleRate)
-  const data = buffer.getChannelData(0)
-  for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1
-  djNoiseBuffer = buffer
-  return buffer
-}
-
-export const playDjEffect = (type: 'clap' | 'twist' | 'jump' | 'shake' | 'leg' | 'knock') => {
-  const ctx = getAudioContext()
-  const now = ctx.currentTime
-  const out = ctx.createGain()
-  out.gain.value = 0.9
-  out.connect(gainNode)
-
-  const osc = (wave: OscillatorType, freq: number, endFreq: number, dur: number, delay = 0, peak = 0.8) => {
-    const o = ctx.createOscillator()
-    const g = ctx.createGain()
-    o.type = wave
-    o.frequency.setValueAtTime(freq, now + delay)
-    o.frequency.exponentialRampToValueAtTime(Math.max(1, endFreq), now + delay + dur)
-    g.gain.setValueAtTime(0, now + delay)
-    g.gain.linearRampToValueAtTime(peak, now + delay + 0.01)
-    g.gain.exponentialRampToValueAtTime(0.001, now + delay + dur)
-    o.connect(g)
-    g.connect(out)
-    o.start(now + delay)
-    o.stop(now + delay + dur + 0.05)
-  }
-  const noise = (dur: number, delay: number, peak: number, hp: number) => {
-    const src = ctx.createBufferSource()
-    src.buffer = getDjNoise()
-    const filter = ctx.createBiquadFilter()
-    filter.type = 'highpass'
-    filter.frequency.value = hp
-    const g = ctx.createGain()
-    g.gain.setValueAtTime(peak, now + delay)
-    g.gain.exponentialRampToValueAtTime(0.001, now + delay + dur)
-    src.connect(filter)
-    filter.connect(g)
-    g.connect(out)
-    src.start(now + delay)
-    src.stop(now + delay + dur + 0.05)
-  }
-
-  switch (type) {
-    case 'clap': // 拍手：三连噪声脉冲
-      noise(0.08, 0, 0.7, 1500)
-      noise(0.08, 0.1, 0.6, 1500)
-      noise(0.16, 0.2, 0.8, 1200)
-      break
-    case 'twist': // 扭腰：下扫频
-      osc('sawtooth', 900, 120, 0.3, 0, 0.5)
-      osc('sawtooth', 900, 120, 0.3, 0.15, 0.4)
-      break
-    case 'jump': // 蹦跳：上扫频
-      osc('square', 200, 900, 0.22, 0, 0.4)
-      osc('square', 240, 1100, 0.22, 0.12, 0.35)
-      break
-    case 'shake': // 摇头：抖动噪声
-      for (let i = 0; i < 6; i++) noise(0.05, i * 0.07, 0.4, 4000)
-      break
-    case 'leg': // 抖腿：快速双低频
-      osc('sine', 140, 60, 0.12, 0, 0.9)
-      osc('sine', 140, 60, 0.12, 0.16, 0.9)
-      osc('sine', 140, 60, 0.12, 0.32, 0.9)
-      break
-    case 'knock': // 敲桌：木质低频脉冲
-      osc('sine', 220, 70, 0.1, 0, 1)
-      noise(0.03, 0, 0.3, 800)
-      break
-  }
-}
+// 音效预设与参数范围对外导出（供音效面板使用）
+export {
+  eqPresets,
+  EQ_GAIN_MIN,
+  EQ_GAIN_MAX,
+  BASS_MAX_GAIN,
+  HIFI_MAX_GAIN,
+  REVERB_MAX_WET,
+  SURROUND_MAX_SOUND_R,
+  surroundModes,
+} from './audioEffects'

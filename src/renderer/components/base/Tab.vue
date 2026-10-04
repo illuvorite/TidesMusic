@@ -77,14 +77,14 @@ export default {
   display: block;
   cursor: pointer;
   transition: color @transition-base;
-  color: var(--color-font-label);
+  color: var(--qm-text-4);
 
   &:hover {
-    color: var(--color-accent);
+    color: var(--qm-primary);
   }
 
   &.active {
-    color: var(--color-accent);
+    color: var(--qm-primary);
     font-weight: var(--qm-fw-semibold, 600);
     cursor: default;
 
@@ -108,7 +108,7 @@ export default {
     width: 100%;
     height: 2px;
     border-radius: var(--qm-radius-2xs, 4px);
-    background-color: var(--color-accent);
+    background-color: var(--qm-primary);
     transform: translateY(2px) scaleX(0.6);
     opacity: 0;
     transition: transform var(--transition-base), opacity var(--transition-base);

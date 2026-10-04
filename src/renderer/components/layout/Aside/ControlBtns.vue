@@ -85,7 +85,7 @@ onBeforeUnmount(() => {
   padding: 1px;
   cursor: pointer;
   border-radius: 50%;
-  color: var(--color-font);
+  color: var(--qm-text-2);
 
   &.min {
     background-color: var(--color-btn-min);

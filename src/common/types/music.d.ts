@@ -119,5 +119,51 @@ declare namespace LX {
       list: MusicInfoOnline[]
     }
 
+    /**
+     * 播放历史行（渲染层传输用，与主进程 LX.DBService.PlayHistoryInfo 同形）。
+     * musicInfo 为 JSON 字符串，读取后 JSON.parse 还原为播放信息。
+     */
+    interface PlayHistoryInfo {
+      id: string
+      musicInfo: string
+      playedAt: number
+      playCount: number
+    }
+
+    /** 本地曲库扫描结果 */
+    interface LocalLibraryScanResult {
+      /** 识别成功的歌曲 */
+      list: MusicInfoLocal[]
+      /** 发现的音频文件总数 */
+      total: number
+      /** 元数据解析失败而被跳过的数量 */
+      failed: number
+    }
+
+    /**
+     * 本地歌曲的「应用内元数据覆盖」。
+     *
+     * 刻意不写回音频文件标签：那需要为 mp3/flac/m4a/ogg 各引一套写标签依赖，
+     * 风险与体积都不划算。这里只在应用内覆盖展示值，字段为空表示「沿用文件里的值」。
+     * 单独存（不混进 list）是为了让「重新扫描」既能读到文件的新元数据，又不丢用户的修改。
+     */
+    interface LocalMusicOverride {
+      name?: string
+      singer?: string
+      albumName?: string
+    }
+
+    /** 本地曲库持久化数据 */
+    interface LocalLibraryData {
+      /** 已注册的扫描目录 */
+      dirs: string[]
+      /** 上次扫描结果 */
+      list: MusicInfoLocal[]
+      /** 上次扫描完成时间戳（ms），0 表示从未扫描 */
+      scannedAt: number
+      /** 应用内元数据覆盖，键为歌曲 id（文件路径） */
+      overrides?: Record<string, LocalMusicOverride>
+    }
+
   }
 }

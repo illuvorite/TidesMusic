@@ -56,14 +56,19 @@
           <span :class="$style.album" :title="item.meta?.albumName">{{ item.meta?.albumName || '—' }}</span>
           <span :class="$style.time">{{ item.interval || '--:--' }}</span>
           <span :class="$style.rowBtns">
-            <button type="button" aria-label="播放" title="播放" @click.stop="playFrom(index)">
+            <button type="button" :aria-label="$t('play')" :title="$t('play')" @click.stop="playFrom(index)">
               <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
                 <path d="M8 5.4v13.2l11-6.6z" fill="currentColor" />
               </svg>
             </button>
-            <button type="button" aria-label="收藏" title="收藏到我喜欢的音乐" @click.stop="likeIt(item)">
+            <button
+              type="button"
+              :aria-label="isLoved(item) ? '取消收藏' : '收藏'"
+              :title="isLoved(item) ? '取消收藏' : '收藏到我喜欢的音乐'"
+              @click.stop="likeIt(item)"
+            >
               <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-                <path d="M12 20.5s-7.2-4.4-9.6-9.1A5.4 5.4 0 0 1 12 5.6a5.4 5.4 0 0 1 9.6 5.8c-2.4 4.7-9.6 9.1-9.6 9.1z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+                <path d="M12 20.5s-7.2-4.4-9.6-9.1A5.4 5.4 0 0 1 12 5.6a5.4 5.4 0 0 1 9.6 5.8c-2.4 4.7-9.6 9.1-9.6 9.1z" :fill="isLoved(item) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
               </svg>
             </button>
           </span>
@@ -78,8 +83,8 @@ import { computed, onMounted, ref, watch, markRawList } from '@common/utils/vueT
 import { useRoute, useRouter } from '@common/utils/vueRouter'
 import { LIST_IDS } from '@common/constants'
 import { playList } from '@renderer/core/player/action'
-import { addListMusics, setTempList } from '@renderer/store/list/action'
-import { loveList } from '@renderer/store/list/state'
+import { setTempList } from '@renderer/store/list/action'
+import useLovedList from '@renderer/utils/compositions/useLovedList'
 import { playMusicInfo, isPlay } from '@renderer/store/player/state'
 import SourceTabs from '@renderer/components/common/SourceTabs.vue'
 import {
@@ -96,6 +101,10 @@ import {
 
 const route = useRoute()
 const router = useRouter()
+
+// 收藏状态：与播放栏 / 列表 / 榜单共用同一份全局状态（按「歌名 + 歌手」去重）
+const { isLoved, toggleLove, loadLoved } = useLovedList()
+void loadLoved()
 
 const type = computed(() => (route.query.type === 'million' ? 'million' : 'daily'))
 const list = ref([])
@@ -176,8 +185,11 @@ async function playFrom(index) {
   playList(LIST_IDS.TEMP, index)
 }
 
+// 收藏：原实现直接 addListMusics，既不判断是否已收藏、也不能取消，
+// 连点会重复入库。改用全局共享的 useLovedList（按「歌名 + 歌手」去重，
+// 与播放栏 / 列表 / 榜单的爱心状态实时同步）。
 async function likeIt(item) {
-  await addListMusics(loveList.id, [item])
+  await toggleLove(item)
 }
 
 const isPlayingItem = (item) => isPlay.value && playMusicInfo.musicInfo?.id === item.id

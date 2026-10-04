@@ -325,7 +325,7 @@ export default {
 }
 .commentLabel {
   padding: var(--qm-sp-6, 15px);
-  color: var(--color-font-label);
+  color: var(--qm-text-4);
   font-size: var(--qm-fs-md, 14px);
 }
 .commentType {
@@ -361,7 +361,7 @@ export default {
   padding-top: 10%;
   text-align: center;
   font-size: var(--qm-fs-md, 14px);
-  color: var(--color-font-label);
+  color: var(--qm-text-4);
 }
 
 </style>

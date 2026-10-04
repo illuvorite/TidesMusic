@@ -25,11 +25,11 @@
         </table>
       </div>
       <div :class="$style.content">
-        <div v-show="!noItem" ref="dom_listContent" :class="$style.content">
+        <div v-show="!noItem" ref="dom_listContent" :class="$style.content" tabindex="0" @keydown="handleListKeydown" @blur="keyboardIndex = -1">
           <base-virtualized-list v-if="actionButtonsVisible" ref="listRef" :list="list" key-name="id" :item-height="listItemHeight" container-class="scroll" content-class="list" @contextmenu.capture="handleListRightClick">
             <template #default="{ item, index }">
               <div
-                class="list-item" :class="[{ selected: rightClickSelectedIndex == index }, { active: selectedList.includes(item) }]"
+                class="list-item" :class="[{ selected: rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { playing: activeIndex === index }, { keyboard: keyboardIndex === index }]"
                 @click="handleListItemClick($event, index)" @contextmenu="handleListItemRightClick($event, index)"
               >
                 <div class="list-item-cell no-select num" style="flex: 0 0 40px;" @click.stop>{{ index + 1 }}</div>
@@ -48,9 +48,7 @@
                   <div class="name-wrap">
                     <div class="name-main">
                       <span class="select name" :aria-label="item.name">{{ item.name }}</span>
-                      <span v-if="item.meta._qualitys.flac24bit" class="no-select badge badge-theme-secondary">母带</span>
-                      <span v-else-if="item.meta._qualitys.ape || item.meta._qualitys.flac || item.meta._qualitys.wav" class="no-select badge badge-theme-primary">SQ</span>
-                      <span v-else-if="item.meta._qualitys['320k']" class="no-select badge badge-theme-secondary">HQ</span>
+                      <span v-if="getQualityTag(item)" class="no-select badge" :class="getQualityTag(item).cls">{{ getQualityTag(item).label }}</span>
                       <span v-if="sourceTag" class="no-select badge badge-theme-tertiary">{{ item.source }}</span>
                     </div>
                     <div class="name-sub">
@@ -64,7 +62,7 @@
                     :download-btn="assertApiSupport(item.source)" @btn-click="handleListBtnClick"
                   />
                 </div>
-                <div class="list-item-cell" style="flex: 0 0 22%;"><span class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span></div>
+                <div class="list-item-cell" style="flex: 0 0 22%;"><span class="select" :aria-label="item?.meta?.albumName">{{ item?.meta?.albumName }}</span></div>
                 <div class="list-item-cell" style="flex: 0 0 9%;"><span class="no-select">{{ item.interval || '--/--' }}</span></div>
               </div>
             </template>
@@ -77,7 +75,7 @@
           <base-virtualized-list v-else ref="listRef" :list="list" key-name="id" :item-height="listItemHeight" container-class="scroll" content-class="list" @contextmenu.capture="handleListRightClick">
             <template #default="{ item, index }">
               <div
-                class="list-item" :class="[{ selected: rightClickSelectedIndex == index }, { active: selectedList.includes(item) }]"
+                class="list-item" :class="[{ selected: rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { playing: activeIndex === index }, { keyboard: keyboardIndex === index }]"
                 @click="handleListItemClick($event, index)" @contextmenu="handleListItemRightClick($event, index)"
               >
                 <div class="list-item-cell no-select num" style="flex: 0 0 40px;" @click.stop>{{ index + 1 }}</div>
@@ -96,9 +94,7 @@
                   <div class="name-wrap">
                     <div class="name-main">
                       <span class="select name" :aria-label="item.name">{{ item.name }}</span>
-                      <span v-if="item.meta._qualitys.flac24bit" class="no-select badge badge-theme-secondary">母带</span>
-                      <span v-else-if="item.meta._qualitys.ape || item.meta._qualitys.flac || item.meta._qualitys.wav" class="no-select badge badge-theme-primary">SQ</span>
-                      <span v-else-if="item.meta._qualitys['320k']" class="no-select badge badge-theme-secondary">HQ</span>
+                      <span v-if="getQualityTag(item)" class="no-select badge" :class="getQualityTag(item).cls">{{ getQualityTag(item).label }}</span>
                       <span v-if="sourceTag" class="no-select badge badge-theme-tertiary">{{ item.source }}</span>
                     </div>
                     <div class="name-sub">
@@ -112,7 +108,7 @@
                     :download-btn="assertApiSupport(item.source)" @btn-click="handleListBtnClick"
                   />
                 </div>
-                <div class="list-item-cell" style="flex: 0 0 27%;"><span class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span></div>
+                <div class="list-item-cell" style="flex: 0 0 27%;"><span class="select" :aria-label="item?.meta?.albumName">{{ item?.meta?.albumName }}</span></div>
                 <div class="list-item-cell" style="flex: 0 0 10%;"><span class="no-select">{{ item.interval || '--/--' }}</span></div>
               </div>
             </template>
@@ -188,6 +184,13 @@ export default {
       type: Boolean,
       default: false,
     },
+    // 当前播放行的下标（-1 表示不高亮）。
+    // 由调用方传入，让「最近播放」这类自建队列也能复用本组件的高亮与右键菜单，
+    // 而不必像以前那样每个页面各复制一份虚拟列表模板。
+    activeIndex: {
+      type: Number,
+      default: -1,
+    },
   },
   emits: ['show-menu', 'play-list', 'togglePage'],
   setup(props, { emit }) {
@@ -226,6 +229,9 @@ export default {
     const {
       handleSearch,
       handleOpenMusicDetail,
+      handleShowMusicComment,
+      handleEditLocalMusicInfo,
+      handleSetMusicQuality,
       handleDislikeMusic,
     } = useMusicActions({ props })
 
@@ -246,6 +252,9 @@ export default {
       handleSearch,
       handleShowMusicAddModal,
       handleOpenMusicDetail,
+      handleShowMusicComment,
+      handleEditLocalMusicInfo,
+      handleSetMusicQuality,
       handleDislikeMusic,
     })
 
@@ -321,9 +330,78 @@ export default {
       listRef.value.scrollTo(0, true)
     }
 
+    // ---------- 键盘导航 ----------
+    // 容器 tabindex=0 可聚焦后：↑↓ 移动光标行、Enter 播放、Esc 取消。
+    // 光标行独立于「勾选选中」（selectedList）与「右键选中」，互不干扰。
+    const keyboardIndex = ref(-1)
+
+    // 让光标行保持可见：虚拟列表按 itemHeight 计算，直接换算成滚动位置
+    const keepKeyboardVisible = (index) => {
+      const container = listRef.value
+      if (!container) return
+      const top = container.getScrollTop()
+      const target = index * listItemHeight.value
+      const viewHeight = dom_listContent.value?.clientHeight ?? 0
+      if (target < top) {
+        container.scrollToIndex(index, 0)
+      } else if (target + listItemHeight.value > top + viewHeight) {
+        container.scrollToIndex(index, 0)
+      }
+    }
+
+    const handleListKeydown = (event) => {
+      if (!props.list.length) return
+      switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault()
+          keyboardIndex.value = Math.min(keyboardIndex.value + 1, props.list.length - 1)
+          keepKeyboardVisible(keyboardIndex.value)
+          break
+        case 'ArrowUp':
+          event.preventDefault()
+          keyboardIndex.value = Math.max(keyboardIndex.value - 1, 0)
+          keepKeyboardVisible(keyboardIndex.value)
+          break
+        case 'Home':
+          event.preventDefault()
+          keyboardIndex.value = props.list.length ? 0 : -1
+          keepKeyboardVisible(keyboardIndex.value)
+          break
+        case 'End':
+          event.preventDefault()
+          keyboardIndex.value = props.list.length - 1
+          keepKeyboardVisible(keyboardIndex.value)
+          break
+        case 'Enter':
+          if (keyboardIndex.value > -1) {
+            event.preventDefault()
+            emit('play-list', keyboardIndex.value)
+          }
+          break
+        case 'Escape':
+          if (keyboardIndex.value > -1) {
+            event.preventDefault()
+            keyboardIndex.value = -1
+          }
+          break
+      }
+    }
+
+    // 音质角标：_qualitys 可能整体缺失（本地导入歌曲、换源缓存、旧版本歌单的脏数据），
+    // 必须走可选链读取；否则模板直接取属性会抛 TypeError，导致整个列表渲染失败。
+    const getQualityTag = (item) => {
+      const qualitys = item?.meta?._qualitys
+      if (!qualitys) return null
+      if (qualitys.flac24bit) return { label: window.i18n.t('player__quality_master'), cls: 'badge-theme-secondary' }
+      if (qualitys.ape || qualitys.flac || qualitys.wav) return { label: 'SQ', cls: 'badge-theme-primary' }
+      if (qualitys['320k']) return { label: 'HQ', cls: 'badge-theme-secondary' }
+      return null
+    }
+
     return {
       isLoved,
       getCoverUrl,
+      getQualityTag,
       listItemHeight,
       handleListItemClick,
       selectedList,
@@ -333,6 +411,8 @@ export default {
       rightClickSelectedIndex,
       dom_listContent,
       listRef,
+      keyboardIndex,
+      handleListKeydown,
 
       menus,
       isShowItemMenu,
@@ -366,7 +446,7 @@ export default {
   display: flex;
   flex-flow: column nowrap;
   position: relative;
-  background-color: var(--color-surface-base);
+  background-color: var(--qm-surface);
 }
 
 .list {
@@ -385,6 +465,9 @@ export default {
   min-height: 0;
   position: relative;
   height: 100%;
+
+  // 键盘导航的聚焦容器：去掉默认聚焦圈，用行高亮（.keyboard）代替视觉反馈
+  &:focus { outline: none; }
 }
 
 .pagination {
@@ -404,7 +487,7 @@ export default {
 
   p {
     font-size: var(--qm-fs-2xl, 18px);
-    color: var(--color-font-label);
+    color: var(--qm-text-4);
   }
 }
 

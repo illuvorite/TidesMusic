@@ -276,7 +276,7 @@ export default {
   display: flex;
   flex-flow: column nowrap;
   z-index: 100;
-  background-color: var(--qm-card, var(--color-content-background));
+  background-color: var(--qm-card, var(--qm-surface));
 }
 
 // 顶部关闭区：保持原有高度与占位（避免与各弹窗内容冲突），
@@ -301,7 +301,7 @@ export default {
     border-radius: 50%;
     cursor: pointer;
     background-color: transparent;
-    color: var(--qm-text-4, var(--color-font-label));
+    color: var(--qm-text-4);
     outline: none;
     line-height: 0;
     transition: background-color var(--qm-t-fast), color var(--qm-t-fast), transform var(--qm-t-fast);

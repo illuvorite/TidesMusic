@@ -23,6 +23,18 @@
     <!-- 全屏设置页：在应用顶层渲染为覆盖层，天然盖住侧栏/工具栏/播放栏（路由 /setting） -->
     <layout-setting v-if="isSettingOpen" />
 
+    <!-- 全局歌曲评论弹层：任意列表右键「歌曲评论」都能唤起（对标 QQ/网易云的单曲评论） -->
+    <common-music-comment-modal />
+
+    <!-- 全局本地歌曲信息编辑弹层（右键「编辑歌曲信息」，仅本地歌曲可用） -->
+    <common-local-music-info-modal />
+
+    <!-- 全局单曲指定音质弹层（右键「指定音质」，仅在线歌曲可用） -->
+    <common-music-quality-modal />
+
+    <!-- 歌单回收站弹层 -->
+    <common-list-trash-modal />
+
   </div>
 </template>
 
@@ -32,6 +44,10 @@ import { useRoute } from '@common/utils/vueRouter'
 import useApp from '@renderer/core/useApp'
 import LayoutSetting from '@renderer/views/Setting/index.vue'
 import SkinBackground from '@renderer/components/layout/SkinBackground.vue'
+import CommonMusicCommentModal from '@renderer/components/common/MusicCommentModal.vue'
+import CommonLocalMusicInfoModal from '@renderer/components/common/LocalMusicInfoModal.vue'
+import CommonMusicQualityModal from '@renderer/components/common/MusicQualityModal.vue'
+import CommonListTrashModal from '@renderer/components/common/ListTrashModal.vue'
 
 useApp()
 
@@ -64,7 +80,7 @@ body {
   user-select: none;
   height: 100%;
   // 不透明兜底：主题的面板可为半透明（让背景图透出），此处避免透视到窗口透明层
-  background-color: var(--color-primary-light-1000, #F5F5F5);
+  background-color: var(--qm-card, #F5F5F5);
   // 全局字体抗锯齿
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -74,7 +90,7 @@ body {
   height: 100%;
   position: relative;
   overflow: hidden;
-  color: var(--color-font);
+  color: var(--qm-text-2);
   background: var(--background-image) var(--background-image-position) no-repeat;
   background-size: var(--background-image-size);
   transition: background-color @transition-normal;
@@ -82,7 +98,7 @@ body {
   // （--color-app-background 部分主题自带透明度，如蓝田生玉的 alpha-700）
   // 之下必须垫一层不透明底色，否则无壁纸主题会直接透视到桌面。
   // 取主题的主面板色（各主题均为不透明值）；有壁纸时被壁纸完全覆盖，不影响观感。
-  background-color: var(--color-main-background, #F5F5F5);
+  background-color: var(--qm-card, #F5F5F5);
   box-sizing: border-box;
 }
 
@@ -95,9 +111,9 @@ body {
   background: transparent;
 }
 .disableTransparent {
-  background-color: var(--color-content-background);
+  background-color: var(--qm-surface);
   #body {
-    border: 1Px solid var(--color-primary-light-500);
+    border: 1px solid var(--qm-line-2);
   }
   #right {
     border-top-left-radius: 0;
@@ -105,7 +121,7 @@ body {
   }
 }
 .fullscreen {
-  background-color: var(--color-content-background);
+  background-color: var(--qm-surface);
   #right {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
@@ -124,8 +140,8 @@ body {
   height: 100%;
   box-sizing: border-box;
   // 只留顶部内边距；右侧边距交给主面板自己，播放栏通栏到底
-  padding: var(--home-gap-panel) 0 0 0;
-  background-color: var(--home-shell-bg, var(--color-app-background));
+  padding: var(--qm-shell-gap) 0 0 0;
+  background-color: var(--qm-shell);
 }
 
 #top {
@@ -143,7 +159,7 @@ body {
   top: 0;
   left: 0;
   // 侧栏到播放栏上方为止（播放栏通栏占据整个底部）
-  height: calc(100% - @height-player - var(--home-gap-panel));
+  height: calc(100% - @height-player - var(--qm-shell-gap));
   width: @width-home-sidebar;
   flex: none;
   // 注意：不要在这里写 background-color——ID 选择器会压过 Aside 组件内
@@ -154,11 +170,11 @@ body {
   display: flex;
   flex-flow: column nowrap;
   transition: background-color @transition-normal;
-  background-color: var(--home-panel-bg, var(--color-main-background));
-  border-radius: var(--home-radius-panel);
+  background-color: var(--qm-surface);
+  border-radius: var(--qm-radius-panel);
   overflow: hidden;
   min-width: 0;
-  margin-right: var(--home-gap-panel);
+  margin-right: var(--qm-shell-gap);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.015);
 }
 #toolbar, #player {
@@ -168,9 +184,9 @@ body {
   position: relative;
   z-index: 2;
   // 播放栏通栏占据整个底部（与主面板之间留 11px 缝隙）
-  margin-top: var(--home-gap-panel);
+  margin-top: var(--qm-shell-gap);
   border-radius: 0;
-  background-color: var(--home-panel-bg, var(--color-main-background));
+  background-color: var(--qm-surface);
   overflow: hidden;
 
   // 播放栏内部实现保持不变，仅让它的底与主面板同一材质

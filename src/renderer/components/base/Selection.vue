@@ -124,7 +124,7 @@ export default {
 
   &.active {
     .label {
-      background-color: var(--color-button-background);
+      background-color: var(--qm-hover);
     }
     .list {
       opacity: 1;
@@ -138,14 +138,14 @@ export default {
 }
 
 .label {
-  background-color: var(--color-button-background);
+  background-color: var(--qm-hover);
   padding: 0 10px;
   transition: background-color @transition-normal;
   height: @selection-height;
   // line-height: 27px;
   line-height: 1.5;
   box-sizing: border-box;
-  color: var(--color-button-font);
+  color: var(--qm-text-3);
   border-radius: @form-radius;
   cursor: pointer;
   display: flex;
@@ -167,10 +167,10 @@ export default {
   }
 
   &:hover {
-    background-color: var(--color-button-background-hover);
+    background-color: var(--qm-hover);
   }
   &:active {
-    background-color: var(--color-button-background-active);
+    background-color: var(--qm-hover-strong);
   }
 }
 
@@ -179,7 +179,7 @@ export default {
   top: 0;
   left: 0;
   width: 100%;
-  background-color: var(--color-content-background);
+  background-color: var(--qm-surface);
   opacity: 0;
   transform: scaleY(0) translateY(0);
   transform-origin: 0 (@selection-height / 2) 0;
@@ -195,7 +195,7 @@ export default {
   cursor: pointer;
   padding: 0 10px;
   line-height: @selection-height;
-  // color: var(--color-button-font);
+  // color: var(--qm-text-3);
   outline: none;
   transition: background-color @transition-normal;
   background-color: transparent;
@@ -203,13 +203,13 @@ export default {
   .mixin-ellipsis-1();
 
   &:hover {
-    background-color: var(--color-button-background-hover);
+    background-color: var(--qm-hover);
   }
   &:active {
-    background-color: var(--color-button-background-active);
+    background-color: var(--qm-hover-strong);
   }
   &.active {
-    color: var(--color-button-font);
+    color: var(--qm-text-3);
   }
 }
 

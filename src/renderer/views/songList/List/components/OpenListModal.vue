@@ -92,7 +92,7 @@ const handleSubmit = () => {
   // overflow: hidden;
   h2 {
     font-size: var(--qm-fs-md, 14px);
-    color: var(--color-font);
+    color: var(--qm-text-2);
     line-height: 1.3;
     word-break: break-all;
     // text-align: center;
@@ -114,15 +114,15 @@ const handleSubmit = () => {
 
     .selection-list {
       li {
-        // background-color: var(--color-main-background);
+        // background-color: var(--qm-card);
         text-align: center;
         line-height: 32px;
         font-size: var(--qm-fs-sm, 13px);
         &:hover {
-          background-color: var(--color-button-background-hover);
+          background-color: var(--qm-hover);
         }
         &:active {
-          background-color: var(--color-button-background-active);
+          background-color: var(--qm-hover-strong);
         }
       }
     }
@@ -135,7 +135,7 @@ const handleSubmit = () => {
   // width: 100%;
   // height: 26px;
   padding: 8px 8px;
-  color: var(--color-font);
+  color: var(--qm-text-2);
 }
 .footer {
   margin: 50px 0 15px;
@@ -147,7 +147,7 @@ const handleSubmit = () => {
 .tips {
   flex: auto;
   font-size: var(--qm-fs-xs, 12px);
-  color: var(--color-font);
+  color: var(--qm-text-2);
   line-height: 1.5;
   ul {
     list-style: decimal;

@@ -60,7 +60,7 @@ const updatePreservesPitch = (enabled) => {
 
 .btn {
   position: relative;
-  // color: var(--color-button-font);
+  // color: var(--qm-text-3);
   justify-content: center;
   align-items: center;
   transition: color @transition-normal;

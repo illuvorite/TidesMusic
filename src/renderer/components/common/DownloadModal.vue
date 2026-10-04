@@ -96,7 +96,7 @@ export default {
   justify-content: center;
   h2 {
     font-size: var(--qm-fs-sm, 13px);
-    color: var(--color-font);
+    color: var(--qm-text-2);
     line-height: 1.3;
     text-align: center;
     margin-bottom: var(--qm-sp-6, 15px);

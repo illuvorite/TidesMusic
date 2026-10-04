@@ -86,14 +86,14 @@ watch(() => props.source, async(source) => {
 
 .label {
   padding: 8px 15px;
-  // background-color: var(--color-button-background);
+  // background-color: var(--qm-hover);
   transition: background-color @transition-normal;
   // border-top: 2px solid @color-tab-border-bottom;
   // border-left: 2px solid @color-tab-border-bottom;
   box-sizing: border-box;
   text-align: center;
   // border-top-left-radius: 3px;
-  color: var(--color-button-font);
+  color: var(--qm-text-3);
   cursor: pointer;
 
   display: flex;
@@ -141,7 +141,7 @@ watch(() => props.source, async(source) => {
   li {
     cursor: pointer;
     padding: 8px 15px;
-    // color: var(--color-button-font);
+    // color: var(--qm-text-3);
     text-align: center;
     outline: none;
     transition: background-color var(--qm-t-fast), color var(--qm-t-fast);
@@ -159,22 +159,22 @@ watch(() => props.source, async(source) => {
 .type {
   padding-top: var(--qm-sp-4, 10px);
   padding-bottom: 3px;
-  color: var(--color-font-label);
+  color: var(--qm-text-4);
 }
 
 .tag {
   display: inline-block;
   margin: 5px;
-  background-color: var(--color-button-background);
+  background-color: var(--qm-hover);
   padding: 8px 10px;
   border-radius: @radius-progress-border;
   transition: background-color @transition-normal;
   cursor: pointer;
   &:hover {
-    background-color: var(--color-button-background-hover);
+    background-color: var(--qm-hover);
   }
   &:active {
-    background-color: var(--color-button-background-active);
+    background-color: var(--qm-hover-strong);
   }
 }
 

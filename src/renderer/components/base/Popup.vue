@@ -118,8 +118,9 @@ onBeforeUnmount(() => {
   position: absolute;
   max-width: 98%;
   border-radius: @radius-md;
-  // 纯白不透明底 + 1px 描边，去掉磨砂导致的白边光晕
-  background-color: #fff;
+  // 不透明卡片底 + 1px 描边，去掉磨砂导致的白边光晕。
+  // 用 --qm-card 跟随主题，避免深色主题下白底配浅字。
+  background-color: var(--qm-card);
   border: 1px solid var(--qm-line-1);
   opacity: 0;
   transform: scale(.94);

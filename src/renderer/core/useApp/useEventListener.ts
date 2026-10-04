@@ -30,10 +30,16 @@ import { openUrl } from '@common/utils/electron'
 import { HOTKEY_COMMON } from '@common/hotKey'
 import { applyTheme, getThemes } from '@renderer/store/utils'
 import { clearDownKeys } from '@renderer/event'
+import { closeTopModal } from '@renderer/utils/modalStack'
 
 const handle_key_down = ({ event, type, key }: LX.KeyDownEevent) => {
   // console.log(key)
   if (key != 'escape' || !event || event.repeat || type == 'up' || window.lx.isEditingHotKey || (event.target as HTMLElement)?.classList.contains('ignore-esc') || event.lx_handled) return
+  // 先让最上层的弹层有机会消费 Esc（关闭弹层优先于「清空输入框 / 退出全屏」）
+  if (closeTopModal()) {
+    event.lx_handled = true
+    return
+  }
   if ((event.target as HTMLElement).tagName != 'INPUT') {
     if (isFullscreen.value) {
       event.lx_handled = true

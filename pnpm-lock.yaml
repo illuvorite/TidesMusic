@@ -56,6 +56,9 @@ importers:
       node-id3:
         specifier: ^0.2.9
         version: 0.2.9
+      resonance-audio:
+        specifier: ^1.0.0
+        version: 1.0.0
       sortablejs:
         specifier: ^1.15.7
         version: 1.15.7
@@ -3660,6 +3663,9 @@ packages:
   obuf@1.1.2:
     resolution: {integrity: sha512-PX1wu0AmAdPqOL1mWhqmlOd8kOIZQwGZw6rh7uby9fTc5lhaOWFLX3I6R1hrF9k3zUY40e6igsLGkDXK92LJNg==}
 
+  omnitone@1.0.5:
+    resolution: {integrity: sha512-kOVj8rgq17wveiANIDvCaees6DoLQA3Gh89/mpN3+xK3pwnvHK6MDuHzAVWP7VNlmaWVx1D3JPpO/PLFNvbmcQ==}
+
   on-finished@2.4.1:
     resolution: {integrity: sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg==}
     engines: {node: '>= 0.8'}
@@ -4356,6 +4362,9 @@ packages:
     resolution: {integrity: sha512-tqt+NBWwyaMgw3zDsnygx4CByWjQEJHOPMdslYhppaQSJUtL/D4JO9CcBBlhPoI8lz9oJIDXkwXfhF4aWqP8xQ==}
     engines: {node: '>= 0.4'}
     hasBin: true
+
+  resonance-audio@1.0.0:
+    resolution: {integrity: sha512-9ciGZtOhvSyfAIcAF1V6u4UKasgT02R0a19j3KE2/zC5TgMY3pVf+f+k5KXEcPP4TGOzh+KDNM6QVvBsj0e3qg==}
 
   responselike@2.0.1:
     resolution: {integrity: sha512-4gl03wn3hj1HP3yzgdI7d3lCkF95F21Pz4BPGvKHinyQzALR5CapwC8yIi0Rh58DEMQ/SguC03wFj2k0M/mHhw==}
@@ -9347,6 +9356,8 @@ snapshots:
 
   obuf@1.1.2: {}
 
+  omnitone@1.0.5: {}
+
   on-finished@2.4.1:
     dependencies:
       ee-first: 1.1.1
@@ -10112,6 +10123,10 @@ snapshots:
       object-keys: 1.1.1
       path-parse: 1.0.7
       supports-preserve-symlinks-flag: 1.0.0
+
+  resonance-audio@1.0.0:
+    dependencies:
+      omnitone: 1.0.5
 
   responselike@2.0.1:
     dependencies:

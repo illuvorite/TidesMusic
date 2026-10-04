@@ -33,11 +33,9 @@ const router = createRouter({
     },
     {
       path: '/home/recent',
-      name: 'Recent',
-      component: require('./views/Home/Recent.vue').default,
-      meta: {
-        name: 'Home',
-      },
+      // 曾经的「最近播放」占位页（只有一句「即将上线」）已删除。
+      // 统一重定向到唯一实现 /list/recent，避免同一功能存在两个入口、两套实现。
+      redirect: '/list/recent',
     },
     {
       path: '/home/recommend',
@@ -136,6 +134,15 @@ const router = createRouter({
       component: require('./views/Download/index.vue').default,
       meta: {
         name: 'Download',
+      },
+    },
+    {
+      path: '/local',
+      name: 'LocalMusic',
+      // 本地音乐（扫描本机文件夹形成的曲库）
+      component: require('./views/LocalMusic/index.vue').default,
+      meta: {
+        name: 'LocalMusic',
       },
     },
     {

@@ -292,8 +292,8 @@ export default {
   min-width: 200px;
   display: flex;
   flex-flow: column nowrap;
-  background-color: var(--color-surface-base);
-  border-right: 1px solid var(--color-border-subtle);
+  background-color: var(--qm-surface);
+  border-right: 1px solid var(--qm-line-1);
 }
 .listHeader {
   position: relative;
@@ -301,7 +301,7 @@ export default {
   flex-flow: row nowrap;
   align-items: center;
   padding: 4px 8px 4px 12px;
-  border-bottom: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--qm-line-1);
   &:hover {
     .listsAdd {
       opacity: 1;
@@ -316,7 +316,7 @@ export default {
   text-transform: uppercase;
   line-height: 38px;
   padding: 0 4px;
-  color: var(--color-font-label);
+  color: var(--qm-text-4);
   .mixin-ellipsis-1();
 }
 .headerBtns {
@@ -333,7 +333,7 @@ export default {
   border-radius: var(--qm-radius-sm, 8px);
   cursor: pointer;
   opacity: 1;
-  color: var(--color-font-label);
+  color: var(--qm-text-4);
   transition: background-color @transition-fast, color @transition-fast, transform @transition-fast;
   display: inline-flex;
   align-items: center;
@@ -342,8 +342,8 @@ export default {
     vertical-align: bottom;
   }
   &:hover {
-    background-color: var(--color-accent-soft);
-    color: var(--color-accent);
+    background-color: var(--qm-primary-soft);
+    color: var(--qm-primary);
   }
   &:active {
     transform: scale(0.92);
@@ -367,7 +367,7 @@ export default {
       }
 
       &.dragingItem {
-        background-color: var(--color-primary-background-hover) !important;
+        background-color: var(--qm-hover) !important;
       }
     }
   }
@@ -379,28 +379,28 @@ export default {
   border-radius: var(--qm-radius-sm, 8px);
   &:not(.active) {
     &:hover {
-      background-color: var(--color-button-background-hover);
-      color: var(--color-accent);
+      background-color: var(--qm-hover);
+      color: var(--qm-primary);
       cursor: pointer;
     }
   }
   &.active {
-    background-color: var(--color-accent-soft);
-    color: var(--color-accent);
+    background-color: var(--qm-primary-soft);
+    color: var(--qm-primary);
     font-weight: var(--qm-fw-semibold, 600);
   }
   &.selected {
-    background-color: var(--color-primary-font-active);
+    background-color: var(--qm-hover-strong);
   }
   &.clicked {
-    background-color: var(--color-primary-background-hover);
+    background-color: var(--qm-hover);
   }
   &.fetching {
     opacity: .5;
   }
   &.editing {
     padding: 0 10px;
-    background-color: var(--color-primary-background-hover);
+    background-color: var(--qm-hover);
     .listsLabel {
       display: none;
     }
@@ -414,7 +414,7 @@ export default {
   width: .9em;
   margin-left: -0.45em;
   vertical-align: -0.05em;
-  color: var(--color-accent);
+  color: var(--qm-primary);
 }
 .listsLabel {
   display: flex;
@@ -439,7 +439,7 @@ export default {
 
 .listsNew {
   padding: 0 10px;
-  background-color: var(--color-primary-background-hover) !important;
+  background-color: var(--qm-hover) !important;
   .listsInput {
     display: block;
   }

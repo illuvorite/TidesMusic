@@ -258,7 +258,7 @@ export default {
 .hotKeyItemTitle {
   .mixin-ellipsis-1();
   padding-bottom: 5px;
-  color: var(--color-font-label);
+  color: var(--qm-text-4);
   font-size: var(--qm-fs-xs, 12px);
 }
 .hotKeyItemInput {
@@ -266,7 +266,7 @@ export default {
   box-sizing: border-box;
   // font-family: monospace;
   &:focus {
-    background-color: var(--color-primary-background-active);
+    background-color: var(--qm-hover-strong);
     text-decoration: none;
   }
   &::placeholder {

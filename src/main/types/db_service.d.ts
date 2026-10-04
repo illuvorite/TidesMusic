@@ -85,5 +85,17 @@ declare namespace LX {
       order: number
     }
 
+    /**
+     * 播放历史行。
+     * musicInfo 存 JSON 字符串（LX.Player.PlayMusicInfo['musicInfo'] 序列化结果），
+     * 这样无需为歌曲元数据额外建表/建列，也不会因为 meta 结构演进导致 schema 变更。
+     */
+    interface PlayHistoryInfo {
+      id: string
+      musicInfo: string
+      playedAt: number
+      playCount: number
+    }
+
   }
 }

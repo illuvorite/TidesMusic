@@ -74,3 +74,15 @@ src/**/*-internal.js
 
 # IDE / AI 助手工作数据（工作记忆、调试脚本、截图与日志）
 .codebuddy/
+.workbuddy-ai/
+.workbuddy/
+
+# 一次性项目审计报告（日期戳命名，不进版本库）
+docs/project-audit-*.html
+
+# 根目录临时调试脚本
+/tmp-probe-*.js
+/tmp-probe.js
+
+# 散落到仓库根目录的构建产物（webpack 误输出位置）
+/renderer.js

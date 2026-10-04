@@ -36,10 +36,15 @@ export default () => {
         isShowingTipAlert = false
       })
     }
-    return device ? { label: device.label, deviceId: device.deviceId } : { label: '', deviceId: '' }
+    // 枚举不到任何设备时（例如 Chromium 音频服务未就绪 / 设备被禁用），
+    // 必须回退到 'default'，绝不能返回空字符串：audio.setSinkId('') 不会报错，
+    // 但会让该 audio 元素静默失效——表现为「没有声音，且进度条一直停在 0」。
+    return device ? { label: device.label, deviceId: device.deviceId } : { label: '', deviceId: 'default' }
   }
   const setMediaDevice = async(deviceId: string, label: string) => {
     prevDeviceLabel = label
+    // 兜底：空 deviceId 会让 setSinkId('') 静默失效（无声音、进度不走）
+    if (!deviceId) deviceId = 'default'
     // console.log(device)
     setMediaDeviceId(deviceId).then(() => {
       prevDeviceId = deviceId

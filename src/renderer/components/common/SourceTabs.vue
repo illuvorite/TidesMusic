@@ -70,7 +70,7 @@ const handleClick = (id) => {
   height: 28px;
   padding: 0 14px;
   border: 0;
-  border-radius: var(--qm-radius-lg, 12px);
+  border-radius: var(--qm-radius-panel);
   font-size: var(--qm-fs-xs, 12px);
   line-height: 28px;
   color: var(--qm-text-3);

@@ -25,7 +25,7 @@ export const setUserApi = async(apiId: string) => {
 
     const timeoutId = setTimeout(() => {
       if (userApi.message === 'initing') {
-        userApi.message = '初始化超时'
+        userApi.message = window.i18n.t('api_source__init_timeout')
         if (!window.lx.apiInitPromise[1]) window.lx.apiInitPromise[2](false)
       }
     }, 25000)

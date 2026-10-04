@@ -13,6 +13,7 @@ import music from './music'
 import download from './download'
 import soundEffect from './soundEffect'
 import openAPI from './openAPI'
+import playHistory from './playHistory'
 import { sendEvent } from '../main'
 
 export * from './app'
@@ -41,6 +42,7 @@ export default () => {
   download()
   soundEffect()
   openAPI()
+  playHistory()
 
   global.lx.event_app.on('updated_config', (keys, setting) => {
     sendConfigChange(setting)

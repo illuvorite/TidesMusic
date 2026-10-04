@@ -139,14 +139,14 @@ export default {
   h2 {
     flex: none;
     font-size: var(--qm-fs-xl, 16px);
-    color: var(--color-font);
+    color: var(--qm-text-2);
     line-height: 1.3;
     text-align: center;
     padding: var(--qm-sp-6, 15px);
   }
   h3 {
     font-size: var(--qm-fs-xl, 16px);
-    color: var(--color-font);
+    color: var(--qm-text-2);
     line-height: 1.3;
     padding-bottom: var(--qm-sp-6, 15px);
     font-size: var(--qm-fs-lg, 15px);
@@ -222,7 +222,7 @@ export default {
   padding: 8px 15px;
   font-size: var(--qm-fs-sm, 13px);
   line-height: 1.25;
-  color: var(--color-font);
+  color: var(--qm-text-2);
   // p {
   //   + p {
   //     margin-top: 5px;

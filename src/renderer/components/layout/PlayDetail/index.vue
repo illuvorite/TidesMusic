@@ -205,6 +205,38 @@ export default {
   --progress-fill: #ffffff;
   --progress-drag: rgba(255, 255, 255, .5);
 
+  // -------- 同步覆写 --qm-* 语义层 --------
+  // 背景：项目里存在两套写法 —— 老的 --color-* 与新的 --qm-*。
+  //   · --qm-primary 派生自 --color-primary，会被上面的覆写顺带带到（安全）；
+  //   · 但 --qm-text-* / --qm-card / --qm-surface / --qm-hover / --qm-line-* / --qm-primary-soft
+  //     派生自 --color-1000 / --color-main-background / --color-primary-alpha-*，
+  //     这些上面的旧变量覆写**够不到**。
+  // 后果：在浅色主题（默认主题）下，深色画布内的组件若使用 --qm-text-*，
+  //     会拿到主应用的深色文字 → 深底配深字不可读。
+  // 这里把 --qm-* 层一并切到浅色，让新旧两种写法在深色画布上表现一致，
+  // 后续组件迁移到 --qm-* 时无需再关心自己会被渲染在哪一层。
+  --qm-text-1: rgba(255, 255, 255, .95);
+  --qm-text-2: rgba(255, 255, 255, .92);
+  --qm-text-3: rgba(255, 255, 255, .72);
+  --qm-text-4: rgba(255, 255, 255, .58);
+  --qm-text-5: rgba(255, 255, 255, .42);
+  --qm-text-invert: #14171c;
+  --qm-card: rgba(26, 30, 36, .97);
+  --qm-surface: rgba(26, 30, 36, .92);
+  --qm-hover: rgba(255, 255, 255, .10);
+  --qm-hover-strong: rgba(255, 255, 255, .16);
+  --qm-tile-bg: rgba(255, 255, 255, .08);
+  --qm-tile-bg-active: rgba(255, 255, 255, .16);
+  --qm-field: rgba(255, 255, 255, .14);
+  --qm-line-1: rgba(255, 255, 255, .12);
+  --qm-line-2: rgba(255, 255, 255, .18);
+  --qm-line-dashed: rgba(255, 255, 255, .24);
+  // 主色浅底系列改为白色低透明：深色画布上的「选中态」应是提亮而非绿色染色
+  --qm-primary-soft: rgba(255, 255, 255, .14);
+  --qm-primary-soft-hover: rgba(255, 255, 255, .20);
+  --qm-primary-border: rgba(255, 255, 255, .28);
+  --qm-text-active: rgba(255, 255, 255, .98);
+
   * {
     box-sizing: border-box;
   }

@@ -181,7 +181,7 @@ export default {
   justify-content: center;
   width: 30px;
   height: 30px;
-  border-radius: var(--qm-radius-md, 10px);
+  border-radius: var(--qm-radius-card);
   background-color: var(--qm-primary-soft);
   color: var(--qm-primary);
   transition: background-color var(--qm-t-fast);
@@ -256,7 +256,7 @@ export default {
   gap: var(--qm-sp-4, 10px);
   padding: 12px 10px 12px 14px;
   border: 1px solid var(--qm-line-1);
-  border-radius: var(--qm-radius-md, 10px);
+  border-radius: var(--qm-radius-card);
   background-color: var(--qm-card);
   overflow: hidden;
   // 注意：fill-mode 必须用 backwards —— 用 both/forwards 会让关键帧里的 transform
@@ -447,7 +447,7 @@ export default {
   flex: none;
   margin: 0 20px 14px;
   padding: 10px 12px;
-  border-radius: var(--qm-radius-md, 10px);
+  border-radius: var(--qm-radius-card);
   background-color: var(--qm-field);
   color: var(--qm-text-3);
   font-size: var(--qm-font-aux);

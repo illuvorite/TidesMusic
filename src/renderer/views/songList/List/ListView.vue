@@ -146,7 +146,7 @@ onBeforeRouteLeave(() => {
   text-align: justify;
   line-height: 1.2;
   // text-indent: 24px;
-  color: var(--color-font-label);
+  color: var(--qm-text-4);
   svg {
     margin-right: var(--qm-sp-0, 2px);
   }
@@ -158,7 +158,7 @@ onBeforeRouteLeave(() => {
   text-align: justify;
   line-height: 1.2;
   // text-indent: 24px;
-  color: var(--color-font-label);
+  color: var(--qm-text-4);
 }
 .pagination {
   text-align: center;
@@ -180,7 +180,7 @@ onBeforeRouteLeave(() => {
 
   p {
     font-size: var(--qm-fs-5xl, 24px);
-    color: var(--color-font-label);
+    color: var(--qm-text-4);
   }
 }
 

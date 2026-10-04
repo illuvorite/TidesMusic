@@ -7,6 +7,14 @@ dd
       svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__other_transparent_window_tip')")
 
 dd
+  h3#other_local_library
+    | {{ $t('setting__other_local_library') }}
+    svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__other_local_library_watch_tip')")
+  div
+    .gap-top
+      base-checkbox(id="setting_other_local_library_watch" :model-value="appSetting['local.libraryWatch']" :label="$t('setting__other_local_library_watch')" @update:model-value="updateSetting({'local.libraryWatch': $event})")
+
+dd
   h3#other_tray_theme {{ $t('setting__other_tray_theme') }}
   div
     base-checkbox.gap-left(

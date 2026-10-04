@@ -52,6 +52,14 @@ const options = {
     },
   ],
 }
+
+// 可选：通过环境变量指定「已解压好的 Electron 目录」，让 electron-builder 走「复制」而不是
+// 「解压到 win-unpacked.tmp 再重命名」的流程。某些环境（文件被占用 / 安全软件扫描 electron.exe）
+// 下对包含 electron.exe 的目录执行 rename 会返回 EPERM，导致打包卡在
+// "rename 'win-unpacked.tmp' -> 'win-unpacked'"。未设置该变量时行为与原来完全一致。
+if (process.env.LX_ELECTRON_DIST) {
+  options.electronDist = process.env.LX_ELECTRON_DIST
+}
 /**
  * @type {import('electron-builder').Configuration}
  * @see https://www.electron.build/configuration/configuration

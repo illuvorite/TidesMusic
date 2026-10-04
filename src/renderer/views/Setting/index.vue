@@ -4,7 +4,7 @@
     <div :class="$style.dragBar" />
     <div class="scroll" :class="$style.toc">
       <div :class="$style.tocHead">
-        <button type="button" :class="$style.backBtn" aria-label="返回" title="返回" @click="handleBack">
+        <button type="button" :class="$style.backBtn" :aria-label="$t('back')" :title="$t('back')" @click="handleBack">
           <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
             <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
@@ -210,7 +210,7 @@ export default {
   top: 0;
   left: 0;
   right: 0;
-  bottom: calc(@height-player + var(--home-gap-panel));
+  bottom: calc(@height-player + var(--qm-shell-gap));
   // 层级契约：高于工具栏(40)；低于播放详情页(65)、teleport 弹层(70)、全局弹窗(99)
   // （在设置页打开播放详情时由详情页整页接管，关闭后回到设置页）
   z-index: 60;
@@ -301,7 +301,7 @@ export default {
   }
 
   &:hover {
-    background-color: var(--qm-hover, var(--color-button-background-hover));
+    background-color: var(--qm-hover);
     color: var(--qm-primary);
 
     // 返回箭头轻微左移，强化「回到上一级」的指向性
@@ -331,7 +331,7 @@ export default {
   padding: 0 12px;
   // 36px 行高：满足可点击区域下限，同时保持列表紧凑
   height: 36px;
-  border-radius: var(--qm-radius-md, 10px);
+  border-radius: var(--qm-radius-card);
   display: flex;
   align-items: center;
   gap: var(--qm-sp-4, 10px);
@@ -355,7 +355,7 @@ export default {
 
   &:not(.active) {
     &:hover {
-      background-color: var(--qm-hover, var(--color-button-background-hover));
+      background-color: var(--qm-hover);
       color: var(--qm-text-1);
     }
   }
@@ -486,7 +486,7 @@ export default {
       margin: 0 0 10px;
       padding: 4px 18px 14px;
       border: 1px solid var(--qm-line-1);
-      border-radius: var(--qm-radius-lg, 12px);
+      border-radius: var(--qm-radius-panel);
       background-color: var(--qm-card);
       box-shadow: var(--qm-shadow-1, 0 1px 2px rgba(0, 0, 0, .04));
       overflow: hidden;
@@ -516,7 +516,7 @@ export default {
     dd > div > .gap-top {
       margin-top: var(--qm-sp-0, 2px);
       padding: 8px 10px;
-      border-radius: var(--qm-radius-md, 10px);
+      border-radius: var(--qm-radius-card);
       transition: background-color var(--qm-t-fast, 150ms ease);
 
       &:hover {
@@ -528,7 +528,7 @@ export default {
     dd > div > .gap-left {
       margin-top: var(--qm-sp-0, 2px);
       padding: 8px 10px;
-      border-radius: var(--qm-radius-md, 10px);
+      border-radius: var(--qm-radius-card);
       transition: background-color var(--qm-t-fast, 150ms ease);
 
       & + .gap-left {
@@ -678,7 +678,7 @@ export default {
 
     dd {
       padding: 2px 14px 12px;
-      border-radius: var(--qm-radius-lg, 12px);
+      border-radius: var(--qm-radius-panel);
     }
   }
 }

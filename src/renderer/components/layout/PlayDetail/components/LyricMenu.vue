@@ -218,7 +218,7 @@ export default {
   transition: .14s ease;
   transition-property: transform, opacity;
   border-radius: @radius-border;
-  background-color: var(--color-content-background);
+  background-color: var(--qm-surface);
   box-shadow: 0 1px 8px 0 rgba(0,0,0,.2);
   // teleport 到 #root，需高于播放详情页(65)，低于 material-modal(99)
   z-index: 70;
@@ -232,7 +232,7 @@ export default {
 .title {
   flex: auto;
   padding: 10px 0 10px 10px;
-  color: var(--color-font-label);
+  color: var(--qm-text-4);
   white-space: nowrap;
   min-width: 120px;
 }
@@ -258,18 +258,18 @@ export default {
   transition-property: background-color, opacity;
   box-sizing: border-box;
   .mixin-ellipsis-1();
-  background-color: var(--color-content-background);
+  background-color: var(--qm-surface);
   border: none;
 
   &:hover {
-    background-color: var(--color-primary-background-hover);
+    background-color: var(--qm-hover);
   }
   &:active {
-    background-color: var(--color-primary-background-active);
+    background-color: var(--qm-hover-strong);
   }
   &.active {
-    background-color: var(--color-content-background);
-    color: var(--color-button-font-selected);
+    background-color: var(--qm-surface);
+    color: var(--qm-text-active);
     cursor: default;
     opacity: 1;
   }

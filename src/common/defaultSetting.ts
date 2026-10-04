@@ -50,6 +50,10 @@ const defaultSetting: LX.AppSetting = {
   'player.autoSkipOnError': true,
   'player.autoSwitchSource': false,
   'player.isAutoCleanPlayedList': false,
+  'player.isSavePlayHistory': true,
+  'player.playHistoryMax': 1000,
+  // 音效总开关（关闭时整条音效链物理旁路，素音直出；各音效设置保留）
+  'player.soundEffect.enable': true,
   'player.soundEffect.convolution.fileName': '',
   'player.soundEffect.convolution.mainGain': 10,
   'player.soundEffect.convolution.sendGain': 0,
@@ -63,14 +67,23 @@ const defaultSetting: LX.AppSetting = {
   'player.soundEffect.biquadFilter.hz4000': 0,
   'player.soundEffect.biquadFilter.hz8000': 0,
   'player.soundEffect.biquadFilter.hz16000': 0,
-  'player.soundEffect.panner.enable': false,
-  'player.soundEffect.panner.soundR': 5,
   'player.soundEffect.panner.speed': 25,
   'player.soundEffect.pitchShifter.playbackRate': 1,
-  'player.soundEffect.enhance.bass': 0,
-  'player.soundEffect.enhance.hifi': 0,
-  'player.soundEffect.enhance.dynamic': 0,
-  'player.soundEffect.enhance.balance': 0,
+  // ===== 面板底部的 6 个连续音效参数（每一项都对应真实音频节点）=====
+  // 高保真度：highshelf 8kHz，0~100 → 0~+9dB
+  'player.soundEffect.hifi': 0,
+  // 混响强度：卷积混响湿声，0~100 → wet 0~0.8
+  'player.soundEffect.reverb': 0,
+  // 环绕强度：3D 环绕旋转半径，0~100 → soundR 0~30（> 0 即启用）
+  'player.soundEffect.surroundStrength': 0,
+  // 超重低音：lowshelf 200Hz，0~100 → 0~+12dB
+  'player.soundEffect.bass': 0,
+  // 动态推进：DynamicsCompressor 压缩强度，0~100（0 = 透明旁路）
+  'player.soundEffect.dynamic': 0,
+  // 声道平衡：-50 全左 ~ 50 全右（0 = 居中）
+  'player.soundEffect.balance': 0,
+  // 混响模式：off / small / medium / large（运行时生成 IR，与 convolution.fileName 互斥）
+  'player.soundEffect.reverbMode': 'off',
 
   'playDetail.isZoomActiveLrc': false,
   'playDetail.isShowLyricProgressSetting': false,
@@ -164,6 +177,8 @@ const defaultSetting: LX.AppSetting = {
 
   'odc.isAutoClearSearchInput': false,
   'odc.isAutoClearSearchList': false,
+
+  'local.libraryWatch': true,
 
 }
 

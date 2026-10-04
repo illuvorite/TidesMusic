@@ -15,7 +15,7 @@
       <button :class="[$style.iconBtn, { [$style.liked]: isLiked }]" :aria-label="isLiked ? '取消喜欢' : '喜欢'" :title="isLiked ? '取消喜欢' : '喜欢'" @click="toggleLove">
         <svg-icon :name="isLiked ? 'heart' : 'heart-outline'" />
       </button>
-      <button :class="$style.iconBtn" aria-label="评论" title="评论" @click="showComments">
+      <button :class="$style.iconBtn" :aria-label="$t('list__comment')" :title="$t('list__comment')" @click="showComments">
         <svg-icon name="comment" />
       </button>
       <material-popup-btn ref="moreBtnRef">
@@ -53,13 +53,13 @@
             </div>
           </template>
         </material-popup-btn>
-        <button :class="$style.iconBtn" aria-label="上一曲" title="上一曲" @click="playPrev()">
+        <button :class="$style.iconBtn" :aria-label="$t('player__prev')" :title="$t('player__prev')" @click="playPrev()">
           <svg-icon name="prev" />
         </button>
         <button :class="[$style.iconBtn, $style.playBtn]" :aria-label="isPlay ? '暂停' : '播放'" :title="isPlay ? '暂停' : '播放'" @click="togglePlay">
           <svg-icon :name="isPlay ? 'pause' : 'play'" />
         </button>
-        <button :class="$style.iconBtn" aria-label="下一曲" title="下一曲" @click="playNext()">
+        <button :class="$style.iconBtn" :aria-label="$t('player__next')" :title="$t('player__next')" @click="playNext()">
           <svg-icon name="next" />
         </button>
       </div>
@@ -99,14 +99,14 @@
               />
             </div>
             <div :class="$style.volumeStep">
-              <button :class="$style.stepBtn" title="减少音量" @click.stop="stepVolume(-1)">−</button>
-              <button :class="$style.stepBtn" title="增加音量" @click.stop="stepVolume(1)">+</button>
+              <button :class="$style.stepBtn" :title="$t('player__volume_down')" @click.stop="stepVolume(-1)">−</button>
+              <button :class="$style.stepBtn" :title="$t('player__volume_up')" @click.stop="stepVolume(1)">+</button>
             </div>
           </div>
         </template>
       </material-popup-btn>
       <material-popup-btn ref="qualityBtnRef">
-        <button :class="[$style.textBtn, $style.qualityBtn]" :aria-label="`音质：${qualityLabel}`" :title="`音质：${qualityLabel}`">
+        <button :class="[$style.textBtn, $style.qualityBtn]" :aria-label="$t('player__quality_label', { quality: qualityLabel })" :title="$t('player__quality_label', { quality: qualityLabel })">
           {{ qualityLabel }}
         </button>
         <template #content>
@@ -122,11 +122,11 @@
         </template>
       </material-popup-btn>
       <common-sound-effect-btn :class="$style.soundEffectBtn" teleport="#root" />
-      <button :class="[$style.iconBtn, { [$style.active]: isDesktopLyricOn }]" aria-label="桌面歌词" :title="isDesktopLyricOn ? '桌面歌词：开' : '桌面歌词：关'" @click="toggleLyric">
+      <button :class="[$style.iconBtn, { [$style.active]: isDesktopLyricOn }]" :aria-label="$t('player__desktop_lyric_on')" :title="isDesktopLyricOn ? $t('player__desktop_lyric_on') : $t('player__desktop_lyric_off')" @click="toggleLyric">
         <svg-icon name="lyrics" />
       </button>
       <material-popup-btn ref="playlistBtnRef" @mouseenter="refreshPlayQueue">
-        <button :class="$style.iconBtn" aria-label="播放列表" title="播放列表">
+        <button :class="$style.iconBtn" :aria-label="$t('player__play_queue')" :title="$t('player__play_queue')">
           <svg-icon name="list-lines" />
         </button>
         <template #content>
@@ -134,7 +134,7 @@
             <div :class="$style.playlistPopupHeader">
               <span :class="$style.playlistPopupTitle">播放队列</span>
               <button
-                :class="$style.playlistTool" aria-label="清空稍后播放" title="清空稍后播放"
+                :class="$style.playlistTool" :aria-label="$t('player__clear_play_later')" :title="$t('player__clear_play_later')"
                 @click.stop="handleClearQueue"
               >
                 <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
@@ -165,16 +165,14 @@
                 <span :class="$style.playlistPopupInfo">
                   <span :class="$style.playlistPopupName">
                     <span :class="$style.playlistPopupNameText">{{ item.musicInfo.name }}</span>
-                    <em v-if="item.musicInfo.meta._qualitys.flac24bit" class="badge badge-theme-secondary">母带</em>
-                    <em v-else-if="item.musicInfo.meta._qualitys.ape || item.musicInfo.meta._qualitys.flac || item.musicInfo.meta._qualitys.wav" class="badge badge-theme-primary">SQ</em>
-                    <em v-else-if="item.musicInfo.meta._qualitys['320k']" class="badge badge-theme-secondary">HQ</em>
+                    <em v-if="getQualityTag(item.musicInfo)" class="badge" :class="getQualityTag(item.musicInfo).cls">{{ getQualityTag(item.musicInfo).label }}</em>
                   </span>
                   <span :class="$style.playlistPopupSinger" :title="item.musicInfo.singer">{{ item.musicInfo.singer }}</span>
                 </span>
                 <span :class="$style.playlistPopupActions">
                   <button
                     :class="[$style.playlistAction, { [$style.playlistActionLiked]: isLoved(item.musicInfo) }]"
-                    aria-label="收藏" title="收藏到我喜欢的音乐"
+                    :aria-label="$t('list__collect')" :title="isLoved(item.musicInfo) ? $t('player__love_remove') : $t('player__love_add')"
                     @click.stop="toggleItemLove(item.musicInfo)"
                   >
                     <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
@@ -184,13 +182,13 @@
                       />
                     </svg>
                   </button>
-                  <button :class="$style.playlistAction" aria-label="添加到歌单" title="添加到歌单" @click.stop="handleShowMusicAdd(item.musicInfo)">
+                  <button :class="$style.playlistAction" :aria-label="$t('list__add_to')" :title="$t('list__add_to')" @click.stop="handleShowMusicAdd(item.musicInfo)">
                     <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
                       <circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.6" />
                       <path d="M12 8.6v6.8M8.6 12h6.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
                     </svg>
                   </button>
-                  <button :class="$style.playlistAction" aria-label="从队列中移除" title="从队列中移除" @click.stop="handleRemoveFromQueue(index)">
+                  <button :class="$style.playlistAction" :aria-label="$t('player__remove_from_queue')" :title="$t('player__remove_from_queue')" @click.stop="handleRemoveFromQueue(index)">
                     <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
                       <path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
                     </svg>
@@ -220,6 +218,7 @@
 
 <script>
 import { computed, ref, watch } from '@common/utils/vueTools'
+import { useI18n } from '@renderer/plugins/i18n'
 import { useRouter } from '@common/utils/vueRouter'
 import { clipboardWriteText } from '@common/utils/electron'
 import { appSetting, updateSetting, saveVolumeIsMute } from '@renderer/store/setting'
@@ -257,21 +256,6 @@ import { volume, isMute, setMute, setVolume } from '@renderer/store/player/volum
 import { setVolume as setPlayerVolume, setMute as setPlayerMute } from '@renderer/plugins/player'
 
 const PLAY_QUALITY_LIST = ['128k', '320k', 'flac', 'flac24bit']
-const PLAY_QUALITY_LABEL = {
-  '128k': '标准',
-  '320k': '较高',
-  flac: '极高',
-  flac24bit: '无损',
-}
-const PLAY_QUALITY_OPTIONS = PLAY_QUALITY_LIST.map(v => ({ value: v, label: PLAY_QUALITY_LABEL[v] || v }))
-
-const PLAY_MODE_OPTIONS = [
-  { mode: 'listLoop', label: '列表循环', icon: 'repeat' },
-  { mode: 'random', label: '随机播放', icon: 'shuffle' },
-  { mode: 'list', label: '列表播放', icon: 'list-ordered' },
-  { mode: 'singleLoop', label: '单曲循环', icon: 'repeat-once' },
-  { mode: 'none', label: '关闭循环', icon: 'play-circle-outline' },
-]
 
 export default {
   name: 'CorePlayBar',
@@ -287,6 +271,8 @@ export default {
     },
   },
   setup() {
+    const t = useI18n()
+
     const router = useRouter()
     const isLiked = ref(false)
     const isDesktopLyricOn = ref(appSetting['desktopLyric.enable'] || false)
@@ -328,7 +314,7 @@ export default {
     })
 
     const qualityLabel = computed(() => {
-      return PLAY_QUALITY_LABEL[appSetting['player.playQuality']] || '标准'
+      return t('player__quality_' + appSetting['player.playQuality'])
     })
 
     const showPlayerDetail = () => {
@@ -488,7 +474,14 @@ export default {
     }
 
     // ===== 播放模式（选项式） =====
-    const playModeOptions = PLAY_MODE_OPTIONS
+    // 档位/模式文案走 i18n：语言切换后要跟着变，所以放 computed 而不是模块常量
+    const playModeOptions = computed(() => [
+      { mode: 'listLoop', label: t('player__play_toggle_mode_list_loop'), icon: 'repeat' },
+      { mode: 'random', label: t('player__play_toggle_mode_random'), icon: 'shuffle' },
+      { mode: 'list', label: t('player__play_toggle_mode_list'), icon: 'list-ordered' },
+      { mode: 'singleLoop', label: t('player__play_toggle_mode_single_loop'), icon: 'repeat-once' },
+      { mode: 'none', label: t('player__play_toggle_mode_off'), icon: 'play-circle-outline' },
+    ])
     const selectPlayMode = (mode) => {
       modeBtnRef.value?.hide()
       if (appSetting['player.togglePlayMethod'] === mode) return
@@ -496,7 +489,7 @@ export default {
     }
 
     // ===== 音质（选项式） =====
-    const qualityOptions = PLAY_QUALITY_OPTIONS
+    const qualityOptions = computed(() => PLAY_QUALITY_LIST.map(v => ({ value: v, label: t('player__quality_' + v) })))
     const selectQuality = (value) => {
       qualityBtnRef.value?.hide()
       if (appSetting['player.playQuality'] === value) return
@@ -530,6 +523,17 @@ export default {
       handleUpdateVolume(Math.round(volume.value * 100 + (-event.deltaY / 100 * 2)) / 100)
     }
 
+    // 音质角标：_qualitys 可能整体缺失（本地导入歌曲、换源缓存、旧版本歌单的脏数据），
+    // 必须走可选链读取；否则模板直接取属性会抛 TypeError，导致播放队列渲染失败。
+    const getQualityTag = (musicInfo) => {
+      const qualitys = musicInfo?.meta?._qualitys
+      if (!qualitys) return null
+      if (qualitys.flac24bit) return { label: t('player__quality_master'), cls: 'badge-theme-secondary' }
+      if (qualitys.ape || qualitys.flac || qualitys.wav) return { label: 'SQ', cls: 'badge-theme-primary' }
+      if (qualitys['320k']) return { label: 'HQ', cls: 'badge-theme-secondary' }
+      return null
+    }
+
     return {
       appSetting,
       musicInfo,
@@ -540,6 +544,7 @@ export default {
       showPlayerDetail,
       handleToMusicLocation,
       imgError,
+      getQualityTag,
       togglePlay,
       playNext,
       playPrev,
@@ -609,10 +614,10 @@ export default {
   align-items: center;
   gap: var(--qm-sp-7, 16px);
   padding: 0 18px;
-  background-color: var(--color-main-background);
+  background-color: var(--qm-card);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  border-top: 1px solid var(--color-border-subtle);
+  border-top: 1px solid var(--qm-line-1);
   user-select: none;
   contain: layout style;
   -webkit-app-region: no-drag;
@@ -636,9 +641,9 @@ export default {
   width: 50px;
   height: 50px;
   flex: none;
-  border-radius: var(--qm-radius-md, 10px);
+  border-radius: var(--qm-radius-card);
   overflow: hidden;
-  background: var(--color-button-background, rgba(0,0,0,0.05));
+  background: var(--qm-hover, rgba(0,0,0,0.05));
   cursor: pointer;
   box-shadow:
     0 2px 8px rgba(0,0,0,0.10),
@@ -678,14 +683,14 @@ export default {
 
 .title {
   font-size: var(--qm-fs-sm, 13px);
-  color: var(--color-font);
+  color: var(--qm-text-2);
   font-weight: var(--qm-fw-semibold, 600);
   .mixin-ellipsis-1();
 }
 
 .artist {
   font-size: var(--qm-fs-xs, 12px);
-  color: var(--color-font-label, rgba(0,0,0,0.55));
+  color: var(--qm-text-4, rgba(0,0,0,0.55));
   .mixin-ellipsis-1();
 }
 
@@ -699,12 +704,12 @@ export default {
   background: transparent;
   border: 0;
   border-radius: var(--qm-radius-sm, 8px);
-  color: var(--color-font-label, rgba(0,0,0,0.55));
+  color: var(--qm-text-4, rgba(0,0,0,0.55));
   cursor: pointer;
   transition: background-color @transition-fast, color @transition-fast, transform @transition-fast, box-shadow @transition-fast;
   &:hover {
-    background-color: var(--color-button-background-hover, rgba(0,0,0,0.06));
-    color: var(--color-font);
+    background-color: var(--qm-hover, rgba(0,0,0,0.06));
+    color: var(--qm-text-2);
   }
   &:active { transform: scale(0.92); }
   :global(.svg-icon) { width: 16px; height: 16px; fill: currentColor; transition: transform @transition-fast; }
@@ -756,7 +761,7 @@ export default {
   align-items: center;
   gap: var(--qm-sp-3, 8px);
   font-size: var(--qm-fs-2xs, 11px);
-  color: var(--color-font-label, rgba(0,0,0,0.55));
+  color: var(--qm-text-4, rgba(0,0,0,0.55));
   font-variant-numeric: tabular-nums;
 }
 
@@ -766,7 +771,7 @@ export default {
   flex: auto;
   height: 3px;
   border-radius: var(--qm-radius-chip, 999px);
-  background: var(--color-button-background, rgba(0,0,0,0.08));
+  background: var(--qm-hover, rgba(0,0,0,0.08));
   cursor: pointer;
   transition: height @transition-fast;
   &:hover { height: 5px; }
@@ -782,7 +787,7 @@ export default {
   flex: none;
   margin-right: var(--qm-sp-1, 4px);
   font-size: var(--qm-fs-2xs, 11px);
-  color: var(--color-font-label, rgba(0,0,0,0.55));
+  color: var(--qm-text-4, rgba(0,0,0,0.55));
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -799,7 +804,7 @@ export default {
 .progressBarFull {
   width: 100%;
   height: 3px;
-  background: var(--color-button-background, rgba(0,0,0,0.08));
+  background: var(--qm-hover, rgba(0,0,0,0.08));
   cursor: pointer;
   transition: height @transition-fast;
   &:hover { height: 5px; }
@@ -818,15 +823,15 @@ export default {
   height: 28px;
   padding: 0 12px;
   background: transparent;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--qm-line-2);
   border-radius: var(--qm-radius-chip, 999px);
-  color: var(--color-font);
+  color: var(--qm-text-2);
   font-size: var(--qm-fs-2xs, 11px);
   font-weight: var(--qm-fw-semibold, 600);
   letter-spacing: 0.3px;
   cursor: pointer;
   transition: background-color @transition-fast, color @transition-fast, border-color @transition-fast, transform @transition-fast;
-  &:hover { background-color: var(--color-accent-soft); color: var(--color-accent); border-color: var(--color-accent); }
+  &:hover { background-color: var(--qm-primary-soft); color: var(--qm-primary); border-color: var(--qm-primary); }
   &:active { transform: scale(0.96); }
 }
 
@@ -848,7 +853,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: var(--color-font-label, rgba(0,0,0,0.55));
+  color: var(--qm-text-4, rgba(0,0,0,0.55));
 }
 
 .muteBtn {
@@ -860,9 +865,9 @@ export default {
   background: transparent;
   border: 0;
   border-radius: var(--qm-radius-xs, 6px);
-  color: var(--color-font);
+  color: var(--qm-text-2);
   cursor: pointer;
-  &:hover { background-color: var(--color-button-background-hover, rgba(0,0,0,0.06)); }
+  &:hover { background-color: var(--qm-hover, rgba(0,0,0,0.06)); }
   :global(.svg-icon) { width: 16px; height: 16px; fill: currentColor; }
 }
 
@@ -878,7 +883,7 @@ export default {
 .volumeBar {
   height: 6px;
   border-radius: var(--qm-radius-chip, 999px);
-  background: var(--color-button-background, rgba(0,0,0,0.08));
+  background: var(--qm-hover, rgba(0,0,0,0.08));
   cursor: pointer;
   transition: height @transition-fast;
   &:hover { height: 8px; }
@@ -895,14 +900,14 @@ export default {
   flex: 1;
   height: 24px;
   background: transparent;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--qm-line-2);
   border-radius: var(--qm-radius-xs, 6px);
   font-size: var(--qm-fs-md, 14px);
   font-weight: var(--qm-fw-semibold, 600);
-  color: var(--color-font);
+  color: var(--qm-text-2);
   cursor: pointer;
   transition: background-color @transition-fast, color @transition-fast, border-color @transition-fast, transform @transition-fast;
-  &:hover { background-color: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-accent); }
+  &:hover { background-color: var(--qm-primary-soft); border-color: var(--qm-primary); color: var(--qm-primary); }
   &:active { transform: scale(0.95); }
 }
 
@@ -931,17 +936,17 @@ export default {
   border: 0;
   padding: 8px 12px;
   font-size: var(--qm-fs-xs, 12px);
-  color: var(--color-font);
+  color: var(--qm-text-2);
   cursor: pointer;
   transition: background-color @transition-fast;
-  &:hover { background-color: var(--color-button-background-hover, rgba(0,0,0,0.06)); }
-  &:active { background-color: var(--color-button-background, rgba(0,0,0,0.08)); }
+  &:hover { background-color: var(--qm-hover, rgba(0,0,0,0.06)); }
+  &:active { background-color: var(--qm-hover, rgba(0,0,0,0.08)); }
 }
 
 .menuItemActive {
-  color: var(--color-accent);
+  color: var(--qm-primary);
   font-weight: var(--qm-fw-semibold, 600);
-  background-color: var(--color-accent-soft);
+  background-color: var(--qm-primary-soft);
 }
 
 .menuIcon {
@@ -959,12 +964,12 @@ export default {
   width: 30px;
   height: 30px;
   border-radius: var(--qm-radius-sm, 8px);
-  color: var(--color-font-label, rgba(0,0,0,0.55));
+  color: var(--qm-text-4, rgba(0,0,0,0.55));
   cursor: pointer;
   transition: background-color @transition-fast, color @transition-fast, transform @transition-fast;
   &:hover {
-    background-color: var(--color-button-background-hover, rgba(0,0,0,0.06));
-    color: var(--color-font);
+    background-color: var(--qm-hover, rgba(0,0,0,0.06));
+    color: var(--qm-text-2);
   }
   &:active { transform: scale(0.92); }
   :global(.svg-icon) {
@@ -990,7 +995,7 @@ export default {
   width: 360px;
   max-height: 420px;
   font-size: var(--qm-fs-xs, 12px);
-  color: var(--color-font);
+  color: var(--qm-text-2);
 }
 
 .playlistPopupHeader {
@@ -1164,7 +1169,7 @@ export default {
 .playlistPopupEmpty {
   padding: 40px 12px;
   text-align: center;
-  color: var(--color-font-label, rgba(0,0,0,0.45));
+  color: var(--qm-text-4, rgba(0,0,0,0.45));
   font-size: var(--qm-fs-xs, 12px);
 }
 </style>

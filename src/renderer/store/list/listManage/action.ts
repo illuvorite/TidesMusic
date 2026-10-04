@@ -7,6 +7,7 @@ import {
   userLists,
 } from './state'
 import { overwriteListPosition, overwriteListUpdateInfo, removeListPosition, removeListUpdateInfo } from '@renderer/utils/data'
+import { addListTrash } from '@renderer/store/listTrash'
 import { LIST_IDS } from '@common/constants'
 import { arrPush, arrUnshift } from '@common/utils/common'
 
@@ -164,7 +165,19 @@ export const userListCreate = ({ name, id, source, sourceListId, position, locat
 
 export const userListsRemove = (ids: string[]) => {
   const changedIds = []
+  // 删除前先快照进回收站：删除是破坏性的，歌单删了里面的歌就跟着没了。
+  // 快照失败不应阻断删除（回收站只是兜底，不是必须成功）。
+  const snapshots: Array<{ name: string, source?: LX.OnlineSource, sourceListId?: string, list: LX.Music.MusicInfo[] }> = []
   for (const id of ids) {
+    const info = userLists.find(l => l.id == id)
+    if (info) {
+      snapshots.push({
+        name: info.name,
+        source: info.source,
+        sourceListId: info.sourceListId,
+        list: [...(allMusicList.get(id) ?? [])],
+      })
+    }
     removeUserList(id)
     void removeListPosition(id)
     void removeListUpdateInfo(id)
@@ -172,6 +185,8 @@ export const userListsRemove = (ids: string[]) => {
     removeMusicList(id)
     changedIds.push(id)
   }
+  // 删除已经发生，回收站写入异步进行；失败只意味着本次没有兜底，不影响删除结果
+  if (snapshots.length) void addListTrash(snapshots)
 
   return changedIds
 }

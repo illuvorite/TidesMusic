@@ -38,7 +38,7 @@ const hide = () => {
     outline: none;
     cursor: pointer;
     border-radius: 50%;
-    color: var(--color-font);
+    color: var(--qm-text-2);
     background-color: transparent;
     opacity: .72;
     transition:
@@ -53,7 +53,7 @@ const hide = () => {
 
     &:hover {
       opacity: 1;
-      background-color: var(--color-button-background-hover, rgba(255, 255, 255, .14));
+      background-color: var(--qm-hover, rgba(255, 255, 255, .14));
     }
     &:active { transform: scale(.92); }
   }

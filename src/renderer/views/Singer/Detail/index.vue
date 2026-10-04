@@ -48,7 +48,7 @@
         <div :class="$style.albumRow">
           <div v-for="item in albums.slice(0, 2)" :key="item.id" :class="$style.albumCard" :title="item.info.name">
             <div :class="$style.albumCover">
-              <img v-if="item.info.img" :src="item.info.img" alt="" loading="lazy">
+              <img v-if="item.info.img && !brokenAlbumCovers.has(item.id)" :src="item.info.img" alt="" loading="lazy" @error="markAlbumCoverBroken(item.id)">
               <span v-else :class="$style.albumCoverEmpty"><svg-icon name="music" /></span>
             </div>
             <div :class="$style.albumInfo">
@@ -100,7 +100,7 @@
       <div v-if="allAlbums.length" :class="$style.albumGrid">
         <div v-for="item in allAlbums" :key="item.id" :class="$style.albumGridItem" :title="item.info.name">
           <div :class="$style.albumCover">
-            <img v-if="item.info.img" :src="item.info.img" alt="" loading="lazy">
+            <img v-if="item.info.img && !brokenAlbumCovers.has(item.id)" :src="item.info.img" alt="" loading="lazy" @error="markAlbumCoverBroken(item.id)">
             <span v-else :class="$style.albumCoverEmpty"><svg-icon name="music" /></span>
           </div>
           <p :class="$style.albumGridName">{{ item.info.name }}</p>
@@ -130,6 +130,7 @@
 
 <script setup>
 import { computed, markRaw, onBeforeUnmount, onMounted, ref, watch } from '@common/utils/vueTools'
+import { useI18n } from '@renderer/plugins/i18n'
 import { useRoute, useRouter } from '@common/utils/vueRouter'
 import musicSdk from '@renderer/utils/musicSdk'
 import { getSourceName } from '@renderer/utils/personalRecommend'
@@ -138,6 +139,9 @@ import { playList } from '@renderer/core/player/action'
 import { LIST_IDS } from '@common/constants'
 import MaterialOnlineList from '@renderer/components/material/OnlineList/index.vue'
 import MaterialPagination from '@renderer/components/material/Pagination.vue'
+
+const t = useI18n()
+
 
 const HOT_LIMIT = 10
 const SONG_LIMIT = 50
@@ -148,6 +152,13 @@ const router = useRouter()
 
 const tab = ref('featured')
 const imgBroken = ref(false)
+// 专辑封面裂图兜底：原先只判断 item.info.img 是否存在，图片 404 后会留一块空白。
+// 用 Set 记录已损坏的专辑 id，坏图时改走占位分支。
+// 注意：本文件是 <script setup>（非 TS），不要写类型标注。
+const brokenAlbumCovers = ref(new Set())
+const markAlbumCoverBroken = (id) => {
+  brokenAlbumCovers.value.add(id)
+}
 const hotListRef = ref(null)
 const songsListRef = ref(null)
 const listWrapRef = ref(null)
@@ -180,10 +191,10 @@ let featuredSeq = 0
 let songsSeq = 0
 
 const tabs = computed(() => ([
-  { id: 'featured', label: '精选' },
-  { id: 'songs', label: '歌曲', count: songTotal.value || 0 },
-  { id: 'albums', label: '专辑', count: albumTotal.value || 0 },
-  { id: 'detail', label: '详情' },
+  { id: 'featured', label: t('common__featured') },
+  { id: 'songs', label: t('singer__tab_songs'), count: songTotal.value || 0 },
+  { id: 'albums', label: t('singer__tab_albums'), count: albumTotal.value || 0 },
+  { id: 'detail', label: t('singer__tab_detail') },
 ]))
 
 const sourceName = computed(() => getSourceName(source.value) || source.value)
@@ -285,7 +296,7 @@ async function loadAlbums(page = 1) {
   }
   albumsLoading.value = true
   try {
-    const result = await sdk.value.getAlbumList(singer.value.id, page, page === 1 ? ALBUM_LIMIT : ALBUM_LIMIT).catch(() => null)
+    const result = await sdk.value.getAlbumList(singer.value.id, page, ALBUM_LIMIT).catch(() => null)
     if (!result) return
     albumTotal.value = result.total ?? 0
     allAlbums.value = markRaw([...(result.list ?? [])])
@@ -521,7 +532,7 @@ onBeforeUnmount(() => {
 .btnGhost {
   height: 32px;
   padding: 0 16px;
-  border: 1px solid var(--color-border-subtle, rgba(0, 0, 0, .1));
+  border: 1px solid var(--qm-line-1, rgba(0, 0, 0, .1));
   border-radius: var(--qm-radius-chip);
   background: transparent;
   color: var(--qm-text-2);
@@ -542,7 +553,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 34px;
   margin: var(--qm-sp-9, 24px) 0 var(--qm-sp-7, 16px);
-  border-bottom: 1px solid var(--color-border-subtle, rgba(0, 0, 0, .06));
+  border-bottom: 1px solid var(--qm-line-1, rgba(0, 0, 0, .06));
 }
 
 .tab {
@@ -636,7 +647,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: var(--qm-sp-5, 12px);
   padding: var(--qm-sp-4, 10px);
-  border-radius: var(--qm-radius-md, 10px);
+  border-radius: var(--qm-radius-card);
   // 半透明底：跟随皮肤透明度。--qm-card 是不透明主色（用于弹层），内容卡片不要用
   background-color: var(--qm-hover);
   cursor: pointer;
@@ -730,7 +741,7 @@ onBeforeUnmount(() => {
   width: 100%;
   height: auto;
   aspect-ratio: 1 / 1;
-  border-radius: var(--qm-radius-md, 10px);
+  border-radius: var(--qm-radius-card);
 
   img { transition: transform var(--qm-t-slow); }
 }
@@ -765,7 +776,7 @@ onBeforeUnmount(() => {
     flex-flow: row nowrap;
     gap: var(--qm-sp-7, 16px);
     padding: 10px 0;
-    border-bottom: 1px solid var(--color-border-subtle, rgba(0, 0, 0, .05));
+    border-bottom: 1px solid var(--qm-line-1, rgba(0, 0, 0, .05));
 
     span {
       flex: none;

@@ -5,7 +5,7 @@
       <div :class="$style.header">
         <span :class="$style.title">播放队列</span>
         <span :class="$style.count">共 {{ queue.length }} 首</span>
-        <button :class="$style.closeBtn" aria-label="关闭" title="关闭" @click="emit('close')">
+        <button :class="$style.closeBtn" :aria-label="$t('close')" :title="$t('close')" @click="emit('close')">
           <svg width="13" height="13" viewBox="0 0 24 24" space="preserve">
             <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
           </svg>
@@ -107,7 +107,7 @@ export default {
   display: flex;
   flex-flow: column nowrap;
   overflow: hidden;
-  border-radius: var(--qm-radius-lg, 12px);
+  border-radius: var(--qm-radius-panel);
   color: rgba(255, 255, 255, .92);
   background-color: rgba(24, 27, 33, .96);
   box-shadow:
