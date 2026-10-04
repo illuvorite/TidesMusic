@@ -1,5 +1,5 @@
 {
-  "name": "lx-music-plus",
+  "name": "tides-music-desktop",
   "version": "2.12.2",
   "description": "一个免费的音乐查找助手",
   "main": "./dist/main.js",
@@ -76,16 +76,16 @@
   },
   "macLanguagesInfoPlistStrings": {
     "en": {
-      "CFBundleDisplayName": "LX Music Plus",
-      "CFBundleName": "LX Music Plus"
+      "CFBundleDisplayName": "TidesMusic",
+      "CFBundleName": "TidesMusic"
     },
     "zh_CN": {
-      "CFBundleDisplayName": "落雪 Plus",
-      "CFBundleName": "落雪 Plus"
+      "CFBundleDisplayName": "潮汐音乐",
+      "CFBundleName": "潮汐音乐"
     },
     "zh_TW": {
-      "CFBundleDisplayName": "落雪 Plus",
-      "CFBundleName": "落雪 Plus"
+      "CFBundleDisplayName": "潮汐音樂",
+      "CFBundleName": "潮汐音樂"
     }
   },
   "repository": {

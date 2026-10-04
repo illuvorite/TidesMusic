@@ -342,7 +342,7 @@ export const scrollXRTo = (element: ScrollElement<HTMLElement>, to: number, dura
   */
 let dom_title = document.getElementsByTagName('title')[0]
 export const setTitle = (title: string | null) => {
-  title ||= '落雪 Plus'
+  title ||= '潮汐音乐'
   dom_title.innerText = title
 }
 

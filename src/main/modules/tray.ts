@@ -147,7 +147,7 @@ export const createTray = () => {
   // 托盘
   tray = new Tray(nativeImage.createFromPath(getIconPath(global.lx.appSetting['tray.themeId'])))
 
-  // tray.setToolTip('落雪 Plus')
+  // tray.setToolTip('潮汐音乐')
   // createMenu()
   tray.setIgnoreDoubleClickEvents(true)
   if (isWin) {
@@ -306,7 +306,7 @@ const setLyric = (lyricLineText?: string) => {
   }
 }
 
-const defaultTip = '落雪 Plus'
+const defaultTip = '潮汐音乐'
 const setTip = () => {
   if (!tray) return
 

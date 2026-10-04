@@ -1,6 +1,6 @@
-<h1 align="center">LX Music 桌面版（Fork）</h1>
+<h1 align="center">潮汐音乐 TidesMusic 桌面版</h1>
 
-<p align="center">基于落雪音乐助手（LX Music Desktop）二次开发。</p>
+<p align="center">基于落雪音乐助手（LX Music Desktop）二次开发并重命名。</p>
 
 <p align="center">原项目：https://github.com/lyswhut/lx-music-desktop</p>
 
@@ -168,7 +168,7 @@ pnpm lint:fix     # ESLint 自动修复
 
 ---
 
-*词语约定：本协议中的"本项目"指基于落雪音乐助手（LX Music Desktop）二次开发的桌面版项目；"原项目"指原 [lyswhut/lx-music-desktop](https://github.com/lyswhut/lx-music-desktop) 项目；"使用者"指签署本协议的使用者；"官方音乐平台"指对本项目内置的包括酷我、酷狗、咪咕等音乐源的官方平台统称；"版权数据"指包括但不限于图像、音频、名字等在内的他人拥有所属版权的数据。*
+*词语约定：本协议中的"本项目"指潮汐音乐（TidesMusic，基于落雪音乐助手二次开发的桌面版项目）；"原项目"指原 [lyswhut/lx-music-desktop](https://github.com/lyswhut/lx-music-desktop) 项目；"使用者"指签署本协议的使用者；"官方音乐平台"指对本项目内置的包括酷我、酷狗、咪咕等音乐源的官方平台统称；"版权数据"指包括但不限于图像、音频、名字等在内的他人拥有所属版权的数据。*
 
 ### 一、数据来源
 

@@ -2,7 +2,7 @@
   <aside :class="[$style.aside, { [$style.collapsed]: collapsed, [$style.fullscreen]: isFullscreen }]">
     <!-- 顶部品牌标识：渐变贴片 + 音符标记（矢量，跟随主题色） -->
     <header :class="[$style.brand, { [$style.brandCollapsed]: collapsed }]">
-      <span :class="$style.brandMark" role="img" aria-label="落雪 Plus">
+      <span :class="$style.brandMark" role="img" aria-label="潮汐音乐">
         <svg-icon name="brand-logo" :class="$style.brandIcon" />
       </span>
     </header>
