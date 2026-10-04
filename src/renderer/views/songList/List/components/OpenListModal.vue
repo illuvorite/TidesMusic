@@ -22,8 +22,8 @@
               {{ $t('songlist__import_input_tip_4') }}
               <span
                 class="hover underline"
-                aria-label="https://github.com/illuvorite/lx-music#readme"
-                @click="openUrl('https://github.com/illuvorite/lx-music#readme')"
+                aria-label="https://github.com/illuvorite/tides-music-desktop#readme"
+                @click="openUrl('https://github.com/illuvorite/tides-music-desktop#readme')"
               >FAQ</span>
             </li>
           </ul>

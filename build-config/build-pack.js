@@ -10,7 +10,7 @@ const afterPack = require('./build-after-pack')
 */
 const options = {
   appId: 'cn.toside.music.desktop',
-  productName: 'lx-music-desktop',
+  productName: 'tides-music-desktop',
   beforePack,
   afterPack,
   protocols: {
@@ -47,8 +47,8 @@ const options = {
   publish: [
     {
       provider: 'github',
-      owner: 'lyswhut',
-      repo: 'lx-music-desktop',
+      owner: 'illuvorite',
+      repo: 'tides-music-desktop',
     },
   ],
 }
@@ -67,7 +67,7 @@ if (process.env.LX_ELECTRON_DIST) {
 const winOptions = {
   win: {
     icon: './resources/icons/icon.ico',
-    legalTrademarks: 'lyswhut',
+    legalTrademarks: 'illuvorite',
     // artifactName: '${productName}-v${version}-${env.ARCH}-${env.TARGET}.${ext}',
   },
   nsis: {
@@ -76,7 +76,7 @@ const winOptions = {
     allowToChangeInstallationDirectory: true,
     // differentialPackage: true,
     license: './licenses/license.rtf',
-    shortcutName: 'LX Music',
+    shortcutName: '潮汐音乐',
   },
 }
 /**
@@ -85,7 +85,7 @@ const winOptions = {
  */
 const linuxOptions = {
   linux: {
-    maintainer: 'lyswhut <lyswhut@qq.com>',
+    maintainer: 'illuvorite <illuvorite@users.noreply.github.com>',
     // artifactName: '${productName}-${version}.${env.ARCH}.${ext}',
     icon: './resources/icons',
     category: 'Utility;AudioVideo;Audio;Player;Music;',
@@ -95,9 +95,9 @@ const linuxOptions = {
       // https://specifications.freedesktop.org/desktop-entry-spec/latest/example.html
       // https://developer.gnome.org/documentation/guidelines/maintainer/integrating.html#desktop-files
       entry: {
-        Name: 'LX Music',
-        'Name[zh_CN]': 'LX Music',
-        'Name[zh_TW]': 'LX Music',
+        Name: 'TidesMusic',
+        'Name[zh_CN]': '潮汐音乐',
+        'Name[zh_TW]': '潮汐音樂',
         Encoding: 'UTF-8',
         MimeType: 'x-scheme-handler/lxmusic',
         StartupNotify: 'false',
@@ -136,7 +136,7 @@ const macOptions = {
         path: '/Applications',
       },
     ],
-    title: 'LX Music v${version}',
+    title: '潮汐音乐 v${version}',
   },
 }
 
