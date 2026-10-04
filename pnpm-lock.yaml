@@ -51,11 +51,14 @@ importers:
         specifier: ^11.12.3
         version: 11.15.0(supports-color@8.1.1)
       needle:
-        specifier: github:lyswhut/needle#93299ac841b7e9a9f82ca7279b88aaaeda404060
-        version: https://codeload.github.com/lyswhut/needle/tar.gz/93299ac841b7e9a9f82ca7279b88aaaeda404060(supports-color@8.1.1)
+        specifier: ^3.5.0
+        version: 3.5.0
       node-id3:
         specifier: ^0.2.9
         version: 0.2.9
+      resonance-audio:
+        specifier: ^1.0.0
+        version: 1.0.0
       sortablejs:
         specifier: ^1.15.7
         version: 1.15.7
@@ -142,8 +145,8 @@ importers:
         specifier: ^3.2.0
         version: 3.2.0(supports-color@8.1.1)
       electron-devtools-installer:
-        specifier: github:lyswhut/electron-devtools-installer#64596d615c1fc891eefd8aef1dfcb2c87aaadf03
-        version: https://codeload.github.com/lyswhut/electron-devtools-installer/tar.gz/64596d615c1fc891eefd8aef1dfcb2c87aaadf03
+        specifier: ^4.0.0
+        version: 4.0.0
       electron-to-chromium:
         specifier: ^1.5.345
         version: 1.5.415
@@ -160,8 +163,8 @@ importers:
         specifier: ^43.0.1
         version: 43.0.1(@typescript-eslint/eslint-plugin@6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.9.3))(eslint@8.57.1(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.9.3))(eslint-plugin-import@2.32.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.9.3))(eslint@8.57.1(supports-color@8.1.1))(supports-color@8.1.1))(eslint-plugin-n@18.3.0(eslint@8.57.1(supports-color@8.1.1))(typescript@5.9.3))(eslint-plugin-promise@7.3.0(eslint@8.57.1(supports-color@8.1.1)))(eslint@8.57.1(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.9.3)
       eslint-formatter-friendly:
-        specifier: github:lyswhut/eslint-friendly-formatter#2170d1320e2fad13615a9dcf229669f0bb473a53
-        version: https://codeload.github.com/lyswhut/eslint-friendly-formatter/tar.gz/2170d1320e2fad13615a9dcf229669f0bb473a53
+        specifier: ^7.0.0
+        version: 7.0.0
       eslint-plugin-html:
         specifier: ^8.1.4
         version: 8.1.4
@@ -220,8 +223,8 @@ importers:
         specifier: ^6.1.3
         version: 6.1.3
       spinnies:
-        specifier: github:lyswhut/spinnies#233305c58694aa3b053e3ab9af9049993f918b9d
-        version: https://codeload.github.com/lyswhut/spinnies/tar.gz/233305c58694aa3b053e3ab9af9049993f918b9d
+        specifier: ^0.5.1
+        version: 0.5.1
       svg-sprite-loader:
         specifier: ^6.0.11
         version: 6.0.11(supports-color@8.1.1)
@@ -262,13 +265,16 @@ importers:
         specifier: 5.2.3
         version: 5.2.3(bufferutil@4.1.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)(utf-8-validate@6.0.6)(webpack-cli@7.2.2)(webpack@5.110.0)
       webpack-hot-middleware:
-        specifier: github:lyswhut/webpack-hot-middleware#329c4375134b89d39da23a56a94db651247c74a1
-        version: https://codeload.github.com/lyswhut/webpack-hot-middleware/tar.gz/329c4375134b89d39da23a56a94db651247c74a1
+        specifier: ^2.26.1
+        version: 2.26.1
       webpack-merge:
         specifier: ^6.0.1
         version: 6.0.1
 
 packages:
+
+  '@babel/code-frame@7.0.0':
+    resolution: {integrity: sha512-OfC2uemaknXr87bdLUkWog7nYuliM9Ij5HUcajsVcMCpQrcLmtxRbVFTIqmcSkSeYRBFBRxs2FiUqFJDLdiebA==}
 
   '@babel/code-frame@7.29.7':
     resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
@@ -280,6 +286,10 @@ packages:
 
   '@babel/helper-validator-identifier@7.29.7':
     resolution: {integrity: sha512-qehxGkRj55h/ff8EMaJ+cYhyaKlHIxqYDn682wQD7RNp9UujOQsHog2uS0r2vzr4pW+sXf90NeeayjcNaX3fFg==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/highlight@7.25.9':
+    resolution: {integrity: sha512-llL88JShoCsth8fF8R4SJnIn+WLvR6ccFxu1H3FlMhDontdcmZWf2HgIZ7AIqV3Xcck1idlohrN4EUBQz6klbw==}
     engines: {node: '>=6.9.0'}
 
   '@babel/parser@7.29.8':
@@ -1027,6 +1037,10 @@ packages:
     resolution: {integrity: sha512-jCcLjwL2jOaTcRIaJkoRteMwNXg8nfJvwT/9K91kwZhH7bf4lsprqZ2+Qa7tSp8BYtejobOCBkDreC07q0KmZw==}
     engines: {node: '>=0.10.0'}
 
+  ansi-regex@4.1.0:
+    resolution: {integrity: sha512-1apePfXM1UOSqw0o9IiFAovVz9M5S1Dg+4TrDwfMewQ6p/rmMueb7tWZjQ1rx4Loy1ArBggoqGpfqqdI4rondg==}
+    engines: {node: '>=6'}
+
   ansi-regex@5.0.1:
     resolution: {integrity: sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==}
     engines: {node: '>=8'}
@@ -1154,9 +1168,6 @@ packages:
 
   aws4@1.13.2:
     resolution: {integrity: sha512-lHe62zvbTB5eEABUVi/AwVh0ZKY9rMMDhmm+eeyuuUQbQ3+J+fONVQOZyj+DdrvD4BY33uYniyRJ4UJIaSKAfw==}
-
-  babel-code-frame@6.26.0:
-    resolution: {integrity: sha512-XqYMR2dfdGMW+hd0IUZ2PwK+fGeFkOxZJ0wY+JaQAHzt1Zx8LcvpiZD2NiGkEG8qx0CfkAOr5xt76d1e8vG90g==}
 
   babel-walk@3.0.0-canary-5:
     resolution: {integrity: sha512-GAwkz0AihzY5bkwIY5QDR+LvsRQgB/B+1foMPvi0FZPMl5fjD7ICiznUiBdLYMH1QYe6vqu4gWYytZOccLouFw==}
@@ -1398,9 +1409,6 @@ packages:
   clone@2.1.2:
     resolution: {integrity: sha512-3Pe/CF1Nn94hyhIYpjtiLhdCoEoz0DqQ+988E9gmeEdQZlojxnOb74wctFyuwWQHzqyf9X7C7MG8juUpqBJT8w==}
     engines: {node: '>=0.8'}
-
-  coalescy@1.0.0:
-    resolution: {integrity: sha512-OmRR46eVfyaXZYI7Ai5/vnLHjWhhh99sugx+UTsmVhwaYzARb+Tcdit59/HkVxF8KdqJG5NN8ClUhzQXS3Hh+w==}
 
   collection-visit@1.0.0:
     resolution: {integrity: sha512-lNkKvzEeMBBjUGHZ+q6z9pSJla0KWAQPvtzhEV9+iGyQYG+pBpl7xKDhxoNSOZH2hhv0v5k0y2yAM4o4SjoSkw==}
@@ -1903,9 +1911,8 @@ packages:
   electron-debug@3.2.0:
     resolution: {integrity: sha512-7xZh+LfUvJ52M9rn6N+tPuDw6oRAjxUj9SoxAZfJ0hVCXhZCsdkrSt7TgXOiWiEOBgEV8qwUIO/ScxllsPS7ow==}
 
-  electron-devtools-installer@https://codeload.github.com/lyswhut/electron-devtools-installer/tar.gz/64596d615c1fc891eefd8aef1dfcb2c87aaadf03:
-    resolution: {gitHosted: true, integrity: sha512-njdI4FjcQm+kWiMK0+Wlzi6bSL6ZhOI2ri+3cmJkWaAG98Q0fPEgnOUAkiBxoZfEFvh6jN/xzMdvSvX3y6maSg==, tarball: https://codeload.github.com/lyswhut/electron-devtools-installer/tar.gz/64596d615c1fc891eefd8aef1dfcb2c87aaadf03}
-    version: 0.0.0-development
+  electron-devtools-installer@4.0.0:
+    resolution: {integrity: sha512-9Tntu/jtfSn0n6N/ZI6IdvRqXpDyLQiDuuIbsBI+dL+1Ef7C8J2JwByw58P3TJiNeuqyV3ZkphpNWuZK5iSY2w==}
 
   electron-is-accelerator@0.1.2:
     resolution: {integrity: sha512-fLGSAjXZtdn1sbtZxx52+krefmtNuVwnJCV2gNiVt735/ARUboMl8jnNC9fZEqQdlAv2ZrETfmBUsoQci5evJA==}
@@ -2079,9 +2086,8 @@ packages:
       eslint-plugin-n: '^15.0.0 || ^16.0.0 '
       eslint-plugin-promise: ^6.0.0
 
-  eslint-formatter-friendly@https://codeload.github.com/lyswhut/eslint-friendly-formatter/tar.gz/2170d1320e2fad13615a9dcf229669f0bb473a53:
-    resolution: {gitHosted: true, integrity: sha512-euh3nD/easSIyQFA+ZD61Il7mKumcIqe0i3MTVuFqEmcDcWERt40rsDzqlhdFMTOn5ePEWgwxPrclfhzJFOvZA==, tarball: https://codeload.github.com/lyswhut/eslint-friendly-formatter/tar.gz/2170d1320e2fad13615a9dcf229669f0bb473a53}
-    version: 5.0.0
+  eslint-formatter-friendly@7.0.0:
+    resolution: {integrity: sha512-WXg2D5kMHcRxIZA3ulxdevi8/BGTXu72pfOO5vXHqcAfClfIWDSlOljROjCSOCcKvilgmHz1jDWbvFCZHjMQ5w==}
     engines: {node: '>=0.10.0'}
 
   eslint-import-resolver-node@0.3.10:
@@ -2610,8 +2616,8 @@ packages:
   hpack.js@2.1.6:
     resolution: {integrity: sha512-zJxVehUdMGIKsRaNt7apO2Gqp0BdqW5yaiGHXXmbpvxgBYVZnAql+BJb4RO5ad2MgpbZKn5G6nMnegrH1FcNYQ==}
 
-  html-entities@1.4.0:
-    resolution: {integrity: sha512-8nxjcBcd8wovbeKx7h3wTji4e6+rhaVuPNpMqwWgnHh+N9ToqsCs6XztWRBPQ+UtzsoMAdKZtUENoVzU/EMtZA==}
+  html-entities@2.6.0:
+    resolution: {integrity: sha512-kig+rMn/QOVRvr7c86gQ8lWXq+Hkv6CbAH1hLu+RG338StTpE8Z0b44SDVaqVu7HGKf27frdmUYEs9hTUX/cLQ==}
 
   html-minifier-terser@6.1.0:
     resolution: {integrity: sha512-YXxSlJBZTP7RS3tWnQw74ooKa6L9b9i9QYXY21eUEvhZ3u9XLfv6OnFsQq6RxkhHygsaUMvYsZRV5rU/OVNZxw==}
@@ -3082,9 +3088,6 @@ packages:
   js-stringify@1.0.2:
     resolution: {integrity: sha512-rtS5ATOo2Q5k1G+DADISilDA6lv79zIiwFd6CcjuIxGKLFm5C+RLImRscVap9k55i+MOZwgliw+NejvkLuGD5g==}
 
-  js-tokens@3.0.2:
-    resolution: {integrity: sha512-RjTcuD4xjtthQkaWH7dFlH85L+QaVtSoOyGdZ3g6HFhS9dFNDfLyqgm2NFe2X6cQpeFmt0452FJjFG5UameExg==}
-
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
@@ -3132,8 +3135,8 @@ packages:
   jstransformer@1.0.0:
     resolution: {integrity: sha512-C9YK3Rf8q6VAPDCCU9fnqo3mAfOH6vUGnMcP4AQAYIEpWtfGLpwOTmZ+igtdK5y+VvI2n3CyYSzy4Qh34eq24A==}
 
-  jszip@3.10.1:
-    resolution: {integrity: sha512-xXDvecyTpGLrqFrvkrUSoxxfJI5AH7U8zxxtVclpsUtMCq4JQ290LY8AW5c7Ggnr/Y/oK+bQMbqK2qmtk3pN4g==}
+  jszip@3.10.2:
+    resolution: {integrity: sha512-3l+rb15IOWtUhU0H5MFqES/T6Kh7abYwjosBey/vD6hDt8zoEffkSC5Ws5SGtgVw3gBx2NEbhTeSW1+kWkpyTQ==}
 
   keyboardevent-from-electron-accelerator@2.0.0:
     resolution: {integrity: sha512-iQcmNA0M4ETMNi0kG/q0h/43wZk7rMeKYrXP7sqKIJbHkTU8Koowgzv+ieR/vWJbOwxx5nDC3UnudZ0aLSu4VA==}
@@ -3521,14 +3524,8 @@ packages:
     engines: {node: '>= 4.4.x'}
     hasBin: true
 
-  needle@3.2.0:
-    resolution: {integrity: sha512-oUvzXnyLiVyVGoianLijF9O/RecZUf7TkBfimjGrLM4eQhXyeJwM6GeAWccwfQ9aa4gMCZKqhAOuLaMIcQxajQ==}
-    engines: {node: '>= 4.4.x'}
-    hasBin: true
-
-  needle@https://codeload.github.com/lyswhut/needle/tar.gz/93299ac841b7e9a9f82ca7279b88aaaeda404060:
-    resolution: {gitHosted: true, integrity: sha512-TcG92+VdP4xcSC2YtWEhVSnfrsvHtDu3ZGuTAMz8lQ+zVMTnG/XgvpyTV/Z+nMbZYX3I7X+1piLeyoTWo3jcsQ==, tarball: https://codeload.github.com/lyswhut/needle/tar.gz/93299ac841b7e9a9f82ca7279b88aaaeda404060}
-    version: 3.2.0
+  needle@3.5.0:
+    resolution: {integrity: sha512-jaQyPKKk2YokHrEg+vFDYxXIHTCBgiZwSHOoVx/8V3GIBS8/VN6NdVRmg8q1ERtPkMvmOvebsgga4sAj5hls/w==}
     engines: {node: '>= 4.4.x'}
     hasBin: true
 
@@ -3659,6 +3656,9 @@ packages:
 
   obuf@1.1.2:
     resolution: {integrity: sha512-PX1wu0AmAdPqOL1mWhqmlOd8kOIZQwGZw6rh7uby9fTc5lhaOWFLX3I6R1hrF9k3zUY40e6igsLGkDXK92LJNg==}
+
+  omnitone@1.0.5:
+    resolution: {integrity: sha512-kOVj8rgq17wveiANIDvCaees6DoLQA3Gh89/mpN3+xK3pwnvHK6MDuHzAVWP7VNlmaWVx1D3JPpO/PLFNvbmcQ==}
 
   on-finished@2.4.1:
     resolution: {integrity: sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg==}
@@ -4221,11 +4221,6 @@ packages:
     resolution: {integrity: sha512-pNB/Gr8SA8ff8KpUFM36o/WFAlthgaThka5bV19AD9PNTH20Pwq5Zxodif2YyHwrctp6SkL4GqlOot0qR/wGaw==}
     engines: {node: '>=6'}
 
-  querystring@0.2.1:
-    resolution: {integrity: sha512-wkvS7mL/JMugcup3/rMitHmd9ecIGd2lhFhK9N3UUQ450h66d1r3Y9nvXzQAW1Lq+wyx61k/1pfKS5KuKiyEbg==}
-    engines: {node: '>=0.4.x'}
-    deprecated: The querystring API is considered Legacy. new code should use the URLSearchParams API instead.
-
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
 
@@ -4356,6 +4351,9 @@ packages:
     resolution: {integrity: sha512-tqt+NBWwyaMgw3zDsnygx4CByWjQEJHOPMdslYhppaQSJUtL/D4JO9CcBBlhPoI8lz9oJIDXkwXfhF4aWqP8xQ==}
     engines: {node: '>= 0.4'}
     hasBin: true
+
+  resonance-audio@1.0.0:
+    resolution: {integrity: sha512-9ciGZtOhvSyfAIcAF1V6u4UKasgT02R0a19j3KE2/zC5TgMY3pVf+f+k5KXEcPP4TGOzh+KDNM6QVvBsj0e3qg==}
 
   responselike@2.0.1:
     resolution: {integrity: sha512-4gl03wn3hj1HP3yzgdI7d3lCkF95F21Pz4BPGvKHinyQzALR5CapwC8yIi0Rh58DEMQ/SguC03wFj2k0M/mHhw==}
@@ -4589,6 +4587,10 @@ packages:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
 
+  source-map-js@1.2.2:
+    resolution: {integrity: sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==}
+    engines: {node: '>=0.10.0'}
+
   source-map-resolve@0.5.3:
     resolution: {integrity: sha512-Htz+RnsXWk5+P2slx5Jh3Q66vhQj1Cllm0zvnaY98+NFx+Dv2CF/f5O/t8x+KaNdrdIAsruNzoh/KpialbqAnw==}
     deprecated: See https://github.com/lydell/source-map-resolve#deprecated
@@ -4623,9 +4625,8 @@ packages:
     resolution: {integrity: sha512-r46gZQZQV+Kl9oItvl1JZZqJKGr+oEkB08A6BzkiR7593/7IbtuncXHd2YoYeTsG4157ZssMu9KYvUHLcjcDoA==}
     engines: {node: '>=6.0.0'}
 
-  spinnies@https://codeload.github.com/lyswhut/spinnies/tar.gz/233305c58694aa3b053e3ab9af9049993f918b9d:
-    resolution: {gitHosted: true, integrity: sha512-LUDZiqvmJcQV3CeXioT1YxdQLPbdUjI5THT+mSa7b+ratzfxpoTS8Qz+hNcyy58XFs+F19UEZC/LYxvXL7UXYA==, tarball: https://codeload.github.com/lyswhut/spinnies/tar.gz/233305c58694aa3b053e3ab9af9049993f918b9d}
-    version: 0.5.1
+  spinnies@0.5.1:
+    resolution: {integrity: sha512-WpjSXv9NQz0nU3yCT9TFEOfpFrXADY9C5fG6eAJqixLhvTX1jP3w92Y8IE5oafIe42nlF9otjhllnXN/QCaB3A==}
 
   split-string@3.1.0:
     resolution: {integrity: sha512-NzNVhJDYpwceVVii8/Hu6DKfD2G+NrQHlS/V/qgv763EYudVwEcMQNxd2lh+0VrUByXN/oJkl5grOhYWvQUYiw==}
@@ -4693,6 +4694,10 @@ packages:
   strip-ansi@3.0.0:
     resolution: {integrity: sha512-leU/wDjPxUZLHqEy4mYnNETRx1jAO1BJ6oTgn9PQWeAiO8kfng2LBq1iXYsN8UYPPRmAizc51nUY6w2Nv12Hog==}
     engines: {node: '>=0.10.0'}
+
+  strip-ansi@5.2.0:
+    resolution: {integrity: sha512-DuRs1gKbBqsMKIZlrffwlug8MHkcnpjs5VPmL1PAh+mA30U0DTotfDZ0d2UUsXpPmPmMMJ6W773MaA3J+lbiWA==}
+    engines: {node: '>=6'}
 
   strip-ansi@6.0.1:
     resolution: {integrity: sha512-Y38VPSHcqkFrCpFnQ9vuSXmquuv5oXOKpGeT6aGrr3o3Gc9AlVa6JBfUSOCnbxGGZF+/0ooI7KrPuUSztUdU5A==}
@@ -5209,9 +5214,8 @@ packages:
       webpack-cli:
         optional: true
 
-  webpack-hot-middleware@https://codeload.github.com/lyswhut/webpack-hot-middleware/tar.gz/329c4375134b89d39da23a56a94db651247c74a1:
-    resolution: {gitHosted: true, integrity: sha512-xD/BygS4Ivx5hWDqTtN3+CXMlBO8Gu8VNwPrmn2yLrICnOkkhXV+VYQMJOsiKy6pn7locdnwmN7HRokkHMMWmg==, tarball: https://codeload.github.com/lyswhut/webpack-hot-middleware/tar.gz/329c4375134b89d39da23a56a94db651247c74a1}
-    version: 2.25.0
+  webpack-hot-middleware@2.26.1:
+    resolution: {integrity: sha512-khZGfAeJx6I8K9zKohEWWYN6KDlVw2DHownoe+6Vtwj1LP9WFgegXnVMSkZ/dBEBtXFwrkkydsaPFlB7f8wU2A==}
 
   webpack-merge@6.0.1:
     resolution: {integrity: sha512-hXXvrjtx2PLYx4qruKl+kyRSLc52V+cCvMxRjmKwoA+CBbbF5GfIBtR6kCvl0fYGqTUPKB+1ktVmTHqMOzgCBg==}
@@ -5342,6 +5346,10 @@ packages:
 
 snapshots:
 
+  '@babel/code-frame@7.0.0':
+    dependencies:
+      '@babel/highlight': 7.25.9
+
   '@babel/code-frame@7.29.7':
     dependencies:
       '@babel/helper-validator-identifier': 7.29.7
@@ -5351,6 +5359,13 @@ snapshots:
   '@babel/helper-string-parser@7.29.7': {}
 
   '@babel/helper-validator-identifier@7.29.7': {}
+
+  '@babel/highlight@7.25.9':
+    dependencies:
+      '@babel/helper-validator-identifier': 7.29.7
+      chalk: 2.4.2
+      js-tokens: 4.0.0
+      picocolors: 1.1.1
 
   '@babel/parser@7.29.8':
     dependencies:
@@ -6123,7 +6138,7 @@ snapshots:
       '@babel/parser': 7.29.8
       '@vue/shared': 3.3.13
       estree-walker: 2.0.2
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
 
   '@vue/compiler-dom@3.3.13':
     dependencies:
@@ -6141,7 +6156,7 @@ snapshots:
       estree-walker: 2.0.2
       magic-string: 0.30.5
       postcss: 8.5.26
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
 
   '@vue/compiler-ssr@3.3.13':
     dependencies:
@@ -6332,6 +6347,8 @@ snapshots:
 
   ansi-regex@2.0.0: {}
 
+  ansi-regex@4.1.0: {}
+
   ansi-regex@5.0.1: {}
 
   ansi-styles@2.2.1: {}
@@ -6501,12 +6518,6 @@ snapshots:
       possible-typed-array-names: 1.1.0
 
   aws4@1.13.2: {}
-
-  babel-code-frame@6.26.0:
-    dependencies:
-      chalk: 1.1.3
-      esutils: 2.0.3
-      js-tokens: 3.0.2
 
   babel-walk@3.0.0-canary-5:
     dependencies:
@@ -6822,8 +6833,6 @@ snapshots:
 
   clone@2.1.2: {}
 
-  coalescy@1.0.0: {}
-
   collection-visit@1.0.0:
     dependencies:
       map-visit: 1.0.0
@@ -7012,7 +7021,7 @@ snapshots:
   css-tree@2.2.0:
     dependencies:
       mdn-data: 2.0.28
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
 
   css-tree@3.2.1:
     dependencies:
@@ -7360,11 +7369,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  electron-devtools-installer@https://codeload.github.com/lyswhut/electron-devtools-installer/tar.gz/64596d615c1fc891eefd8aef1dfcb2c87aaadf03:
+  electron-devtools-installer@4.0.0:
     dependencies:
-      rimraf: 3.0.2
-      semver: 7.8.5
-      tslib: 2.8.1
       unzip-crx-3: 0.2.0
 
   electron-is-accelerator@0.1.2: {}
@@ -7605,14 +7611,12 @@ snapshots:
       eslint-plugin-n: 18.3.0(eslint@8.57.1(supports-color@8.1.1))(typescript@5.9.3)
       eslint-plugin-promise: 7.3.0(eslint@8.57.1(supports-color@8.1.1))
 
-  eslint-formatter-friendly@https://codeload.github.com/lyswhut/eslint-friendly-formatter/tar.gz/2170d1320e2fad13615a9dcf229669f0bb473a53:
+  eslint-formatter-friendly@7.0.0:
     dependencies:
-      babel-code-frame: 6.26.0
-      chalk: 4.1.2
-      coalescy: 1.0.0
+      '@babel/code-frame': 7.0.0
+      chalk: 2.4.2
       extend: 3.0.2
-      minimist: 1.2.8
-      strip-ansi: 6.0.1
+      strip-ansi: 5.2.0
       text-table: 0.2.0
 
   eslint-import-resolver-node@0.3.10(supports-color@8.1.1):
@@ -8296,7 +8300,7 @@ snapshots:
       readable-stream: 2.3.8
       wbuf: 1.7.3
 
-  html-entities@1.4.0: {}
+  html-entities@2.6.0: {}
 
   html-minifier-terser@6.1.0:
     dependencies:
@@ -8767,8 +8771,6 @@ snapshots:
 
   js-stringify@1.0.2: {}
 
-  js-tokens@3.0.2: {}
-
   js-tokens@4.0.0: {}
 
   js-yaml@4.3.2:
@@ -8811,7 +8813,7 @@ snapshots:
       is-promise: 2.2.2
       promise: 7.3.1
 
-  jszip@3.10.1:
+  jszip@3.10.2:
     dependencies:
       lie: 3.3.0
       pako: 1.0.2
@@ -8860,7 +8862,7 @@ snapshots:
       graceful-fs: 4.2.11
       make-dir: 5.1.0
       mime: 1.6.0
-      needle: 3.2.0(supports-color@8.1.1)
+      needle: 3.5.0
       probe-image-size: 7.4.0(supports-color@8.1.1)
       source-map: 0.6.1
     transitivePeerDependencies:
@@ -9188,22 +9190,10 @@ snapshots:
       - supports-color
     optional: true
 
-  needle@3.2.0(supports-color@8.1.1):
+  needle@3.5.0:
     dependencies:
-      debug: 3.2.7(supports-color@8.1.1)
       iconv-lite: 0.6.3
       sax: 1.6.1
-    transitivePeerDependencies:
-      - supports-color
-    optional: true
-
-  needle@https://codeload.github.com/lyswhut/needle/tar.gz/93299ac841b7e9a9f82ca7279b88aaaeda404060(supports-color@8.1.1):
-    dependencies:
-      debug: 3.2.7(supports-color@8.1.1)
-      iconv-lite: 0.6.3
-      sax: 1.6.1
-    transitivePeerDependencies:
-      - supports-color
 
   negotiator@0.6.3: {}
 
@@ -9346,6 +9336,8 @@ snapshots:
       es-object-atoms: 1.1.2
 
   obuf@1.1.2: {}
+
+  omnitone@1.0.5: {}
 
   on-finished@2.4.1:
     dependencies:
@@ -9963,8 +9955,6 @@ snapshots:
       decode-uri-component: 0.2.0
       strict-uri-encode: 2.0.0
 
-  querystring@0.2.1: {}
-
   queue-microtask@1.2.3: {}
 
   queue@6.0.2:
@@ -10112,6 +10102,10 @@ snapshots:
       object-keys: 1.1.1
       path-parse: 1.0.7
       supports-preserve-symlinks-flag: 1.0.0
+
+  resonance-audio@1.0.0:
+    dependencies:
+      omnitone: 1.0.5
 
   responselike@2.0.1:
     dependencies:
@@ -10391,6 +10385,8 @@ snapshots:
 
   source-map-js@1.2.1: {}
 
+  source-map-js@1.2.2: {}
+
   source-map-resolve@0.5.3:
     dependencies:
       atob: 2.1.2
@@ -10435,11 +10431,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  spinnies@https://codeload.github.com/lyswhut/spinnies/tar.gz/233305c58694aa3b053e3ab9af9049993f918b9d:
+  spinnies@0.5.1:
     dependencies:
-      chalk: 4.1.2
+      chalk: 2.4.2
       cli-cursor: 3.1.0
-      strip-ansi: 6.0.1
+      strip-ansi: 5.2.0
 
   split-string@3.1.0:
     dependencies:
@@ -10518,6 +10514,10 @@ snapshots:
   strip-ansi@3.0.0:
     dependencies:
       ansi-regex: 2.0.0
+
+  strip-ansi@5.2.0:
+    dependencies:
+      ansi-regex: 4.1.0
 
   strip-ansi@6.0.1:
     dependencies:
@@ -10915,7 +10915,7 @@ snapshots:
 
   unzip-crx-3@0.2.0:
     dependencies:
-      jszip: 3.10.1
+      jszip: 3.10.2
       mkdirp: 0.5.6
       yaku: 0.16.7
 
@@ -11092,11 +11092,11 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  webpack-hot-middleware@https://codeload.github.com/lyswhut/webpack-hot-middleware/tar.gz/329c4375134b89d39da23a56a94db651247c74a1:
+  webpack-hot-middleware@2.26.1:
     dependencies:
-      html-entities: 1.4.0
-      querystring: 0.2.1
-      strip-ansi: 3.0.0
+      ansi-html-community: 0.0.8
+      html-entities: 2.6.0
+      strip-ansi: 6.0.1
 
   webpack-merge@6.0.1:
     dependencies:

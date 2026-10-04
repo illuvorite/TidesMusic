@@ -96,10 +96,10 @@ export default {
   border: 1px solid transparent;
   border-radius: @radius-sm;
   padding: 7px 12px;
-  color: var(--color-button-font);
+  color: var(--qm-text-3);
   outline: none;
   transition: background-color @transition-fast, border-color @transition-fast, box-shadow @transition-fast;
-  background-color: var(--color-primary-background);
+  background-color: var(--qm-hover);
   font-size: var(--qm-fs-sm, 13px);
 
   &::-webkit-outer-spin-button,
@@ -113,12 +113,12 @@ export default {
   }
 
   &:hover:not(:disabled) {
-    background-color: var(--color-primary-background-hover);
+    background-color: var(--qm-hover);
   }
   &:focus {
-    background-color: var(--color-primary-background-active);
-    border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px var(--color-accent-soft);
+    background-color: var(--qm-hover-strong);
+    border-color: var(--qm-primary);
+    box-shadow: 0 0 0 3px var(--qm-primary-soft);
   }
 }
 

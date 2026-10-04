@@ -157,7 +157,7 @@ export default {
   // overflow: hidden;
   h2 {
     font-size: var(--qm-fs-sm, 13px);
-    color: var(--color-font);
+    color: var(--qm-text-2);
     line-height: 1.3;
     text-align: center;
     padding: var(--qm-sp-6, 15px);
@@ -188,9 +188,9 @@ export default {
 }
 
 .newList {
-  border: 1px dashed var(--color-primary-font-hover);
-  // background-color: var(--color-main-background);
-  color: var(--color-primary-font-hover);
+  border: 1px dashed var(--qm-primary-hover);
+  // background-color: var(--qm-card);
+  color: var(--qm-primary-hover);
   opacity: .7;
 
   svg {

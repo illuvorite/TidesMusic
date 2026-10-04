@@ -14,7 +14,7 @@ import { deduplicationList } from '@renderer/utils'
 import musicSdk from '@renderer/utils/musicSdk'
 import { allMusicList, userLists } from '@renderer/store/list/state'
 import { getListMusics } from '@renderer/store/list/listManage'
-import { playedList } from '@renderer/store/player/state'
+import { playHistoryList } from '@renderer/store/playHistory'
 import { hasDislike } from '@renderer/store/dislikeList/action'
 import { qualityList } from '@renderer/store/state'
 
@@ -104,10 +104,13 @@ export const getListenStyle = (): ListenStyle => {
   for (const list of userLists) {
     for (const m of allMusicList.get(list.id) ?? []) add(m, 2)
   }
-  const history = playedList.slice(-200)
+  // 播放历史取持久化历史（playHistoryList，最新在前），而不是内存里的 playedList ——
+  // 后者只在随机播放模式下写入、且重启即丢，会让推荐长期「吃不饱」。
+  const history = playHistoryList.slice(0, 200)
   const historyLength = Math.max(history.length, 1)
-  history.forEach((item, index) => {
-    add(item.musicInfo, 1 + (index / historyLength) * 2)
+  history.forEach((info, index) => {
+    // 索引越小越新 → 权重越高
+    add(info, 1 + ((historyLength - 1 - index) / historyLength) * 2)
   })
 
   const artists = [...artistScore.entries()]
@@ -166,10 +169,14 @@ export const buildStyleSongs = async(source: LX.OnlineSource, options: BuildStyl
     for (const key of style.ownedKeys) excluded.add(key)
   }
 
-  const buckets = (await Promise.all(seeds.map(async(seed) => {
+  // 串行搜索 + 间隔：酷我等平台的搜索接口有频率限制（瞬时并发会 403 Forbidden），
+  // 逐个错开请求虽然总耗时长几秒，但成功率远高于并发
+  const buckets: LX.Music.MusicInfoOnline[][] = []
+  for (const seed of seeds) {
     const list = await searchSongs(source, seed.name, 30).catch(() => [] as LX.Music.MusicInfoOnline[])
-    return shuffle(list)
-  }))).filter(bucket => bucket.length > 0)
+    if (list.length) buckets.push(shuffle(list))
+    await new Promise(resolve => setTimeout(resolve, 350))
+  }
   if (!buckets.length) return []
 
   const result: LX.Music.MusicInfoOnline[] = []
@@ -429,9 +436,12 @@ export const getPlatformPlaylists = async(source: LX.OnlineSource, count = 6, se
   const sdk = (musicSdk as any)[source]
   if (!sdk?.songList?.getList) return []
   const sortId = sdk.songList.sortList?.[0]?.id ?? ''
-  const pages = await Promise.all([1, 2, 3].map(page =>
-    sdk.songList.getList(sortId, '', page).catch(() => null),
-  ))
+  // 必须串行：songList.getList 内部只维护一个共享请求对象（_requestObj_list），
+  // 并发调用会互相 cancelHttp，只有最后一个能拿到数据（且前两个的 Promise 会被拒绝）
+  const pages: any[] = []
+  for (const page of [1, 2, 3]) {
+    pages.push(await sdk.songList.getList(sortId, '', page).catch(() => null))
+  }
   const pool = pages
     .flatMap(result => (result?.list ?? []) as PlatformPlaylist[])
     .filter(item => item?.id && item.name)
@@ -512,7 +522,7 @@ export const buildMillionFallback = async(source: LX.OnlineSource, count = 50): 
   const list = await buildChartSongs(source, count).catch(() => [] as LX.Music.MusicInfoOnline[])
   return {
     kind: 'chart',
-    name: '榜单热歌聚合',
+    name: window.i18n.t('home__board_hits_mix'),
     list,
   }
 }
@@ -569,10 +579,11 @@ export interface SimilarSeedSong {
 
 /** 选一首「种子歌」：从最近的播放记录 / 我喜欢里随机挑一首（每次刷新内容会变化） */
 export const getSimilarSeed = (): SimilarSeedSong | null => {
-  const history = playedList.slice(-50).map(item => unwrap(item.musicInfo)).filter(Boolean) as LX.Music.MusicInfo[]
+  // playHistoryList 已是「最新在前」，无需再 reverse
+  const history = playHistoryList.slice(0, 50).filter(Boolean) as LX.Music.MusicInfo[]
   const seen = new Set<string>()
   const pool: LX.Music.MusicInfo[] = []
-  for (const info of [...history].reverse()) {
+  for (const info of history) {
     const key = normalizeKey(info.name, info.singer)
     if (seen.has(key)) continue
     seen.add(key)

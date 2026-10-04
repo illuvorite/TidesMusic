@@ -9,6 +9,7 @@
           :meta="item.author"
           :play-count="item.play_count || ''"
           @click="toDetail(item)"
+          @contextmenu.prevent="handleContextMenu($event, item)"
         />
       </div>
       <div :class="$style.pagination">
@@ -21,13 +22,22 @@
         <p v-text="props.listInfo.noItemLabel" />
       </div>
     </transition>
+    <base-menu
+      v-model="menuVisible"
+      :menus="menus"
+      :xy="menuLocation"
+      item-name="name"
+      @menu-click="handleMenuClick"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from '@common/utils/vueTools'
+import { computed, reactive, ref } from '@common/utils/vueTools'
 import type { ListInfo, ListInfoItem } from '@renderer/store/songList/state'
 import { useRoute, useRouter } from '@common/utils/vueRouter'
+import { useI18n } from '@renderer/plugins/i18n'
+import { addSongListDetail } from '@renderer/views/songList/Detail/action'
 
 
 const props = withDefaults(defineProps<{
@@ -39,6 +49,7 @@ const props = withDefaults(defineProps<{
 
 const router = useRouter()
 const route = useRoute()
+const t = useI18n()
 
 const dom_list_ref = ref<HTMLElement | null>(null)
 
@@ -59,6 +70,38 @@ const toDetail = (info: ListInfoItem) => {
       fromName: route.name as string,
     },
   })
+}
+
+// ---------- 歌单卡右键菜单 ----------
+// 卡片此前只有左键进详情；对标主流平台补上右键（打开详情 / 收藏歌单）。
+// 收藏直接复用歌单详情页的 addSongListDetail（含重复收藏确认）。
+const menuVisible = ref(false)
+const menuLocation = reactive({ x: 0, y: 0 })
+let contextItem: ListInfoItem | null = null
+
+const menus = computed(() => [
+  { name: t('songlist__menu_open_detail'), action: 'openDetail' },
+  { name: t('songlist__menu_collect'), action: 'collect' },
+])
+
+const handleContextMenu = (event: MouseEvent, item: ListInfoItem) => {
+  contextItem = item
+  menuLocation.x = event.pageX
+  menuLocation.y = event.pageY
+  menuVisible.value = true
+}
+
+const handleMenuClick = (action: { action: string } | null) => {
+  menuVisible.value = false
+  if (!action || !contextItem) return
+  switch (action.action) {
+    case 'openDetail':
+      toDetail(contextItem)
+      break
+    case 'collect':
+      void addSongListDetail(contextItem.id, contextItem.source, contextItem.name)
+      break
+  }
 }
 
 defineExpose({

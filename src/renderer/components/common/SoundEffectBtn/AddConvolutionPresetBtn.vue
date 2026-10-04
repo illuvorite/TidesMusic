@@ -84,7 +84,7 @@ const handleSave = (event) => {
   height: 100%;
   // line-height: 16px;
   background: none !important;
-  font-size: var(--qm-fs-xs, 12px);
+  font-size: 12px;
   text-align: center;
   font-family: inherit;
   box-sizing: border-box;
@@ -92,7 +92,7 @@ const handleSave = (event) => {
   border-radius: 0;
   display: none;
   &::placeholder {
-    font-size: var(--qm-fs-xs, 12px);
+    font-size: 12px;
   }
 }
 

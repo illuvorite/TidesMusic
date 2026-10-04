@@ -109,7 +109,7 @@ const imgStyle = computed(() => {
   z-index: 0;
   pointer-events: none;
   // 模糊边缘 / 图片加载间隙的兜底底色（与 #root 兜底一致）
-  background-color: var(--color-main-background, #F5F5F5);
+  background-color: var(--qm-card, #F5F5F5);
 }
 .img {
   position: absolute;

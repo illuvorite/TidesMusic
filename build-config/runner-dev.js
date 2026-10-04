@@ -1,6 +1,6 @@
 // ============================================================
 // 受保护文件：该文件已与 lx-music-desktop-2.12.2 同步，
-// 包含修复音源切换卡在“初始化中”的关键逻辑。
+// 包含修复音源切换卡在"初始化中"的关键逻辑。
 // 未经授权不得修改。若需变更，请先移除本注释并联系相关负责人。
 // ============================================================
 process.env.NODE_ENV = 'development'
@@ -10,6 +10,7 @@ const electron = require('electron')
 const path = require('path')
 // const { say } = require('cfonts')
 const { spawn } = require('child_process')
+const net = require('net')
 const webpack = require('webpack')
 const WebpackDevServer = require('webpack-dev-server')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
@@ -145,10 +146,13 @@ function startRendererScripts() {
 
 function startMain() {
   let firstRun = true
+  let lastHash = null
   return new Promise((resolve, reject) => {
     // mainConfig.entry.main = [path.join(__dirname, '../src/main/index.dev.js')].concat(mainConfig.entry.main)
     // mainConfig.mode = 'development'
-    const runElectronDelay = debounce(startElectron, 200)
+    // 重启 electron 前留足端口释放时间：--inspect=5858 若仍被上一个实例占用，
+    // 新实例会 EADDRINUSE 直接退出（表现为 dev 启动几秒后整体消失）
+    const runElectronDelay = debounce(startElectron, 1500)
     const compiler = webpack(mainConfig)
 
     compiler.hooks.watchRun.tapAsync('watch-run', (compilation, done) => {
@@ -165,21 +169,59 @@ function startMain() {
       }
 
       // logStats('Main', stats)
-      if (electronProcess) {
-        electronProcess.removeAllListeners()
-        treeKill(electronProcess.pid)
-      }
+      // 编译产物没变化时不要重启：watch 在冷启动时可能多回调一次，
+      // 白白 kill 掉刚起来的实例（表现为 dev 启动几秒后应用消失）。
+      // 但实例已经不在（崩溃/被外部杀掉）时必须拉起，否则 dev 会一直空转。
+      const hash = stats?.hash ?? null
       if (firstRun) {
         firstRun = false
+        lastHash = hash
         resolve()
-      } else runElectronDelay()
+        return
+      }
+      if (hash && hash === lastHash && electronProcess) return
+      lastHash = hash
+
+      // 重启前必须等旧实例真正退出：它的 --inspect=5858 还占着端口时，
+      // 新实例会 EADDRINUSE 直接退出（表现为 dev 启动几秒后整体消失）
+      const restarting = !!electronProcess
+      if (restarting) {
+        const oldProcess = electronProcess
+        electronProcess = null
+        oldProcess.removeAllListeners()
+        oldProcess.once('exit', () => runElectronDelay())
+        treeKill(oldProcess.pid, () => runElectronDelay())
+      }
+      if (!restarting) runElectronDelay()
     })
   })
 }
 
-function startElectron() {
+const INSPECT_PORT = 5858
+
+// 等待调试端口释放：上一个实例刚被 kill 时端口可能还没释放，
+// 此时启动新实例会因 EADDRINUSE 直接退出，进而把整个 dev 带崩
+const waitPortFree = (port, timeout = 10000) => new Promise(resolve => {
+  const start = Date.now()
+  const check = () => {
+    const server = net.createServer()
+    server.once('error', () => {
+      if (Date.now() - start > timeout) return resolve(false)
+      setTimeout(check, 300)
+    })
+    server.once('listening', () => server.close(() => resolve(true)))
+    server.listen(port, '127.0.0.1')
+  }
+  check()
+})
+
+const startElectron = async() => {
+  if (!await waitPortFree(INSPECT_PORT)) {
+    console.log(chalk.yellow(`port ${INSPECT_PORT} is busy, skip start electron`))
+    return
+  }
   let args = [
-    '--inspect=5858',
+    `--inspect=${INSPECT_PORT}`,
     // 'NODE_ENV=development',
     path.join(__dirname, '../dist/main.js'),
   ]

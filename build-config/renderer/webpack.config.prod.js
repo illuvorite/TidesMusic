@@ -62,8 +62,15 @@ module.exports = merge(baseConfig, {
   ],
   optimization: {
     minimize: buildConfig.minimize,
+    // 关闭模块拼接：拼接会破坏库内部 #private 字段类的 brand check（与主进程同因）
+    concatenateModules: false,
     minimizer: [
-      new TerserPlugin(),
+      new TerserPlugin({
+        terserOptions: {
+          compress: { keep_classnames: true },
+          mangle: { keep_classnames: true },
+        },
+      }),
       new CssMinimizerPlugin(),
     ],
     splitChunks: {

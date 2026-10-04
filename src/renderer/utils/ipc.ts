@@ -11,11 +11,6 @@ export const getSetting = async() => {
   return rendererInvoke<LX.AppSetting>(CMMON_EVENT_NAME.get_app_setting)
 }
 export const updateSetting = async(setting: Partial<LX.AppSetting>) => {
-  const debugKeys = Object.keys(setting)
-  if (debugKeys.some(k => k.includes('soundEffect'))) {
-    // eslint-disable-next-line no-console
-    console.log('[save-debug]', JSON.stringify(setting), new Error('trace').stack)
-  }
   await rendererInvoke(CMMON_EVENT_NAME.set_app_setting, setting)
 }
 export const onSettingChanged = (listener: LX.IpcRendererEventListenerParams<Partial<LX.AppSetting>>): RemoveListener => {
@@ -669,6 +664,126 @@ export const clearMusicUrl = async() => {
 
 export const getMusicUrlCount = async() => {
   return rendererInvoke<number>(WIN_MAIN_RENDERER_EVENT_NAME.get_music_url_count)
+}
+
+/**
+ * 读取播放历史（按最后播放时间倒序）
+ * @param limit 条数
+ * @param offset 跳过条数
+ */
+export const getPlayHistory = async(limit = 1000, offset = 0): Promise<LX.Music.PlayHistoryInfo[]> => {
+  return rendererInvoke<{ limit: number, offset: number }, LX.Music.PlayHistoryInfo[]>(
+    WIN_MAIN_RENDERER_EVENT_NAME.get_play_history,
+    { limit, offset },
+  )
+}
+
+/**
+ * 写入一条播放历史
+ * @param info 记录（musicInfo 为 JSON 字符串）
+ * @param max 保留上限，超出时淘汰最旧的
+ */
+export const addPlayHistory = async(info: LX.Music.PlayHistoryInfo, max = 0) => {
+  await rendererInvoke<{ info: LX.Music.PlayHistoryInfo, max: number }>(
+    WIN_MAIN_RENDERER_EVENT_NAME.add_play_history,
+    { info, max },
+  )
+}
+
+/**
+ * 批量写入播放历史（备份恢复 / 数据迁移用）
+ * @param infos 记录列表
+ * @param max 保留上限，0 表示不限制
+ */
+export const addPlayHistoryMultiple = async(infos: LX.Music.PlayHistoryInfo[], max = 0) => {
+  await rendererInvoke<{ infos: LX.Music.PlayHistoryInfo[], max: number }>(
+    WIN_MAIN_RENDERER_EVENT_NAME.add_play_history_multiple,
+    { infos, max },
+  )
+}
+
+/**
+ * 按 id 删除播放历史
+ */
+export const removePlayHistory = async(ids: string[]) => {
+  await rendererInvoke<string[]>(WIN_MAIN_RENDERER_EVENT_NAME.remove_play_history, ids)
+}
+
+/**
+ * 清空播放历史
+ */
+export const clearPlayHistory = async() => {
+  await rendererInvoke(WIN_MAIN_RENDERER_EVENT_NAME.clear_play_history)
+}
+
+export const getPlayHistoryCount = async() => {
+  return rendererInvoke<number>(WIN_MAIN_RENDERER_EVENT_NAME.get_play_history_count)
+}
+
+export const getMusicQualityOverrides = async(): Promise<Record<string, LX.Quality> | null> => {
+  return rendererInvoke<string, Record<string, LX.Quality> | null>(WIN_MAIN_RENDERER_EVENT_NAME.get_data, DATA_KEYS.musicQualityOverrides)
+}
+
+export const saveMusicQualityOverrides = (data: Record<string, LX.Quality>) => {
+  rendererSend(WIN_MAIN_RENDERER_EVENT_NAME.save_data, {
+    path: DATA_KEYS.musicQualityOverrides,
+    data,
+  })
+}
+
+/**
+ * 读取歌单回收站
+ */
+export const getListTrashData = async(): Promise<Array<{
+  id: string
+  name: string
+  source?: LX.OnlineSource
+  sourceListId?: string
+  list: LX.Music.MusicInfo[]
+  deletedAt: number
+  count: number
+}> | null> => {
+  return rendererInvoke<string, Array<{
+    id: string
+    name: string
+    source?: LX.OnlineSource
+    sourceListId?: string
+    list: LX.Music.MusicInfo[]
+    deletedAt: number
+    count: number
+  }> | null>(WIN_MAIN_RENDERER_EVENT_NAME.get_data, DATA_KEYS.listTrash)
+}
+
+export const saveListTrashData = (data: Array<{
+  id: string
+  name: string
+  source?: LX.OnlineSource
+  sourceListId?: string
+  list: LX.Music.MusicInfo[]
+  deletedAt: number
+  count: number
+}>) => {
+  rendererSend(WIN_MAIN_RENDERER_EVENT_NAME.save_data, {
+    path: DATA_KEYS.listTrash,
+    data,
+  })
+}
+
+/**
+ * 读取本地曲库（扫描目录 + 上次扫描结果）
+ */
+export const getLocalLibrary = async(): Promise<LX.Music.LocalLibraryData | null> => {
+  return rendererInvoke<string, LX.Music.LocalLibraryData | null>(WIN_MAIN_RENDERER_EVENT_NAME.get_data, DATA_KEYS.localLibrary)
+}
+
+/**
+ * 保存本地曲库
+ */
+export const saveLocalLibrary = (data: LX.Music.LocalLibraryData) => {
+  rendererSend(WIN_MAIN_RENDERER_EVENT_NAME.save_data, {
+    path: DATA_KEYS.localLibrary,
+    data,
+  })
 }
 
 /**

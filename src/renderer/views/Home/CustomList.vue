@@ -128,6 +128,10 @@ import {
 const route = useRoute()
 const router = useRouter()
 
+// 收藏状态：与播放栏 / 列表 / 榜单共用同一份全局状态（按「歌名 + 歌手」去重）
+const { isLoved, toggleLove, loadLoved } = useLovedList()
+void loadLoved()
+
 const type = computed(() => (route.query.type === 'million' ? 'million' : 'daily'))
 const list = ref([])
 const loading = ref(false)
@@ -211,6 +215,9 @@ async function playFrom(index) {
   playList(LIST_IDS.TEMP, index)
 }
 
+// 收藏：原实现直接 addListMusics，既不判断是否已收藏、也不能取消，
+// 连点会重复入库。改用全局共享的 useLovedList（按「歌名 + 歌手」去重，
+// 与播放栏 / 列表 / 榜单的爱心状态实时同步）。
 async function likeIt(item) {
   await toggleLove(item)
 }

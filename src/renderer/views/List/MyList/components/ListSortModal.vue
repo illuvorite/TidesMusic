@@ -157,7 +157,7 @@ export default {
   padding: var(--qm-sp-6, 15px);
   text-align: center;
   h2 {
-    color: var(--color-font);
+    color: var(--qm-text-2);
     word-break: break-all;
   }
 }
@@ -173,7 +173,7 @@ export default {
 }
 .title {
   font-size: var(--qm-fs-md, 14px);
-  color: var(--color-font-label);
+  color: var(--qm-text-4);
   padding: 10px 0 8px;
 }
 .list {

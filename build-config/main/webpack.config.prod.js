@@ -57,5 +57,9 @@ module.exports = merge(baseConfig, {
   },
   optimization: {
     minimize: false,
+    // 关闭模块拼接（作用域提升）：拼接会让 undici 等库内部的 #private 字段类
+    // 在跨模块作用域下 brand check 失败（"Cannot read private member #handler"），
+    // 导致打包后的应用启动即崩溃
+    concatenateModules: false,
   },
 })

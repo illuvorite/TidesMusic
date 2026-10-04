@@ -1,153 +1,134 @@
 <template>
   <div :class="$style.page">
     <header :class="$style.titleRow">
-      <button type="button" :class="[$style.titleMain, { [$style.titleActive]: section === 'theme' }]" @click="section = 'theme'">
+      <button type="button" :class="[$style.titleMain, $style.titleActive]">
         {{ $t('theme_center_title') }}
-      </button>
-      <button type="button" :class="[$style.titleSub, { [$style.titleActive]: section === 'desktop' }]" @click="section = 'desktop'">
-        {{ $t('theme_center_desktop') }}
       </button>
     </header>
 
-    <template v-if="section === 'theme'">
-      <nav :class="$style.tabRow">
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          type="button"
-          :class="[$style.tab, { [$style.tabActive]: activeTab === tab.id }]"
-          @click="activeTab = tab.id"
-        >{{ tab.label }}</button>
-        <div :class="$style.tabRight">
-          <button type="button" :class="$style.customLink" @click="openCustomSkin">{{ $t('theme_center_custom') }}</button>
-          <button ref="opacityBtnRef" type="button" :class="$style.customLink" @click.stop="showOpacity = !showOpacity">{{ $t('theme_center_skin_opacity') }}</button>
-          <base-popup v-model:visible="showOpacity" :btn-el="opacityBtnRef">
-            <div ref="opacityPopRef" :class="$style.opacityPop" @mousedown.stop>
-              <span :class="$style.opacityPopLabel">{{ $t('theme_center_skin_opacity') }}</span>
-              <!-- 拖动仅更新本地与预览，松手才提交一次设置：杜绝任何来源的连续写入 -->
-              <input
-                type="range"
-                min="0"
-                max="100"
-                step="1"
-                :value="localOpacity"
-                :class="$style.opacitySlider"
-                @input="handleOpacityInput($event)"
-                @change="commitOpacity"
-              >
-              <span :class="$style.opacityValue">{{ localOpacity }}%</span>
-            </div>
-          </base-popup>
-        </div>
-      </nav>
-
-      <!-- 推荐：内置主题（带壁纸的做大横幅卡，纯色的做宫格卡） -->
-      <div v-show="activeTab === 'recommend'" class="scroll" :class="$style.scrollArea">
-        <div v-if="bannerList.length" :class="$style.bannerRow">
-          <div v-for="t in bannerList" :key="t.id" :class="$style.bannerCard" :style="t.bgStyle" @click="applyThemeById(t.id)">
-            <base-btn :class="$style.bannerBtn" @click.stop="applyThemeById(t.id)">{{ $t('theme_center_use_now') }}</base-btn>
+    <nav :class="$style.tabRow">
+      <button
+        v-for="tab in tabs"
+        :key="tab.id"
+        type="button"
+        :class="[$style.tab, { [$style.tabActive]: activeTab === tab.id }]"
+        @click="activeTab = tab.id"
+      >{{ tab.label }}</button>
+      <div :class="$style.tabRight">
+        <button type="button" :class="$style.customLink" @click="openCustomSkin">{{ $t('theme_center_custom') }}</button>
+        <button ref="opacityBtnRef" type="button" :class="$style.customLink" @click.stop="showOpacity = !showOpacity">{{ $t('theme_center_skin_opacity') }}</button>
+        <base-popup v-model:visible="showOpacity" :btn-el="opacityBtnRef">
+          <div ref="opacityPopRef" :class="$style.opacityPop" @mousedown.stop>
+            <span :class="$style.opacityPopLabel">{{ $t('theme_center_skin_opacity') }}</span>
+            <!-- 拖动仅更新本地与预览，松手才提交一次设置：杜绝任何来源的连续写入 -->
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              :value="localOpacity"
+              :class="$style.opacitySlider"
+              @input="handleOpacityInput($event)"
+              @change="commitOpacity"
+            >
+            <span :class="$style.opacityValue">{{ localOpacity }}%</span>
           </div>
-        </div>
-        <div :class="$style.sectionHead">
-          <h3 :class="$style.sectionTitle">{{ $t('theme_center_tab_user') }}</h3>
-        </div>
-        <div :class="$style.cardGrid">
-          <div :class="$style.cardItem" @click="applyThemeById('auto')" @contextmenu="isShowThemeSelectorModal = true">
-            <div :class="[$style.cardBg, $style.autoBg, { [$style.cardActive]: themeId === 'auto' }]">
-              <div :class="$style.autoLight" :style="{ backgroundColor: autoLightColor }" />
-              <div :class="$style.autoDark" :style="{ backgroundColor: autoDarkColor }" />
-              <span v-if="themeId === 'auto'" :class="$style.checkBadge">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg>
-              </span>
-            </div>
-            <span :class="$style.cardName">{{ $t('theme_auto') }}</span>
-          </div>
-          <div v-for="t in builtinGrid" :key="t.id" :class="$style.cardItem" @click="applyThemeById(t.id)">
-            <div :class="[$style.cardBg, { [$style.cardActive]: themeId === t.id }]" :style="t.bgStyle">
-              <span v-if="themeId === t.id" :class="$style.checkBadge">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg>
-              </span>
-            </div>
-            <span :class="$style.cardName">{{ t.name }}</span>
-          </div>
-          <div v-for="t in userGrid" :key="t.id" :class="$style.cardItem" @click="applyThemeById(t.id)" @contextmenu="handleEditTheme(t)">
-            <div :class="[$style.cardBg, { [$style.cardActive]: themeId === t.id }]" :style="t.bgStyle">
-              <button type="button" :class="$style.editBtn" :aria-label="$t('theme_edit_modal__title_edit')" @click.stop="handleEditTheme(t)">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z" fill="currentColor" /></svg>
-              </button>
-              <span v-if="themeId === t.id" :class="$style.checkBadge">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg>
-              </span>
-            </div>
-            <span :class="$style.cardName">{{ t.name }}</span>
-          </div>
-          <div :class="[$style.cardItem, $style.addCard]" @click="handleEditTheme()">
-            <div :class="[$style.cardBg, $style.addBg]">
-              <svg-icon name="plus" :class="$style.addIcon" />
-            </div>
-            <span :class="$style.cardName">{{ $t('theme_add') }}</span>
-          </div>
-        </div>
-        <div v-if="!bannerList.length && !builtinGrid.length && !userGrid.length" :class="$style.empty">{{ $t('theme_center_empty') }}</div>
+        </base-popup>
       </div>
+    </nav>
 
-      <!-- 其它：用户自定义主题（皮肤/纯色） -->
-      <div v-show="activeTab === 'user'" class="scroll" :class="$style.scrollArea">
-        <div v-if="userGrid.length" :class="$style.cardGrid">
-          <div v-for="t in userGrid" :key="t.id" :class="$style.cardItem" @click="applyThemeById(t.id)" @contextmenu="handleEditTheme(t)">
-            <div :class="[$style.cardBg, { [$style.cardActive]: themeId === t.id }]" :style="t.bgStyle">
-              <button type="button" :class="$style.editBtn" :aria-label="$t('theme_edit_modal__title_edit')" @click.stop="handleEditTheme(t)">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z" fill="currentColor" /></svg>
-              </button>
-              <span v-if="themeId === t.id" :class="$style.checkBadge">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg>
-              </span>
-            </div>
-            <span :class="$style.cardName">{{ t.name }}</span>
-          </div>
-          <div :class="[$style.cardItem, $style.addCard]" @click="handleEditTheme()">
-            <div :class="[$style.cardBg, $style.addBg]">
-              <svg-icon name="plus" :class="$style.addIcon" />
-            </div>
-            <span :class="$style.cardName">{{ $t('theme_add') }}</span>
-          </div>
+    <!-- 推荐：内置主题（带壁纸的做大横幅卡，纯色的做宫格卡） -->
+    <div v-show="activeTab === 'recommend'" class="scroll" :class="$style.scrollArea">
+      <div v-if="bannerList.length" :class="$style.bannerRow">
+        <div v-for="t in bannerList" :key="t.id" :class="$style.bannerCard" :style="t.bgStyle" @click="applyThemeById(t.id)">
+          <base-btn :class="$style.bannerBtn" @click.stop="applyThemeById(t.id)">{{ $t('theme_center_use_now') }}</base-btn>
         </div>
-        <div v-else :class="$style.empty">{{ $t('theme_center_user_empty') }}</div>
       </div>
-
-      <!-- 纯色：色板 -->
-      <div v-show="activeTab === 'pure'" class="scroll" :class="$style.scrollArea">
-        <div :class="$style.colorGrid">
-          <button
-            v-for="c in palette"
-            :key="c.id"
-            type="button"
-            :class="[$style.colorItem, { [$style.colorActive]: themeId === c.id }]"
-            :style="{ backgroundColor: c.hex }"
-            :aria-label="c.hex"
-            @click="applyColor(c)"
-          >
-            <span v-if="themeId === c.id" :class="$style.checkBadge">
+      <div :class="$style.sectionHead">
+        <h3 :class="$style.sectionTitle">{{ $t('theme_center_tab_user') }}</h3>
+      </div>
+      <div :class="$style.cardGrid">
+        <div :class="$style.cardItem" @click="applyThemeById('auto')" @contextmenu="isShowThemeSelectorModal = true">
+          <div :class="[$style.cardBg, $style.autoBg, { [$style.cardActive]: themeId === 'auto' }]">
+            <div :class="$style.autoLight" :style="{ backgroundColor: autoLightColor }" />
+            <div :class="$style.autoDark" :style="{ backgroundColor: autoDarkColor }" />
+            <span v-if="themeId === 'auto'" :class="$style.checkBadge">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg>
             </span>
-          </button>
+          </div>
+          <span :class="$style.cardName">{{ $t('theme_auto') }}</span>
+        </div>
+        <div v-for="t in builtinGrid" :key="t.id" :class="$style.cardItem" @click="applyThemeById(t.id)">
+          <div :class="[$style.cardBg, { [$style.cardActive]: themeId === t.id }]" :style="t.bgStyle">
+            <span v-if="themeId === t.id" :class="$style.checkBadge">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </span>
+          </div>
+          <span :class="$style.cardName">{{ t.name }}</span>
+        </div>
+        <div v-for="t in userGrid" :key="t.id" :class="$style.cardItem" @click="applyThemeById(t.id)" @contextmenu="handleEditTheme(t)">
+          <div :class="[$style.cardBg, { [$style.cardActive]: themeId === t.id }]" :style="t.bgStyle">
+            <button type="button" :class="$style.editBtn" :aria-label="$t('theme_edit_modal__title_edit')" @click.stop="handleEditTheme(t)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z" fill="currentColor" /></svg>
+            </button>
+            <span v-if="themeId === t.id" :class="$style.checkBadge">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </span>
+          </div>
+          <span :class="$style.cardName">{{ t.name }}</span>
+        </div>
+        <div :class="[$style.cardItem, $style.addCard]" @click="handleEditTheme()">
+          <div :class="[$style.cardBg, $style.addBg]">
+            <svg-icon name="plus" :class="$style.addIcon" />
+          </div>
+          <span :class="$style.cardName">{{ $t('theme_add') }}</span>
         </div>
       </div>
-    </template>
+      <div v-if="!bannerList.length && !builtinGrid.length && !userGrid.length" :class="$style.empty">{{ $t('theme_center_empty') }}</div>
+    </div>
 
-    <template v-else>
-      <nav :class="$style.tabRow">
-        <button type="button" :class="[$style.tab, $style.tabActive]">{{ $t('theme_center_dynamic_desktop') }}</button>
-        <button type="button" :class="$style.tab">{{ $t('theme_center_lyric_bubble') }}</button>
-        <button type="button" :class="$style.tab">{{ $t('theme_center_lyric_effect') }}</button>
-      </nav>
-      <div class="scroll" :class="$style.scrollArea">
-        <div :class="$style.desktopEmpty">
-          <svg-icon name="music" :class="$style.desktopEmptyIcon" />
-          <p>{{ $t('theme_center_desktop_soon') }}</p>
+    <!-- 其它：用户自定义主题（皮肤/纯色） -->
+    <div v-show="activeTab === 'user'" class="scroll" :class="$style.scrollArea">
+      <div v-if="userGrid.length" :class="$style.cardGrid">
+        <div v-for="t in userGrid" :key="t.id" :class="$style.cardItem" @click="applyThemeById(t.id)" @contextmenu="handleEditTheme(t)">
+          <div :class="[$style.cardBg, { [$style.cardActive]: themeId === t.id }]" :style="t.bgStyle">
+            <button type="button" :class="$style.editBtn" :aria-label="$t('theme_edit_modal__title_edit')" @click.stop="handleEditTheme(t)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z" fill="currentColor" /></svg>
+            </button>
+            <span v-if="themeId === t.id" :class="$style.checkBadge">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </span>
+          </div>
+          <span :class="$style.cardName">{{ t.name }}</span>
+        </div>
+        <div :class="[$style.cardItem, $style.addCard]" @click="handleEditTheme()">
+          <div :class="[$style.cardBg, $style.addBg]">
+            <svg-icon name="plus" :class="$style.addIcon" />
+          </div>
+          <span :class="$style.cardName">{{ $t('theme_add') }}</span>
         </div>
       </div>
-    </template>
+      <div v-else :class="$style.empty">{{ $t('theme_center_user_empty') }}</div>
+    </div>
+
+    <!-- 纯色：色板 -->
+    <div v-show="activeTab === 'pure'" class="scroll" :class="$style.scrollArea">
+      <div :class="$style.colorGrid">
+        <button
+          v-for="c in palette"
+          :key="c.id"
+          type="button"
+          :class="[$style.colorItem, { [$style.colorActive]: themeId === c.id }]"
+          :style="{ backgroundColor: c.hex }"
+          :aria-label="c.hex"
+          @click="applyColor(c)"
+        >
+          <span v-if="themeId === c.id" :class="$style.checkBadge">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          </span>
+        </button>
+      </div>
+    </div>
 
     <custom-skin-modal v-model="isShowCustomSkinModal" :skin-id="skinEditId" @submit="refresh" />
     <theme-edit-modal v-model="isShowThemeEditModal" :theme-id="editThemeId" @submit="refresh" />
@@ -167,7 +148,6 @@ import CustomSkinModal from '@renderer/views/Setting/components/CustomSkinModal.
 import ThemeEditModal from '@renderer/views/Setting/components/ThemeEditModal/index.vue'
 import ThemeSelectorModal from '@renderer/views/Setting/components/ThemeSelectorModal.vue'
 
-const section = ref('theme')
 const activeTab = ref('recommend')
 const isShowCustomSkinModal = ref(false)
 const isShowThemeEditModal = ref(false)
@@ -404,8 +384,7 @@ onBeforeUnmount(() => {
   gap: 18px;
   margin-bottom: var(--qm-sp-2, 6px);
 }
-.titleMain,
-.titleSub {
+.titleMain {
   border: none;
   background: transparent;
   padding: 0;
@@ -418,13 +397,8 @@ onBeforeUnmount(() => {
   font-weight: var(--qm-fw-semibold, 600);
   line-height: 1.3;
 }
-.titleSub {
-  font-size: var(--qm-fs-3xl, 20px);
-  font-weight: var(--qm-fw-medium, 500);
-  line-height: 1.3;
-}
 .titleActive {
-  color: var(--color-font);
+  color: var(--qm-text-2);
 }
 
 // ===== tab 行 =====
@@ -455,14 +429,14 @@ onBeforeUnmount(() => {
     width: 22px;
     height: 3px;
     border-radius: var(--qm-radius-2xs, 4px);
-    background-color: var(--color-primary);
+    background-color: var(--qm-primary);
     transition: transform @transition-fast;
   }
   &:hover {
-    color: var(--color-font);
+    color: var(--qm-text-2);
   }
   &.tabActive {
-    color: var(--color-font);
+    color: var(--qm-text-2);
     &::after {
       transform: translateX(-50%) scaleX(1);
     }
@@ -480,11 +454,11 @@ onBeforeUnmount(() => {
   background: transparent;
   padding: 4px 2px;
   font-size: var(--qm-fs-sm, 13px);
-  color: var(--color-font);
+  color: var(--qm-text-2);
   cursor: pointer;
 
   &:hover {
-    color: var(--color-primary);
+    color: var(--qm-primary);
   }
 }
 .opacityPop {
@@ -498,12 +472,12 @@ onBeforeUnmount(() => {
   .opacityPopLabel {
     flex: none;
     font-size: var(--qm-fs-xs, 12px);
-    color: var(--color-font);
+    color: var(--qm-text-2);
   }
   .opacitySlider {
     flex: 1 1 auto;
     width: 140px;
-    accent-color: var(--color-primary);
+    accent-color: var(--qm-primary);
     cursor: pointer;
   }
   .opacityValue {
@@ -559,7 +533,7 @@ onBeforeUnmount(() => {
     margin: 0;
     font-size: 17px;
     font-weight: var(--qm-fw-semibold, 600);
-    color: var(--color-font);
+    color: var(--qm-text-2);
   }
 }
 .cardGrid {
@@ -592,7 +566,7 @@ onBeforeUnmount(() => {
     }
   }
   &.cardActive {
-    border-color: var(--color-primary);
+    border-color: var(--qm-primary);
   }
 }
 .editBtn {
@@ -635,13 +609,13 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px dashed var(--color-primary-light-100-alpha-300, rgba(0, 0, 0, 0.2));
+  border: 1px dashed var(--qm-line-dashed);
   background-color: transparent;
 
   .addIcon {
     width: 26px;
     height: 26px;
-    color: var(--color-primary);
+    color: var(--qm-primary);
   }
 }
 .checkBadge {
@@ -652,7 +626,7 @@ onBeforeUnmount(() => {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background-color: var(--color-primary);
+  background-color: var(--qm-primary);
   color: #fff;
   display: flex;
   align-items: center;
@@ -665,7 +639,7 @@ onBeforeUnmount(() => {
 }
 .cardName {
   font-size: var(--qm-fs-xs, 12px);
-  color: var(--color-font);
+  color: var(--qm-text-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -691,28 +665,7 @@ onBeforeUnmount(() => {
     transform: translateY(-2px);
   }
   &.colorActive {
-    border-color: var(--color-primary);
-  }
-}
-
-// ===== 桌面装扮空态 =====
-.desktopEmpty {
-  display: flex;
-  flex-flow: column nowrap;
-  align-items: center;
-  justify-content: center;
-  gap: var(--qm-sp-5, 12px);
-  height: 320px;
-  color: var(--qm-text-3, #888);
-  font-size: var(--qm-fs-sm, 13px);
-
-  .desktopEmptyIcon {
-    width: 40px;
-    height: 40px;
-    opacity: .5;
-  }
-  p {
-    margin: 0;
+    border-color: var(--qm-primary);
   }
 }
 .empty {

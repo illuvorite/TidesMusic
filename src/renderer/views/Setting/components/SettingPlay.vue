@@ -11,6 +11,9 @@ dd
     base-checkbox(id="setting_player_auto_clean_played_list" :model-value="appSetting['player.isAutoCleanPlayedList']" :label="$t('setting__play_auto_clean_played_list')" @update:model-value="updateSetting({'player.isAutoCleanPlayedList': $event})")
     svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__play_auto_clean_played_list_tip')")
   .gap-top
+    base-checkbox(id="setting_player_save_play_history" :model-value="appSetting['player.isSavePlayHistory']" :label="$t('setting__play_save_play_history')" @update:model-value="updateSetting({'player.isSavePlayHistory': $event})")
+    svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__play_save_play_history_tip')")
+  .gap-top
     base-checkbox(id="setting_player_lyric_transition" :model-value="appSetting['player.isShowLyricTranslation']" :label="$t('setting__play_lyric_transition')" @update:model-value="updateSetting({'player.isShowLyricTranslation': $event})")
   .gap-top
     base-checkbox(id="setting_player_lyric_roma" :model-value="appSetting['player.isShowLyricRoma']" :label="$t('setting__play_lyric_roma')" @update:model-value="updateSetting({'player.isShowLyricRoma': $event})")
@@ -34,6 +37,14 @@ dd
     base-checkbox(id="setting_player_isMaxOutputChannelCount" :model-value="isMaxOutputChannelCount" :label="$t('setting__play_max_output_channel_count')" @update:model-value="handleUpdateMaxOutputChannelCount")
   .gap-top
     base-checkbox(id="setting_player_isMediaDeviceRemovedStopPlay" :model-value="appSetting['player.isMediaDeviceRemovedStopPlay']" :label="$t('setting__play_mediaDevice_remove_stop_play')" @update:model-value="updateSetting({'player.isMediaDeviceRemovedStopPlay': $event})")
+
+dd
+  h3#play_history_max
+    | {{ $t('setting__play_history_max') }}
+    svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__play_history_max_tip')")
+  div
+    p
+      base-selection.gap-left(:class="$style.selectWidth" :model-value="appSetting['player.playHistoryMax']" :list="historyMaxList" item-key="id" item-name="name" @update:model-value="updateSetting({'player.playHistoryMax': $event})")
 
 dd
   h3#basic_play_quality {{ $t('setting__play_playQuality') }}
@@ -66,6 +77,9 @@ export default {
   setup() {
     const t = useI18n()
     const playQualityList = [...TRY_QUALITYS_LIST, '128k'].reverse()
+
+    // 播放历史保留条数上限（与「下载并发数」同款下拉写法）
+    const historyMaxList = [200, 500, 1000, 2000, 5000].map(num => ({ id: num, name: String(num) }))
 
     const mediaDevices = ref([])
     const getMediaDevice = async() => {
@@ -150,8 +164,15 @@ export default {
       isMaxOutputChannelCount,
       handleUpdateMaxOutputChannelCount,
       playQualityList,
+      historyMaxList,
       isMac,
     }
   },
 }
 </script>
+
+<style lang="less" module>
+.selectWidth {
+  width: 76px;
+}
+</style>

@@ -26,7 +26,8 @@ declare namespace LX {
 
     interface MyTempListInfo {
       id: 'temp'
-      name: '临时列表'
+      // 与 defaultList / loveList 一致：存 i18n 键，渲染处统一翻译
+      name: 'list__name_temp'
       // list: LX.Music.MusicInfo[]
       // TODO: save default lists info
       meta: {

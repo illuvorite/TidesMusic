@@ -1,14 +1,16 @@
-import { checkUpdate, getEnvParams, getViewPrevState, sendInited } from '@renderer/utils/ipc'
+import { getEnvParams, getViewPrevState, sendInited } from '@renderer/utils/ipc'
 
 import { watch } from '@common/utils/vueTools'
 import { proxy, isFullscreen, themeId } from '@renderer/store'
 import { appSetting } from '@renderer/store/setting'
 import { applySkinSurface, applyTheme, getThemes } from '@renderer/store/utils'
+import { loadPlayHistory } from '@renderer/store/playHistory'
+import { loadLocalLibrary } from '@renderer/store/localLibrary'
+import { loadQualityOverrides } from '@renderer/store/qualityOverride'
 
 import useSync from './useSync'
 import useOpenAPI from './useOpenAPI'
 import useStatusbarLyric from './useStatusbarLyric'
-import useUpdate from './useUpdate'
 import useDataInit from './useDataInit'
 import useHandleEnvParams from './useHandleEnvParams'
 import useEventListener from './useEventListener'
@@ -51,7 +53,6 @@ export default () => {
   const initDeeplink = useDeeplink()
   // const handleListAutoUpdate = useListAutoUpdate()
 
-  useUpdate()
   useSettingSync()
 
   void getEnvParams().then(envParams => {
@@ -77,6 +78,13 @@ export default () => {
 
     // 初始化我的列表、下载列表等数据
     void initData().then(() => {
+      // 读取持久化的播放历史（「最近播放」页 + 个性化推荐的输入）
+      void loadPlayHistory()
+      // 读取本地曲库（扫描目录 + 上次扫描结果）：文件系统扫描很慢，
+      // 这里只读缓存结果，需要更新时由用户在本地音乐页手动触发扫描
+      void loadLocalLibrary()
+      // 读取单曲音质覆盖表（播放器取 URL 时按歌曲 id 查询）
+      void loadQualityOverrides()
       initPlayer()
       handleEnvParams(envParams) // 处理传入的启动参数
       void initDeeplink(envParams)
@@ -86,7 +94,6 @@ export default () => {
       sendInited()
 
       handleListAutoUpdate()
-      if (window.lx.isProd && appSetting['common.isAgreePact']) checkUpdate()
     })
   })
 }

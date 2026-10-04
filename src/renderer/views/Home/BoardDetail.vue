@@ -96,6 +96,11 @@
             <div class="list-item-cell" :class="$style.colTime"><span class="no-select">{{ item.interval || '--:--' }}</span></div>
           </li>
         </ul>
+
+        <!-- 增量渲染footer：接口一次最多返回 300 首，全量渲染会明显卡顿，
+             改为滚动到底部再追加一屏（对标主流平台的榜单滚动加载） -->
+        <p v-if="visibleList.length < list.length" :class="$style.moreTip">向下滚动加载更多…</p>
+        <p v-else :class="$style.moreTip">没有更多了</p>
       </template>
     </div>
 
@@ -106,6 +111,7 @@
 
 <script setup>
 import { computed, onMounted, ref, markRawList } from '@common/utils/vueTools'
+import { useI18n } from '@renderer/plugins/i18n'
 import { useRoute, useRouter } from '@common/utils/vueRouter'
 import { LIST_IDS } from '@common/constants'
 import { toNewMusicInfo } from '@common/utils/tools'
@@ -117,6 +123,9 @@ import { getInitialSource, getSourceName } from '@renderer/utils/personalRecomme
 import useLovedList from '@renderer/utils/compositions/useLovedList'
 import useListAddMenu from '@renderer/utils/compositions/useListAddMenu'
 import useHeadCollapse from '@renderer/utils/compositions/useHeadCollapse'
+
+const t = useI18n()
+
 
 const { isLoved, loadLoved, toggleLove } = useLovedList()
 // 页头滚动收起：下滑自动收起，上滑 / 回到顶部恢复
@@ -160,11 +169,27 @@ const source = ref((() => {
   return typeof query === 'string' && query ? query : getInitialSource()
 })())
 const boardId = ref(typeof route.query.boardId === 'string' ? route.query.boardId : '')
-const boardName = ref(typeof route.query.name === 'string' && route.query.name ? route.query.name : '排行榜')
+const boardName = ref(typeof route.query.name === 'string' && route.query.name ? route.query.name : t('common__board_default_name'))
 const cover = ref(typeof route.query.img === 'string' ? route.query.img : '')
 
 const list = ref([])
 const loading = ref(false)
+// 榜单接口一次返回全部歌曲（tx 最多 300 首），不是服务端分页；
+// 全量塞进普通 <ul> 会明显卡顿，因此做客户端增量渲染。
+const PAGE_STEP = 60
+const visibleCount = ref(PAGE_STEP)
+const visibleList = computed(() => list.value.slice(0, visibleCount.value))
+const loadError = ref(false)
+const bodyRef = ref(null)
+
+const handleScroll = () => {
+  const el = bodyRef.value
+  if (!el) return
+  // 距底部 320px 内再追加一屏
+  if (el.scrollHeight - el.scrollTop - el.clientHeight > 320) return
+  if (visibleCount.value >= list.value.length) return
+  visibleCount.value = Math.min(visibleCount.value + PAGE_STEP, list.value.length)
+}
 
 const today = computed(() => {
   const date = new Date()
@@ -174,18 +199,35 @@ const today = computed(() => {
 
 const getCover = (item) => item.meta?.picUrl || ''
 
-async function load() {
-  if (!boardId.value || loading.value) return
+async function load(isRetry = false) {
+  if (!boardId.value) return
+  if (loading.value && !isRetry) return
   loading.value = true
+  // 重试时重置失败标记与分页位置，避免旧的错误态残留
+  loadError.value = false
+  if (isRetry) {
+    list.value = []
+    visibleCount.value = PAGE_STEP
+  }
   try {
     const sdk = musicSdk[source.value]
-    if (!sdk?.leaderboard?.getList) return
+    if (!sdk?.leaderboard?.getList) {
+      loadError.value = true
+      return
+    }
     const res = await sdk.leaderboard.getList(boardId.value, 1).catch(() => null)
+    if (!res) {
+      loadError.value = true
+      return
+    }
     // 接口返回的是扁平结构（img/albumName），统一转成标准 MusicInfoOnline（meta.picUrl 等）
     const songs = (res?.list ?? []).map(item => toNewMusicInfo(item)).filter(item => item.source !== 'local')
     list.value = markRawList(songs)
+    visibleCount.value = PAGE_STEP
     // 卡片没传封面时用榜首歌曲封面兜底
     if (!cover.value) cover.value = songs[0]?.meta?.picUrl || ''
+  } catch {
+    loadError.value = true
   } finally {
     loading.value = false
   }
@@ -342,6 +384,15 @@ onMounted(() => { void load() })
   color: var(--qm-text-4);
 
   p { margin: 0; }
+}
+
+// 增量渲染的底部提示（加载更多 / 没有更多了）
+.moreTip {
+  margin: 0;
+  padding: 18px 0 26px;
+  text-align: center;
+  font-size: var(--qm-font-aux, 12px);
+  color: var(--qm-text-5);
 }
 
 .thead {

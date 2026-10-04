@@ -146,7 +146,8 @@ export const createWindow = async(userApi: LX.UserApi.UserApiInfo) => {
     console.log(`[user-api:console](${detail.level ?? ''}) ${detail.message ?? ''}${detail.sourceId ? ` @ ${detail.sourceId}:${detail.lineNumber ?? 0}` : ''}`)
   })
 
-  if (process.env.NODE_ENV === 'production') {
+  // 排查用 devtools 仅在 dev 模式开启（生产版会弹出独立调试窗口，影响使用）
+  if (process.env.NODE_ENV !== 'production') {
     browserWindow.webContents.openDevTools({ mode: 'detach' })
   }
 

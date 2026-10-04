@@ -186,7 +186,7 @@ const toggleComment = () => {
   flex: 0 0 40px;
   border-radius: var(--qm-radius-sm, 8px);
   object-fit: cover;
-  background-color: var(--color-button-background-hover);
+  background-color: var(--qm-hover);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
 }
 
@@ -200,7 +200,7 @@ const toggleComment = () => {
 .infoName {
   font-size: var(--qm-fs-md, 14px);
   line-height: 1.3;
-  color: var(--color-font);
+  color: var(--qm-text-2);
   font-weight: var(--qm-fw-medium, 500);
   overflow: hidden;
   white-space: nowrap;
@@ -210,7 +210,7 @@ const toggleComment = () => {
 .infoSinger {
   font-size: var(--qm-fs-xs, 12px);
   line-height: 1.3;
-  color: var(--color-font-label);
+  color: var(--qm-text-4);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -266,7 +266,7 @@ const toggleComment = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-button-font);
+  color: var(--qm-text-3);
   background: transparent;
   border: none;
   padding: 0;
@@ -289,7 +289,7 @@ const toggleComment = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-button-font);
+  color: var(--qm-text-3);
   background: transparent;
   border: none;
   padding: 0;
@@ -301,7 +301,7 @@ const toggleComment = () => {
     filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.25));
   }
   &:hover {
-    background-color: var(--color-button-background-hover);
+    background-color: var(--qm-hover);
   }
   &:active { transform: scale(0.94); }
 }
@@ -316,7 +316,7 @@ const toggleComment = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-button-font);
+  color: var(--qm-text-3);
   background: transparent;
   border: none;
   padding: 0;
@@ -353,7 +353,7 @@ const toggleComment = () => {
 .timeLabel {
   flex: 0 0 auto;
   font-size: var(--qm-fs-xs, 12px);
-  color: var(--color-font-label);
+  color: var(--qm-text-4);
   font-variant-numeric: tabular-nums;
   min-width: 44px;
   text-align: center;
@@ -398,13 +398,13 @@ const toggleComment = () => {
   border: none;
   padding: 0;
   cursor: pointer;
-  color: var(--color-font);
+  color: var(--qm-text-2);
   opacity: 0.55;
   border-radius: 50%;
   transition: opacity @transition-normal, color @transition-normal, background-color @transition-normal;
   &:hover:not(:disabled) {
     opacity: 1;
-    background-color: var(--color-button-background-hover);
+    background-color: var(--qm-hover);
   }
   &:disabled {
     opacity: 0.25;
@@ -416,7 +416,7 @@ const toggleComment = () => {
 }
 .iconBtnActive {
   opacity: 1;
-  color: var(--color-primary, var(--color-button-font));
+  color: var(--color-primary, var(--qm-text-3));
 }
 
 // 我喜欢：固定尺寸 20×20，未喜欢时灰色，喜欢时高亮红色
@@ -433,7 +433,7 @@ const toggleComment = () => {
   cursor: pointer;
   border-radius: 50%;
   opacity: 1;
-  color: var(--color-font-label);
+  color: var(--qm-text-4);
   transition: color @transition-normal, transform @transition-fast, opacity @transition-normal;
   svg {
     fill: currentColor;
@@ -492,7 +492,7 @@ const toggleComment = () => {
   right: 24px;
   bottom: 4px;
   font-size: var(--qm-fs-2xs, 11px);
-  color: var(--color-font-label);
+  color: var(--qm-text-4);
   opacity: 0.7;
   pointer-events: none;
   max-width: 30%;

@@ -211,7 +211,7 @@ export default {
   display: flex;
   flex-flow: column nowrap;
   overflow: hidden;
-  border-radius: var(--qm-radius-lg, 12px);
+  border-radius: var(--qm-radius-panel);
   color: rgba(255, 255, 255, .92);
   background-color: #29292B;
   box-shadow:

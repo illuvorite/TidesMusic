@@ -26,6 +26,8 @@ const settingStore = createBaseStore<LX.AppSetting>({
     'player.autoSwitchSource',
     'player.isSavePlayTime',
     'player.isAutoCleanPlayedList',
+    'player.isSavePlayHistory',
+    'player.playHistoryMax',
     'player.mediaDeviceId',
     'player.audioVisualization',
     'desktopLyric.enable',

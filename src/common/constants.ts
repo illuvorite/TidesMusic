@@ -47,6 +47,17 @@ export const DATA_KEYS = {
   lastStartInfo: 'lastStartInfo',
 
   openApiToken: 'openApiToken',
+
+  // 本地曲库（扫描目录 + 上次扫描结果）。
+  // 存的是本机文件路径，属「机器本地」数据，因此走 data store 而不是设置项，也不参与同步。
+  localLibrary: 'localLibrary',
+
+  // 单曲指定音质（键为歌曲 id，值为 LX.Quality）。
+  // 不写进歌单数据：同一首歌可能出现在多个列表里，按 id 存一份即可全局生效。
+  musicQualityOverrides: 'musicQualityOverrides',
+
+  // 歌单回收站（删除歌单的快照，可还原）。机器本地数据，不参与同步。
+  listTrash: 'listTrash',
 } as const
 
 export const DEFAULT_SETTING = {

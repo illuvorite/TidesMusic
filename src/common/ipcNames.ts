@@ -135,6 +135,14 @@ const modules = {
     clear_music_url: 'clear_music_url',
     get_music_url_count: 'get_music_url_count',
 
+    // 播放历史（「最近播放」持久化 + 个性化推荐输入）
+    get_play_history: 'get_play_history',
+    add_play_history: 'add_play_history',
+    add_play_history_multiple: 'add_play_history_multiple',
+    remove_play_history: 'remove_play_history',
+    clear_play_history: 'clear_play_history',
+    get_play_history_count: 'get_play_history_count',
+
     open_api_action: 'open_api_action',
     sync_action: 'sync_action',
     sync_get_server_devices: 'sync_get_server_devices',

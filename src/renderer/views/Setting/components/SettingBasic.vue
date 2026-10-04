@@ -238,9 +238,9 @@ export default {
     }
 
     &.active {
-      color: var(--color-primary-font-active);
+      color: var(--qm-primary-active);
       .bg {
-        border-color: var(--color-primary-font-active);
+        border-color: var(--qm-primary-active);
       }
 
       &:hover {
@@ -280,9 +280,9 @@ export default {
     &.auto {
 
       &.active {
-        color: var(--color-primary-font-active);
+        color: var(--qm-primary-active);
         .bg {
-          border-color: var(--color-primary-font-active);
+          border-color: var(--qm-primary-active);
         }
       }
 
@@ -374,7 +374,7 @@ export default {
       flex-direction: row;
       width: auto;
       gap: 5px;
-      color: var(--color-primary-font-active);
+      color: var(--qm-primary-active);
       .label {
         height: auto;
       }

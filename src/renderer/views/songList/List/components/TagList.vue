@@ -160,7 +160,7 @@ onBeforeUnmount(() => {
 
 .label {
   padding: 8px 15px;
-  // background-color: var(--color-button-background);
+  // background-color: var(--qm-hover);
   transition: color @transition-normal;
   // border-top: 2px solid @color-tab-border-bottom;
   // border-left: 2px solid @color-tab-border-bottom;

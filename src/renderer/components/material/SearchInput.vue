@@ -375,7 +375,7 @@ export default {
     height: 31px;
     padding: 0 9px 0 11px;
     border-radius: var(--qm-radius-chip, 999px);
-    background-color: var(--home-field-bg, rgba(0, 0, 0, .08));
+    background-color: var(--qm-field, rgba(0, 0, 0, .08));
     box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .04);
     transition: background-color var(--transition-base), box-shadow var(--transition-base);
 
@@ -391,7 +391,7 @@ export default {
       border: none;
       outline: none;
       background-color: transparent;
-      color: var(--home-text, rgb(74, 74, 74));
+      color: var(--qm-text-2, rgb(74, 74, 74));
       font-size: var(--qm-fs-md, 14px);
       overflow: hidden;
 
@@ -471,7 +471,7 @@ export default {
     z-index: 32;
     min-width: 158px;
     padding: var(--qm-sp-2, 6px);
-    border-radius: var(--qm-radius-md, 10px);
+    border-radius: var(--qm-radius-card);
     background-color: var(--qm-card);
     box-shadow: 0 12px 32px rgba(0, 0, 0, .16), 0 0 0 1px rgba(0, 0, 0, .04);
   }
@@ -543,7 +543,7 @@ export default {
     flex-flow: row nowrap;
     width: 520px;
     max-height: min(420px, calc(100vh - 140px));
-    border-radius: var(--qm-radius-lg, 12px);
+    border-radius: var(--qm-radius-panel);
     background-color: var(--qm-card);
     box-shadow: 0 12px 32px rgba(0, 0, 0, .16), 0 0 0 1px rgba(0, 0, 0, .04);
     overflow: hidden;
@@ -649,8 +649,8 @@ export default {
     transition: height 200ms var(--ease-out);
     transition-property: height;
     overflow: hidden;
-    border-radius: var(--qm-radius-lg, 12px);
-    background-color: #fff;
+    border-radius: var(--qm-radius-panel);
+    background-color: var(--qm-card);
     box-shadow: 0 12px 32px rgba(0, 0, 0, .16), 0 0 0 1px rgba(0, 0, 0, .04);
 
     ul {

@@ -10,7 +10,7 @@ const afterPack = require('./build-after-pack')
 */
 const options = {
   appId: 'cn.toside.music.desktop',
-  productName: 'lx-music-desktop',
+  productName: 'TidesMusic',
   beforePack,
   afterPack,
   protocols: {
@@ -48,10 +48,18 @@ const options = {
   publish: [
     {
       provider: 'github',
-      owner: 'lyswhut',
-      repo: 'lx-music-desktop',
+      owner: 'illuvorite',
+      repo: 'TidesMusic',
     },
   ],
+}
+
+// 可选：通过环境变量指定「已解压好的 Electron 目录」，让 electron-builder 走「复制」而不是
+// 「解压到 win-unpacked.tmp 再重命名」的流程。某些环境（文件被占用 / 安全软件扫描 electron.exe）
+// 下对包含 electron.exe 的目录执行 rename 会返回 EPERM，导致打包卡在
+// "rename 'win-unpacked.tmp' -> 'win-unpacked'"。未设置该变量时行为与原来完全一致。
+if (process.env.LX_ELECTRON_DIST) {
+  options.electronDist = process.env.LX_ELECTRON_DIST
 }
 /**
  * @type {import('electron-builder').Configuration}
@@ -60,7 +68,7 @@ const options = {
 const winOptions = {
   win: {
     icon: './resources/icons/icon.ico',
-    legalTrademarks: 'lyswhut',
+    legalTrademarks: 'illuvorite',
     // artifactName: '${productName}-v${version}-${env.ARCH}-${env.TARGET}.${ext}',
   },
   nsis: {
@@ -69,7 +77,7 @@ const winOptions = {
     allowToChangeInstallationDirectory: true,
     // differentialPackage: true,
     license: './licenses/license.rtf',
-    shortcutName: 'LX Music',
+    shortcutName: '潮汐音乐',
   },
 }
 /**
@@ -78,7 +86,7 @@ const winOptions = {
  */
 const linuxOptions = {
   linux: {
-    maintainer: 'lyswhut <lyswhut@qq.com>',
+    maintainer: 'illuvorite <illuvorite@users.noreply.github.com>',
     // artifactName: '${productName}-${version}.${env.ARCH}.${ext}',
     icon: './resources/icons',
     category: 'Utility;AudioVideo;Audio;Player;Music;',
@@ -88,9 +96,9 @@ const linuxOptions = {
       // https://specifications.freedesktop.org/desktop-entry-spec/latest/example.html
       // https://developer.gnome.org/documentation/guidelines/maintainer/integrating.html#desktop-files
       entry: {
-        Name: 'LX Music',
-        'Name[zh_CN]': 'LX Music',
-        'Name[zh_TW]': 'LX Music',
+        Name: 'TidesMusic',
+        'Name[zh_CN]': '潮汐音乐',
+        'Name[zh_TW]': '潮汐音樂',
         Encoding: 'UTF-8',
         MimeType: 'x-scheme-handler/lxmusic',
         StartupNotify: 'false',
@@ -129,7 +137,7 @@ const macOptions = {
         path: '/Applications',
       },
     ],
-    title: 'LX Music v${version}',
+    title: '潮汐音乐 v${version}',
   },
 }
 

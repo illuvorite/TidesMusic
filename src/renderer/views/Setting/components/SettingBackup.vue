@@ -33,6 +33,9 @@ import {
 import {
   showSelectDialog,
   openSaveDir,
+  getPlayHistory,
+  addPlayHistoryMultiple,
+  clearPlayHistory,
 } from '@renderer/utils/ipc'
 // import { currentStting } from '../setting'
 import { dialog } from '@renderer/plugins/Dialog'
@@ -42,6 +45,7 @@ import { getListMusics, overwriteListFull, overwriteListMusics } from '@renderer
 import { LIST_IDS } from '@common/constants'
 import { defaultList, loveList, userLists } from '@renderer/store/list/state'
 import { appSetting, updateSetting } from '@renderer/store/setting'
+import { loadPlayHistory } from '@renderer/store/playHistory'
 import migrateSetting from '@common/utils/migrateSetting'
 
 
@@ -128,6 +132,18 @@ export default {
       updateSetting(setting)
     }
 
+    /**
+     * 恢复播放历史：整批替换而不是合并。
+     * 恢复的语义是「回到备份那一刻的状态」，合并会引入两边都解释不了的混合结果。
+     * 备份里存的就是原始行（musicInfo 为 JSON 字符串），直接落库即可。
+     */
+    const importPlayHistory = async(rows) => {
+      const valid = rows.filter(row => row?.id && typeof row.musicInfo === 'string')
+      await clearPlayHistory()
+      if (valid.length) await addPlayHistoryMultiple(valid, 0)
+      // 让内存里的「最近播放」立刻与库一致，否则要等重启
+      await loadPlayHistory(true)
+    }
 
     const importAllData = async(path) => {
       let allData
@@ -147,6 +163,8 @@ export default {
         case 'allData_v2':
           await importNewListData(allData.playList)
           importNewSettingData(allData.setting)
+          // 播放历史是 v2 备份后来才加进去的，旧备份没有这个字段
+          if (Array.isArray(allData.playHistory)) await importPlayHistory(allData.playHistory)
           break
         default: { showImportTip(allData.type) }
       }
@@ -173,10 +191,13 @@ export default {
     }
 
     const exportAllData = async(path) => {
+      // 播放历史也一并备份：它是「最近播放」与个性化推荐的输入，丢了要靠重新听歌慢慢补
+      const playHistory = await getPlayHistory(1000000, 0)
       let allData = {
         type: 'allData_v2',
         setting: { ...appSetting },
         playList: await getAllLists(),
+        playHistory,
       }
       void window.lx.worker.main.saveLxConfigFile(path, allData)
     }

@@ -101,7 +101,7 @@
 //   'table_download_list',
 // ]
 
-type Tables = 'db_info'
+export type Tables = 'db_info'
 | 'my_list'
 | 'my_list_music_info'
 | 'index_my_list_music_info'
@@ -113,6 +113,8 @@ type Tables = 'db_info'
 | 'music_url'
 | 'download_list'
 | 'dislike_list'
+| 'play_history'
+| 'index_play_history'
 
 const tables = new Map<Tables, string>()
 
@@ -225,7 +227,25 @@ tables.set('dislike_list', `
     "meta" TEXT
   );
 `)
+// 播放历史：记录「听过的歌」，用于「最近播放」页与个性化推荐的输入。
+// 此前这些数据只存在渲染进程内存里（playedList），重启即丢；
+// 而且该内存列表只在「随机播放」模式下写入，导致默认模式下「最近播放」始终为空。
+// 这里落库后：① 重启不丢；② 任何播放模式都会记录；③ 可按 max 条数淘汰旧记录。
+tables.set('play_history', `
+  CREATE TABLE "play_history" (
+    "id" TEXT NOT NULL,
+    "musicInfo" TEXT NOT NULL,
+    "playedAt" INTEGER NOT NULL,
+    "playCount" INTEGER NOT NULL,
+    PRIMARY KEY("id")
+  );
+`)
+tables.set('index_play_history', `
+  CREATE INDEX "index_play_history" ON "play_history" (
+    "playedAt"
+  );
+`)
 
 export default tables
 
-export const DB_VERSION = '2'
+export const DB_VERSION = '3'

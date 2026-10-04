@@ -13,6 +13,7 @@ import {
   removePlayedList,
 } from '@renderer/store/player/action'
 import { appSetting } from '@renderer/store/setting'
+import { recordPlayHistory } from '@renderer/store/playHistory'
 import { getMusicUrl, getPicPath, getLyricInfo } from '../music/index'
 import { filterList } from './utils'
 import { tryAutoSwitchSource } from './autoSwitchSource'
@@ -207,6 +208,12 @@ const handlePlay = () => {
   const musicInfo = playMusicInfo.musicInfo
 
   if (!musicInfo) return
+
+  // 播放历史落库：任何播放模式都记录。
+  // 注意不要复用 playedList —— 它只在「随机播放」模式下写入（见下面 addPlayedList 的条件），
+  // 且只存在于内存，重启即丢；「最近播放」因此需要在默认模式下也能有数据。
+  // 上面的 restorePlayInfo 分支已 return，所以启动时恢复上次播放不会被重复记录。
+  recordPlayHistory(musicInfo)
 
   setStop()
   window.app_event.pause()

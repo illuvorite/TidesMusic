@@ -27,8 +27,15 @@ module.exports = merge(baseConfig, {
   ],
   optimization: {
     minimize: buildConfig.minimize,
+    // 关闭模块拼接：防止 #private 字段类被破坏（与主进程同因）
+    concatenateModules: false,
     minimizer: [
-      new TerserPlugin(),
+      new TerserPlugin({
+        terserOptions: {
+          compress: { keep_classnames: true },
+          mangle: { keep_classnames: true },
+        },
+      }),
     ],
   },
   performance: {

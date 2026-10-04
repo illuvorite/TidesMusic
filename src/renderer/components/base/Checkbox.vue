@@ -138,8 +138,8 @@ export default {
       .container {
         color: #fff;
         &:after {
-          border-color: var(--qm-primary, var(--color-primary-font));
-          background-color: var(--qm-primary, var(--color-primary-font));
+          border-color: var(--qm-primary);
+          background-color: var(--qm-primary);
         }
       }
       .icon {
@@ -168,12 +168,12 @@ export default {
     bottom: 0;
     left: 0;
     right: 0;
-    border: 1.5px solid var(--qm-line-2, var(--color-font-label));
+    border: 1.5px solid var(--qm-line-2, var(--qm-text-4));
     transition: border-color var(--qm-t-fast), background-color var(--qm-t-fast);
     border-radius: var(--qm-radius-xs, 6px);
   }
   &:hover:after {
-    border-color: var(--qm-primary, var(--color-accent));
+    border-color: var(--qm-primary);
   }
   &:active {
     transform: scale(0.92);

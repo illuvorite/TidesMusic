@@ -84,9 +84,7 @@
             <div class="name-wrap">
               <div class="name-main">
                 <span class="select name">{{ item.name }}</span>
-                <span v-if="item.meta._qualitys.flac24bit" class="no-select badge badge-theme-secondary">母带</span>
-                <span v-else-if="item.meta._qualitys.ape || item.meta._qualitys.flac || item.meta._qualitys.wav" class="no-select badge badge-theme-primary">SQ</span>
-                <span v-else-if="item.meta._qualitys['320k']" class="no-select badge badge-theme-secondary">HQ</span>
+                <span v-if="getQualityTag(item)" class="no-select badge" :class="getQualityTag(item).cls">{{ getQualityTag(item).label }}</span>
                 <span v-if="isShowSource" class="no-select badge badge-theme-tertiary">{{ item.source }}</span>
                 <button
                   type="button" class="row-play" :aria-label="$t('list__play')" :title="$t('list__play')"
@@ -135,9 +133,7 @@
             <div class="name-wrap">
               <div class="name-main">
                 <span class="select name">{{ item.name }}</span>
-                <span v-if="item.meta._qualitys.flac24bit" class="no-select badge badge-theme-secondary">母带</span>
-                <span v-else-if="item.meta._qualitys.ape || item.meta._qualitys.flac || item.meta._qualitys.wav" class="no-select badge badge-theme-primary">SQ</span>
-                <span v-else-if="item.meta._qualitys['320k']" class="no-select badge badge-theme-secondary">HQ</span>
+                <span v-if="getQualityTag(item)" class="no-select badge" :class="getQualityTag(item).cls">{{ getQualityTag(item).label }}</span>
                 <span v-if="isShowSource" class="no-select badge badge-theme-tertiary">{{ item.source }}</span>
                 <button
                   type="button" class="row-play" :aria-label="$t('list__play')" :title="$t('list__play')"
@@ -448,6 +444,17 @@ export default {
       list.value.forEach((item, index) => { handleSelectData(index) })
     }
 
+    // 音质角标：_qualitys 可能整体缺失（本地导入歌曲、换源缓存、旧版本歌单的脏数据），
+    // 必须走可选链读取；否则模板直接取属性会抛 TypeError，导致整个列表渲染失败。
+    const getQualityTag = (item) => {
+      const qualitys = item?.meta?._qualitys
+      if (!qualitys) return null
+      if (qualitys.flac24bit) return { label: window.i18n.t('player__quality_master'), cls: 'badge-theme-secondary' }
+      if (qualitys.ape || qualitys.flac || qualitys.wav) return { label: 'SQ', cls: 'badge-theme-primary' }
+      if (qualitys['320k']) return { label: 'HQ', cls: 'badge-theme-secondary' }
+      return null
+    }
+
     return {
       isHeadCollapsed,
       onListScroll,
@@ -458,6 +465,7 @@ export default {
       userLists,
       isLoved,
       getCoverUrl,
+      getQualityTag,
       listItemHeight,
       handleListItemClick,
       selectedList,
@@ -663,7 +671,7 @@ export default {
 
   :global(.list-item) {
     &.active {
-      color: var(--color-button-font);
+      color: var(--qm-text-3);
     }
   }
   :global {
@@ -694,7 +702,7 @@ export default {
   align-items: center;
   justify-content: center;
 
-  color: var(--color-button-font);
+  color: var(--qm-text-3);
   opacity: .7;
 }
 .content {
@@ -717,7 +725,7 @@ export default {
 
   p {
     font-size: var(--qm-fs-5xl, 24px);
-    color: var(--color-font-label);
+    color: var(--qm-text-4);
   }
 }
 

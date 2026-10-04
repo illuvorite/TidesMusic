@@ -889,8 +889,449 @@ export const getRootOrigin = () => {
   `Page.reload` 后恢复正常。现象与 ㉝ 同源（挂载竞态），需单独定位。
 - **CDP 调试注意**：`router.push()` 有时会 `resolve` 但 `currentRoute` 不变（本轮多次命中），
   模拟点击侧栏反而稳定；`location.hash = ...` 在本应用里不触发导航。
+## ㉕ 搜索「专辑 / 歌手」结果类型（2026-10-01）
+
+- **背景**：搜索页此前只有「歌曲 / 歌单」两个结果类型，而 QQ 音乐、网易云都有「单曲 / 歌单 / 专辑 / 歌手 / MV / 歌词」多栏。底层虽有 `album.js`（kg/kw/mg），但只支持**按 id 取详情**，不含**按关键词搜索**；且 `album.js` 没有被各源 `index.js` 引用，等于完全没接上界面。
+- **接口实测**（先验后写，网易云 `/api/search/get/web` 明文接口）：
+  | type | 含义 | 结果 |
+  | --- | --- | --- |
+  | 1 | 单曲 | 200，出数据 |
+  | 10 | 专辑 | 200，出数据 |
+  | 100 | 歌手 | 200，出数据（`artistCount` 同步返回） |
+- **实现**：
+  - 新增 `utils/musicSdk/wy/mediaSearch.js`：`searchAlbum()` / `searchSinger()`，走 `eapiRequest('/api/search/get/web')`，含 3 次失败重试、封面统一升级为 `400y400`、发布时间的秒/毫秒兼容（`< 1e11` 视为秒）。该目录是 `.js`，因此用 JSDoc 而非 TS 语法声明类型。
+  - `wy/index.js` 导出 `mediaSearch`。
+  - 新增 `store/search/media.ts`：专辑/歌手两份响应式列表状态 + `searchMedia()`，带 `key` 去重、并发丢弃（`info.key != key` 即回退）、结果 `markRaw`（否则播放链路 IPC 会抛 "An object could not be cloned"）。
+  - 新增 `views/Search/MediaList/index.vue`：专辑走方形封面网格、歌手走圆形头像网格（复用歌手页观感），复用全局 `material/Pagination` 分页；封面加载失败自动降级为「首字」占位，不出破图。
+  - 搜索页页签由 2 个扩为 4 个：`search__type_album` / `search__type_singer`，三语言文案齐全。
+- **音源限制的处理**：专辑/歌手搜索目前**只有网易云有可用接口**，其余音源无对应能力。因此在组件内按 `sourceId` 判断，非 `wy` 时显示引导文案 + 「切换到网易云音乐」按钮（`search__media_source_tip`），而不是给一个空列表或报错。
+- **顺带修掉**：仓库根目录散落着一个 2.2MB 的 `renderer.js`（webpack 误输出位置，构建产物却未被 `.gitignore` 覆盖）。已删除并补 `/renderer.js` 忽略规则。
+- **验证**：`tsc --noEmit` 无 src 侧错误；`eslint` 全绿；`npm run build:renderer` 编译通过（仅既有 `SoundEffectBtn` 的 `v-html` 警告）；三语言 JSON 解析通过。
+
+## ㉖ 任意列表可看单曲评论（2026-10-01）
+
+- **背景**：评论能力其实**早就写好了** —— `comment.js` 五个音源齐备、`MusicComment` 面板有热门/最新双页签 + 分页 + 逐条回复，但它**只挂在播放全屏页**（`layout/PlayDetail`），也就是说只有「正在播放的那首歌」能看评论。QQ 音乐 / 网易云在歌单、搜索结果、排行榜等任意列表里都能对单曲看评论。
+- **实现**：
+  - 新增 `store/player/commentModal.ts`：全局评论弹层状态 + `showMusicComment()` / `hideMusicComment()`。
+  - 新增 `components/common/MusicCommentModal.vue`：复用现成的 `MusicComment` 面板，外面套一层居中弹层（`--qm-*` token、点遮罩/点关闭/点面板内评论区的刷新均已接好），挂在 `App.vue` 顶层（与 `layout-setting` 同级），因此**任何页面**都能唤起。
+  - `OnlineList/useMenu.js` 新增「歌曲评论」菜单项，显隐条件 `source != 'local' && !!musicSdk[source]?.comment`（本地歌曲与无 comment 实现的音源自动置灰）；`useMusicActions.js` 新增 `handleShowMusicComment()`。
+  - i18n 新增 `list__comment`，三语言齐全。
+- **注意**：面板内 `MusicComment` 原先用 `setWidth()` 按 `parentNode.clientWidth * 0.5` 定宽（因为它原本并排在播放页右侧），在弹层里用 `:global(.comment)` 覆写为 `width: 100%`，避免宽度被算成半屏。
+
+## ㉗ 乐馆专题页签接真实数据（2026-10-01）
+
+- **背景**：乐馆 10 个页签里有 6 个是**纯占位**（听书 / 数字专辑 / 音质专区 / 边听边玩 / 视频 / 频道），点进去只有一句「频道暂未接入」和一个「回到精选」按钮。
+- **先验后写**：完全按 `tx/leaderboard.js` 里 `regExps` 的真实正则与请求体复现接口，逐个验证哪些榜真能出数据：
+
+  | 榜 | bangid | 结果 |
+  | --- | --- | --- |
+  | 影视金曲榜 | 29 | code=0，**100 首**（首条「她 - 刘宇宁」） |
+  | 综艺新歌榜 | 64 | 可用 |
+  | 动漫音乐榜 | 72 | code=0，**100 首**（首条「过海 - 王赫野,黄龄」） |
+  | 游戏音乐榜 | 73 | code=0，**110 首** |
+  | 热歌榜（对照） | 26 | code=0，300 首（说明复现方式正确） |
+  | **有声榜** | **75** | **period 不在榜单页 → 不可用** |
+
+- **关键发现（决定了实现方案）**：`getPeriods()` 从 `c.y.qq.com/node/pc/wk_v15/top.html` 用正则解析 period，而该页**只含 29 个榜，不含有声榜(75)**。于是 `getPeriods(75)` 返回 `undefined`，`getList(75)` 会重试 3 次后 reject。**所以「听书」不能走榜单这条路** —— 这是平台未开放，不是代码问题。
+- **实现**：
+  - 新增 `views/Home/components/TopicBoards.vue`：通用专题榜组件，加载各 bangid 的榜单并渲染成与「排行」页一致的榜单卡片（封面 + 榜名 + 前 3 首），点击进已有的 `/home/board` 榜单详情页。
+  - 逐个 `await` + 各自 `catch`（**不用 `Promise.all`**）：单个榜失败不影响其余榜渲染；全部失败才显示「加载失败 + 重试」。
+  - `MusicHall.vue` 新增 `topicBoardsMap`：`video → [影视金曲榜, 综艺新歌榜]`、`game → [动漫音乐榜, 游戏音乐榜]`。
+  - 非 tx 音源（`leaderboard.getList` 不可用）→ 提示「该音源暂未提供，请切换到 QQ 音乐」而非空白。
+- **无公开内容源的 4 个页签**：不再只写「暂未接入」，改为给出**具体原因 + 替代入口**：
+  | 页签 | 原因 | 替代入口 |
+  | --- | --- | --- |
+  | 听书 | 有声榜未在公开榜单接口开放 | 改看分类歌单 |
+  | 数字专辑 | 需购买/授权，无公开内容源 | 改看分类歌单 |
+  | 音质专区 | 需会员鉴权后才能拉取 | 改看排行 |
+  | 频道 | 运营位聚合，无公开接口 | 回到精选 |
+- **踩坑**：新组件一开始用 `<script setup lang="ts">`，构建报 **TS7053** —— `musicSdk` 是按 `LX.OnlineSource` 建的受限索引类型，用 `string` 索引会报错。项目里 `MusicHall.vue` / `BoardDetail.vue` 都用**不带 `lang="ts"`** 的 `<script setup>` 正是为此。改为一致写法后构建通过。**注意 `tsc --noEmit` 查不出 .vue 里的这类错误，只有 webpack 构建才会暴露。**
 
 ---
+
+## ㉘ 全面审查后的「止血」修复（2026-10-01）
+
+背景：对全量源码做了一次审查（报告落盘 `docs/project-audit-2026-10-01.html`，UI 层 173 条问题：P0=0 / P1=39 / P2=110 / P3=24）。
+经确认**不做**：MV/视频、播客/听书、云盘、数字专辑、社交关系链、一起听（受「无账号 + 无服务端内容源」架构限制）。
+本轮只做「用户能直接感知的不完整」与「功能性失效」，全部改动经 `build:renderer` 编译通过（0 error）。
+
+### ① 深色主题白底白字（功能性失效）
+- 根因说明：`--qm-card` 实际是 `var(--color-main-background)`，**会跟随主题**（如 `black` 主题为 `rgba(19,19,19,.9)`），
+  而 `--qm-text-*` 派生自主题字体色阶 —— 两者本身是配套的。**真正的问题只是少数地方写死了 `#fff`**，
+  深色主题下形成「白底 + 浅字」。
+- 修复：`base/Menu.vue:96`、`base/Popup.vue:122`、`material/SearchInput.vue:653`（联想下拉）、`layout/Aside/index.vue:1185`（更新面板）四处 `#fff` → `var(--qm-card)`；
+  `Aside` 更新面板内的 `rgba(0,0,0,.02/.03/.04/.06)` 硬编码中性色 → `--qm-hover` / `--qm-line-1`。
+- `Toolbar/index.vue`：导航按钮 `rgb(110,110,110)` / `rgb(180,180,180)` → `--qm-text-3` / `--qm-text-5`；
+  两个绿色入口的 SVG `stroke="#C9C9C9"` → `currentColor`（配 `opacity`），`#fff` → `--qm-text-invert`。
+
+### ② 健壮性：空值保护与裂图兜底
+- **音质角标空值保护**（原为 `item.meta._qualitys.flac24bit`，脏数据会整表渲染报错）：
+  新增 `getQualityTag()` 帮助函数（走可选链、返回 `{label, cls}` 或 `null`），三处替换：
+  `material/OnlineList/index.vue`（两段重复模板）、`views/List/MusicList/index.vue`（两段）、
+  `components/layout/PlayBar/MiniWidthProgress.vue`（播放队列）。
+- **裂图兜底逻辑写反**：`views/Search/MediaList/index.vue` 原先 `@error` 只把 `<img>` 隐藏，
+  而首字占位的渲染条件是 `v-if="item.img"` → 图片存在时占位不渲染，加载失败后封面变空白。
+  改为用 `brokenCovers` Set 记录损坏 key，坏图时改走占位分支（`coverInitial()` 对空名字兜底为 `♪`）。
+- **专辑封面完全无兜底**：`views/Singer/Detail/index.vue` 精选「最新专辑」与「专辑」页签两处 `<img>` 补 `@error`，
+  同样用 `brokenAlbumCovers` Set 控制。
+- 顺带修掉该文件 `getAlbumList(..., page === 1 ? ALBUM_LIMIT : ALBUM_LIMIT)` 的三元两侧同值无效代码。
+
+### ③ 半成品入口清理
+- **乐馆 4 个无内容源页签整体移除**（听书 / 数字专辑 / 音质专区 / 频道）：页签由 10 项减为 6 项
+  （精选 / 排行 / 歌手 / 分类歌单 / 边听边玩 / 视频），**全部有真实内容源**。
+  `resolveTab()` 会把旧链接里的这些取值回落到「精选」；同时删除已无引用的
+  `UNSUPPORTED_TAB_DESC` / `UNSUPPORTED_TAB_FALLBACK` / `tabLabel` / `activeTabLabel` 与 `.squareTip*` 样式。
+- **主题中心「桌面装扮」整段移除**：该分区三个页签（动态桌面 / 歌词气泡 / 歌词特效）**没有任何 `@click`**，
+  内容区只有一句「敬请期待」。已删除顶部入口按钮、`<template v-else>` 区块、`section` 状态与
+  `.titleSub` / `.desktopEmpty` 样式，页面只剩「主题」一个分区。
+- **最近播放占位页删除**：`views/Home/Recent.vue` 整页只有「即将上线」且用旧 token。
+  路由 `/home/recent` 改为 `redirect: '/list/recent'`，同一功能不再有两个入口两种实现。
+
+### ④ 死代码清理（均为 git 跟踪文件，可按需 `git checkout` 恢复）
+- 删除 `components/layout/HomeSidebar/**`（`index.vue` 526 行 + `useHomeSidebarMenu.ts`）：
+  已全局注册但**无任何模板引用**，App.vue 用的是 `layout-aside`，属两套侧栏并存。
+- 侧栏「自建歌单 | 收藏歌单」语义矛盾修复：原实现两个标题挂在**同一个合并列表**上。
+  新增 `playlistEntries` 计算属性，按 `userLists` 是否带 `source` 真实分组渲染，
+  并保留每项在扁平列表中的原始下标（重命名 / 右键菜单仍按扁平下标定位，行为不变）。
+  `data-aside-section-header` 只挂在第一组标题上，`＋` 弹层定位逻辑不受影响。
+
+### ⑤ 三态体系与缺失分页
+- **新增公共组件 `components/common/EmptyState.vue`**（注册名 `<common-empty-state>`）：
+  一个组件承载「加载中 / 空数据 / 失败可重试」三态，内置旋转指示器（尊重 `prefers-reduced-motion`）、
+  图标圆底、主文案 + 说明 + 操作按钮、`compact` 紧凑模式。用于取代此前散落的 8 套实现。
+- **榜单详情 `views/Home/BoardDetail.vue`**：
+  - 补失败态 + 重试（原错误态只有一个「返回乐馆」按钮）；
+  - 补**增量渲染**：接口（tx 榜单）一次返回最多 300 首且 `page` 恒为 1，**没有服务端分页**，
+    原先 300 行塞进普通 `<ul>` 会明显卡顿。改为滚动到底部再追加 60 首，底部显示「向下滚动加载更多… / 没有更多了」。
+- **排行榜左栏 `views/Leaderboard/BoardList/index.vue`**：补三态。
+  顺带修掉一个潜在崩溃：`getBoardsList()` 内部 `musicSdk[source]?.leaderboard.getBoards()` 只在
+  `musicSdk[source]` 上做了可选链，音源存在但无 `leaderboard` 实现时会直接抛错 —— 统一用 try/catch 兜住。
+  该文件同时完成 token 迁移（`--color-primary*` → `--qm-*`）。
+- **乐馆精选 / 排行**：原来的「加载中… / 该平台暂时没有取到歌单」纯文字，改为 `common-empty-state`
+  并给出「重新获取」按钮（回到与歌手页一致的口径）。
+
+### ⑥ 功能层 bug
+- **「最近播放」双击无法播放（P0 级）**：`views/List/Recent.vue` 调用
+  `playListById(LIST_IDS.DEFAULT, idx)`，把**下标**传给了签名为 `(listId, id)` 的函数，
+  内部 `getList(listId).find(m => m.id == id)` 永远匹配不到 → 返回前就 return，点了没反应。
+  改为「把去重后的最近播放列表 `setTempList('recent_play', …)` 设为播放队列，再 `playList(LIST_IDS.TEMP, idx)`」，
+  与其它列表页一致。
+- **首页「喜欢」重复添加**：`views/Home/CustomList.vue` 原先直接 `addListMusics`，不判断是否已收藏、
+  不能取消、连点会重复入库。改用全局共享的 `useLovedList()`（按「歌名 + 歌手」去重，
+  与播放栏 / 列表 / 榜单爱心状态实时同步），按钮图标随收藏态变化。
+- **首页私藏歌单串行阻塞**：`views/Home/index.vue` 的 `loadPrivateLists()` 由 10 次串行 `await`
+  改为 `Promise.all` 并发（歌单之间互不依赖），输出顺序保持与 ids 一致。
+
+### ⑦ 响应式与 token 收敛（本轮范围内）
+- 新增 token `--qm-tile-bg` / `--qm-tile-bg-active`（侧栏快捷块填充，由「墨色」透明度派生，深浅主题自适应），
+  取代 `--home-tile-bg*`；删除 `index.less` 中该别名的**两处重复定义**（原第 381/382 与 559/560 行）。
+- `Toolbar/index.vue` 中 `--home-*` 全部清零；`Aside/index.vue` 中 `--home-*` 由 34 处降为 0。
+- `Leaderboard/index.vue` 的 `.lists` 补 `min-width: 168px`：原先 `width: 14.8%` 无下限，
+  1000px 窗口下只剩约 148px，榜单名被压成一列。
+- `Toolbar/index.vue`：绿色入口文案与跳转目标对齐（原标注「免费音源」实跳歌单广场，现改标「歌单广场」）。
+
+### 待人工验证
+- 深色主题（设置 → 主题 → 「黑灯瞎火」）下：右键菜单、联想下拉、侧栏更新面板、播放队列的底/字对比度。
+- 「最近播放」双击播放（本次修的是 P0，务必实测一次）与首页「喜欢」的二次点击取消。
+- 榜单详情滚动到底部的增量加载；排行榜左栏在不可用音源下的失败态与重试。
+
+---
+
+## ㉙ 设计 token 全量收敛（2026-10-01，第二阶段）
+
+目标：让全项目只剩**一套**设计 token。前提是先解决「同一份样式在深浅两种画布下要表现相反」的结构问题。
+
+### 1. 先打通 PlayDetail 的「两层语义」（关键前置）
+- **问题**：项目里并存两套写法 —— 老的 `--color-*` 与新的 `--qm-*`。播放详情页是深色画布，
+  它只在根节点**局部覆写**了 `--color-font` / `--color-content-background` / `--color-primary` 等旧变量，
+  **没有覆写 `--qm-*`**。
+- **后果**：浅色主题（默认）下，深色画布内任何使用 `--qm-text-*` 的组件都会拿到主应用的深色文字
+  → 深底配深字不可读。这既是存量 bug，也是收敛迁移的最大地雷。
+- **修复**：在 `PlayDetail/index.vue` 的根节点补一段 `--qm-*` 镜像覆写
+  （`--qm-text-1..5` / `--qm-card` / `--qm-surface` / `--qm-hover(-strong)` / `--qm-line-1/2` /
+  `--qm-tile-bg(-active)` / `--qm-field` / `--qm-primary-soft(-hover)` / `--qm-primary-border` / `--qm-text-active`），
+  全部切到白系低透明。**两层一起覆写后，组件无论用新旧哪种写法、渲染在哪一层，表现都一致。**
+
+### 2. 删除 `--home-*` 别名体系
+- 迁移最后 11 处使用（`App.vue` ×8、`material/SearchInput.vue` ×2、`Setting/index.vue` ×1）。
+- 删除 `index.less` 中该别名的**两处定义块**（原「设计稿固定值」块与「别名指向 --qm-*」块，共 29 行）。
+  这是此前「旧写法一直能跑」的根源，删掉后旧写法彻底失效。
+- 结果：全项目 `--home-*` **归零**。
+
+### 3. 全局收敛旧语义 token（64 个文件 / 258 处）
+按「语义等价」映射批量替换（脚本执行，逐个文件核对）：
+
+| 旧写法 | 新 token |
+| --- | --- |
+| `--color-font` | `--qm-text-2` |
+| `--color-font-label` | `--qm-text-4` |
+| `--color-surface-base` | `--qm-surface` |
+| `--color-content-background` | `--qm-surface` |
+| `--color-main-background` | `--qm-card` |
+| `--color-border-subtle` / `--color-divider` | `--qm-line-1` |
+| `--color-border` / `--color-border-strong` | `--qm-line-2` |
+| `--color-accent` | `--qm-primary` |
+| `--color-accent-soft` | `--qm-primary-soft` |
+| `--color-button-background(-hover)` | `--qm-hover` |
+| `--color-button-background-active` | `--qm-hover-strong` |
+| `--color-button-font` | `--qm-text-3` |
+| `--color-primary-background(-hover)` | `--qm-hover` |
+| `--color-primary-background-active` | `--qm-hover-strong` |
+| `--color-primary-font` | `--qm-primary` |
+| `--color-primary-font-hover` | `--qm-primary-hover` |
+| `--color-primary-font-active` | `--qm-primary-active` |
+
+- **排除项**（必须保留）：`assets/styles/index.less`（token 定义处）、
+  `components/layout/PlayDetail/index.vue`（旧变量兼容层）、
+  含 `extInfo` 的行（主题自身的变量定义，如 `SettingBasic` / `ThemeSelectorModal` 的主题预览）。
+- 顺带清理替换后产生的自引用 fallback `var(--X, var(--X))` 共 13 处。
+
+### 4. 修正「伪装成 token 的硬编码」（36 处）
+一批 `var(--qm-xxx, 硬编码)` 引用的**名字并不存在**，因为有 fallback 所以界面看起来正常，
+实际等于写死的值、永远不跟随 token 调整。已按真实 token 修正：
+
+| 错误名字 | 使用数 | 修正为 | 真实值 |
+| --- | --- | --- | --- |
+| `--qm-radius-lg` | 12 | `--qm-radius-panel` | 12px |
+| `--qm-radius-md` | 19 | `--qm-radius-card` | 10px |
+| `--qm-font-sm` | 3 | `--qm-fs-sm` | 13px |
+| `--qm-border` | 1 | `--qm-line-1` | — |
+| `--qm-text-3-selected` | 1 | `--qm-text-active` | — |
+
+### 5. 其它
+- `index.less` 中 `--color-label` 是**引用但从未定义**的变量（`.tip` 的颜色一直无效），已改为 `--qm-text-4`。
+- `SoundEffectBtn/AdvancedDsp.vue`：品牌色 fallback `#07c556`（非本项目品牌绿）→ `--qm-primary`；
+  开关的 `color: #fff` → `--qm-text-invert`；`rgba(7,197,86,.35)` → `--qm-primary-border`。
+- 新增自检脚本（不进仓库）：扫描全部 `.vue/.less`，比对「使用中的 CSS 变量」与「已定义的变量」，
+  当前**未定义引用 = 0**（仅剩运行期由 JS 注入的 `--pcr-color` / `--line-gap` / `--playdetail-lrc-font-size`
+  与主题预览用的 `--color-primary-theme*`，属预期）。
+
+### 现状与结论
+- `--home-*`：**0 处**（别名体系已删除）。
+- 132 个 `.vue` 中 29 个未出现 `--qm-*`，但**其中 13 个是纯布局**（无任何颜色声明），
+  14 个是 `Setting/components/*` 的 pug 结构组件（样式全由父级与 `components/base/*` 承担）。
+  真正有颜色却未接入的：**0 个**。
+- 保留的 `--color-*` 均为**合法用途**：`--color-primary` 品牌色、`--color-*` 色阶
+  （`--color-1000` / `--color-450` / `--color-primary-alpha-*`）、`--color-danger` 等语义色、
+  以及 `PlayDetail` 的兼容层。
+- 编译：`build:renderer` **0 error**，仅剩既有的 `SoundEffectBtn` `v-html` 警告。
+
+### 待人工验证
+- 切换到「黑灯瞎火」深色主题，逐个走查：右键菜单 / 联想下拉 / 各弹窗 / 侧栏 / 设置页 / 播放队列。
+- 播放详情页（深色画布）在**浅色主题**下：歌词、控制条、队列抽屉、评论面板的文字是否都可读
+  （本轮改动直接影响此处，务必实测）。
+
+---
+
+## ㉚ 播放历史持久化（2026-10-01，第三阶段·功能补齐）
+
+### 背景：为什么必须做
+「最近播放」此前读的是播放器内存里的 `playedList`，存在两个问题：
+
+1. **只在「随机播放」模式下写入** —— 见 `core/player/action.ts`：
+   `if (appSetting['player.togglePlayMethod'] == 'random' && !playMusicInfo.isTempPlay) addPlayedList(...)`。
+   也就是说**默认的列表循环模式下，「最近播放」永远是空的**（这是个存量 bug）。
+2. **重启即丢**（纯内存 `shallowReactive`），且切换列表时会被 `clearPlayedList()` 清掉。
+
+同时，`personalRecommend.ts` 的「听歌风格」分析与相似歌种子选取也读 `playedList`，
+所以推荐长期「吃不饱」—— 历史不持久化会连带拖累每日推荐的质量。
+
+### 实现
+
+**数据层**
+- `tables.ts` 新增 `play_history`（`id` / `musicInfo`(JSON) / `playedAt` / `playCount`，主键 `id`）
+  与索引 `index_play_history`；`DB_VERSION` 2 → 3；`Tables` 联合类型同步补两个名字。
+  - 为什么不拆列存歌名/歌手：`musicInfo` 整体以 JSON 存储，避免元数据结构演进时反复改 schema。
+- 新增 `modules/play_history/{statements,dbHelper,index}.ts`：查询（倒序 + 分页）、
+  **upsert 写入**、按 id 删除、清空、计数、超限淘汰。
+  - 写入用 `INSERT ... ON CONFLICT("id") DO UPDATE`，重复播放时**在原值上累加 `playCount`**；
+    不能用 `INSERT OR REPLACE`（先删后插会把 `playCount` 重置为 1，也让索引无谓抖动）。
+  - 淘汰用 `LIMIT -1 OFFSET ?` 反选出需要删除的旧记录。
+- 在 `modules/index.ts` 与 `dbService/index.ts` 中导出。
+
+**顺带修掉一个迁移隐患**：`migrate.ts` 原来是 `switch (version)`，只处理「当前所处版本」那一段，
+并在结尾直接写入 `DB_VERSION`。于是 **v1 用户升级时会直接跳到最新版本号，中间的迁移段被整段跳过**
+—— 新增 v2 段后，老用户会缺少要建的表，进而被 `verifyDB` 判为校验失败、触发「数据库表结构校验失败」
+弹窗并把库备份走。现改为**依次补跑所有比当前版本新的迁移段**，每个迁移段用 `ensureExists()` 幂等建表。
+
+**IPC 链路**
+- `ipcNames.ts` 新增 5 个通道（get / add / remove / clear / count）。
+- 主进程处理端**新建** `rendererEvent/playHistory.ts` 并在 `rendererEvent/index.ts` 注册。
+  - 没有并入 `music.ts`：该文件带「受保护文件」标记（与 2.12.2 同步），新增功能另开文件避免动它。
+- `renderer/utils/ipc.ts` 新增 5 个封装。
+- 类型：`LX.DBService.PlayHistoryInfo`（主进程）与 `LX.Music.PlayHistoryInfo`（渲染层，同形）。
+
+**渲染层**
+- 新增 `store/playHistory.ts`：`playHistoryList`（最新在前，已去重）+ `loadPlayHistory()`
+  （并发调用共用同一次请求）+ `recordPlayHistory()` + 删除 / 清空；上限 `PLAY_HISTORY_MAX = 1000`。
+  - `markRaw` 包裹后再放进响应式列表，否则对象被代理化后传给 IPC 会抛
+    "An object could not be cloned"（这是本项目踩过的坑）。
+  - `musicInfo` 序列化时先 `toRaw`。
+- **记录时机**：`core/player/action.ts` 的 `handlePlay()` 中调用 `recordPlayHistory(musicInfo)`。
+  选这里是因为它是「开始播放某首歌」的唯一入口（`playList` / `playListById` / `handlePlayNext` 都汇聚到这里），
+  且它**在 `restorePlayInfo` 分支处已提前 return**，所以启动时恢复上次播放不会被误记。
+- `views/List/Recent.vue`：数据源由 `playedList` 换成 `playHistoryList`；
+  补首屏加载态；空态与加载态统一走 `common-empty-state`；清空按钮改调 `clearPlayHistoryAction()`。
+- `components/layout/Aside/index.vue`：侧栏「最近播放」计数改用 `playHistoryList.length`（历史本身已去重）。
+- `utils/personalRecommend.ts`：风格权重分析与相似歌种子改读持久化历史
+  （`playHistoryList` 是「最新在前」，权重与倒序取种的偏移已相应调整）。
+
+### 验证
+- 用 Node 内置 `node:sqlite`（SQLite 3.51.2）实测了这批 SQL（临时脚本，已删除）：
+  - `play_history` / `index_play_history` 建表语句经 `verifyDB` 的归一化比较后**完全一致**（不会被判校验失败）；
+  - upsert 连播三次 `playCount = 3`、`playedAt` 刷新为最新；
+  - 淘汰后恰好保留最新 N 条；`LIMIT ? OFFSET ?` 倒序分页正确。
+  - **迁移路径 4/4 通过**：老库 v1（缺 dislike_list）→ 3、老库 v2 → 3、已是 v3 不动、v2 且已存在该表（幂等）；
+    迁移后的新表可正常写入。
+- 编译：`main` 与 `renderer` 均 **0 error**（仅剩既有的 `SoundEffectBtn` `v-html` 警告）。
+
+### 待人工验证
+- 默认（列表循环）模式下播几首歌 → 侧栏「最近播放」出现计数 → 重启应用 → 历史仍在（**本轮核心修复点**）。
+- 「最近播放」双击播放、右键菜单、清空（两步确认）。
+- 若你的库是旧版本，首次启动应无「数据库表结构校验失败」弹窗。
+
+### 未做（后续可补）
+- 播放历史**纳入数据同步**（`sync` 模块目前只同步 list 与 dislike）与**备份/恢复**（`allData_v2`）。
+- 「历史条数上限 / 是否记录历史」的设置项（当前上限为常量 1000，不提供开关）。
+
+---
+
+## ㉛ 本地曲库扫描（2026-10-01，第三阶段·功能补齐）
+
+### 背景
+主流平台的「本地音乐」是「注册目录 → 扫描 → 形成曲库」，本项目此前只有「手动把文件逐个导入某个歌单」。
+这是与主流平台差距最大的一块。
+
+### 实现（未动数据库 schema）
+存储走主进程已有的通用 JSON data store（`DATA_KEYS.localLibrary`），**不新增表**：
+存的是本机绝对路径，属「机器本地」数据，不参与同步，也不需要为它做数据库迁移。
+
+链路：
+`worker/main/localLibrary.ts`（递归遍历 + 元数据解析）→ `store/localLibrary.ts`（状态 + 持久化）
+→ `views/LocalMusic/index.vue`（歌曲/歌手/专辑/文件夹四视图）→ 路由 `/local` + 侧栏「本地音乐」
+
+### 关键设计点
+- **扫描放在渲染进程的 worker 里**（与 `createLocalMusicInfos` 同一个 worker）。
+  递归遍历 + 逐文件解析元数据是重活，放主线程会卡界面；worker 有 Node 集成，可直接用 `fs`。
+- **遍历的防御性约束**：跳过隐藏项、符号链接（可成环，也会指向别处造成重复）、
+  黑名单目录（`node_modules` / `$recycle.bin` / `System Volume Information` 等）、空目录、
+  以及无权限目录（`readdir` 抛错即跳过该层，不中断整体）。
+  深度上限 `MAX_DEPTH = 12`，避免用户误选整个盘符时把扫描变成「全盘遍历」。
+- **解析串行**、不并发：`music-metadata` 读文件是 IO 密集，串行可避免大曲库时文件句柄被瞬间打满。
+- **进度节流**：每 20 个文件上报一次（+ 最后一次），避免每个文件都 `postMessage`。
+  收集阶段拿不到总数（`total = 0`），此时不显示百分比，避免进度条来回跳。
+- **`markRaw` / `toRaw`**：歌曲对象进响应式容器前 `markRaw`，否则回传 IPC 会抛
+  "An object could not be cloned"。
+- `loadLocalLibrary()` 只读缓存结果，**不在启动时扫描**（文件系统扫描很慢）。
+
+### 顺手修的两个问题
+1. **页签角标显示错误的数字**：`groupList` 是按当前 `view` 计算的，而三个角标都渲染
+   `groupList.length` → 切到「歌曲」页签时，歌手/专辑/文件夹三个角标显示的是同一个（文件夹的）分组数。
+   已改为一次性算好三种分组，各页签取各自的分组数。
+2. **5 个「被引用但未定义」的 i18n 键**：`all`（搜索页音源页签，**用户可见**，页面上直接显示字面量 `all`）、
+   `play`（`SongCard` 的 aria-label）、`forward` / `refresh`（工具栏）、`music_source`（搜索框音源徽标）。
+   i18n 的缺失键回退是「返回键名本身」，所以这类问题构建不报错、只在界面上露出键名。已补齐三语。
+
+### 验证方式
+把 `localLibrary.ts` 里的真实常量与 `collectAudioFiles` 用 TypeScript 编译器剥掉类型标注后，
+在 plain Node 下跑，并对**真实创建**的目录树做断言（**17/17 通过**）：
+扩展名大小写（`.FLAC`）、非音频排除、隐藏目录、黑名单目录、
+名字近似的目录（`node_modules2` 不被误杀）、「名字带扩展名的目录」（`dir.wav/`）不被误判为音频、
+超过 `MAX_DEPTH` 的文件被丢弃、不存在的目录 / 空目录不抛错、软链接成环不重复且不无限递归。
+
+另写了全项目 i18n 键自检脚本（比对 `$t('key')` 与语言文件后取差集）——建议以后常跑。
+
+### 待人工验证
+- 添加一个真实音乐文件夹 → 扫描 → 四个视图（歌曲/歌手/专辑/文件夹）内容正确。
+- 扫描中界面不卡（worker 生效）、进度条正常。
+- 移除扫描目录时，该目录下的歌曲随之消失。
+- 重启后曲库仍在（读缓存，不重新扫描）。
+
+### 未做
+- **本地封面**：`createLocalMusicInfo` 返回 `picUrl: ''`，不读取内嵌封面 → 列表显示占位图。
+  留到「元数据 / 封面编辑」阶段一起做。
+- **目录实时监听**（`fs.watch`）：当前需手动点「重新扫描」。
+- 扫描结果未纳入备份 / 恢复（`allData_v2`）。
+
+---
+
+## ㉜ 功能补齐收尾 + i18n 全量收敛（2026-10-01，第三阶段·功能补齐）
+
+一次做完剩余的功能缺口与文案国际化。**crossfade 明确跳过**（音频链曾因染色问题整体回退到 2.12.2，动它需要单独评估）。
+
+### ① 本地音乐：内嵌封面 + 元数据编辑
+- **封面懒加载**：本地歌曲没有在线音源，`useCoverLoader` 对它们会直接返回。新增 store 侧的
+  封面队列（并发上限 4、去重、失败不重试），复用 worker 已有的 `getMusicFilePic`
+  （同名图片优先 → 内嵌封面 → 大图落临时文件/小图转 data URL），结果写进公共封面缓存，
+  列表组件的 `getCoverUrl` 便能读到。只给当前视图会渲染的部分排队（上限 300），避免上千首一次性读完。
+- **元数据编辑（应用内覆盖）**：右键「编辑歌曲信息」可改歌曲名/歌手/专辑。
+  **刻意不写回音频文件标签** —— 那需要为 mp3/flac/m4a/ogg 各引一套写标签依赖。
+  存储上把「扫描到的原始元数据」与「用户覆盖」**分开存**，展示列表由两者合成，
+  这样重新扫描既能拿到文件的新元数据、又不丢用户改过的字段。被覆盖过的歌曲在行内有标记。
+
+### ② 本地音乐：目录实时监听
+worker 侧 `fs.watch`：Windows/macOS 走 `recursive`，Linux（不支持 recursive，会同步抛
+`ERR_FEATURE_UNAVAILABLE_ON_PLATFORM`）退化为「遍历子目录逐个监听」（上限 500 个目录）。
+只关心音频文件变动；变更合并 3 秒后上报。**检测到变化不自动重扫**（重扫是重活，
+且会整批替换正在看的列表），在本地音乐页显示一条「检测到变化 → 重新扫描」的提示条。
+设置项 `local.libraryWatch`（设置 → 其他）。
+
+### ③ 播放历史：设置项 + 纳入备份
+- `player.isSavePlayHistory`（记录开关）：关闭后不再记录，但**已有记录保留**。
+- `player.playHistoryMax`（条数上限）：调小时自动修剪超出的记录。
+  `PLAY_HISTORY_MAX` 常量改为 `getPlayHistoryMax()`，所有用到处跟着走。
+- 备份（`allData_v2`）带上 `playHistory` 原始行，恢复时**整批替换**（不是合并 —— 恢复的语义是回到备份那一刻）。
+  旧备份没有该字段则跳过。新增批量写入 IPC `add_play_history_multiple`（一次事务，避免逐条 IPC）。
+
+### ④ 单曲指定音质
+- 存储：按**歌曲 id** 存覆盖表（`DATA_KEYS.musicQualityOverrides`），不写进歌单数据 ——
+  同一首歌会出现在多个列表，按 id 存一份全局生效。
+- 解析：`OnlineMusicStrategy.getMusicUrl` 的音质优先级改为
+  「显式传入 > 单曲指定 > 全局默认」。
+- 入口：右键「指定音质」弹层，**只列出这首歌实际提供的档位**（`meta._qualitys`），
+  避免选到源不支持的档位导致播放失败；可选「跟随全局设置」取消覆盖。
+- 本地歌曲不开放（直接读文件，没有档位概念）。
+
+### ⑤ 歌单回收站
+- 删除歌单前先做快照（歌单元信息 + 歌曲列表），存 `DATA_KEYS.listTrash`，上限 20 份。
+- 入口在侧栏底部（垃圾桶图标）的弹层：还原 / 彻底删除 / 清空。
+- 还原用**全新的歌单 id** 重建（沿用原 id 可能与用户新建的同 id 歌单互相覆盖）。
+- 还原逻辑放 UI 层而非 store：还原要调 list 模块，而删除链路也引用本 store，会成环。
+- **踩到的坑**：若回收站尚未从磁盘读入就写入快照，内存是空数组，会把已有快照整个覆盖掉。
+  已改为写入前强制 `await loadListTrash()`。
+
+### ⑥ 交互补齐
+- **Esc 关弹层**：新增统一的弹层栈 `utils/modalStack.ts`，键盘事件从栈顶向下问，谁先接谁处理。
+  各弹层（编辑信息/指定音质/回收站）注册自己，避免「漏绑一个就关不掉」。
+  没有弹层时行为不变（退出全屏 / 清空输入框）。
+- **列表键盘导航**：列表容器 `tabindex=0` 可聚焦，↑↓ 移动光标行（虚拟列表按 `itemHeight`
+  换算滚动位置保持可见）、Enter 播放、Home/End 跳首尾、Esc 取消。
+  光标行独立于「勾选选中」与「播放中高亮」。
+- **歌单卡右键菜单**：歌单广场的卡片此前只有左键进详情，现补右键（打开详情 / 收藏歌单，
+  收藏复用详情页的 `addSongListDetail`，含重复确认）。
+
+### ⑦ i18n 硬编码收敛
+写了扫描脚本（只看标签属性与字符串字面量，排除注释），找出约 92 处 UI 硬编码中文，全部收敛：
+侧栏（导航标签/新建歌单/更新面板/页脚）、工具条（正在播放/歌单广场）、
+播放栏（评论/切歌/音量/播放队列/播放模式/音质档位名）、首页与乐馆（板块名/页签/地区/性别/空态描述）、
+歌手页页签、更新弹层等。**刻意不翻**：音源的榜单名/歌单名（来自平台的数据，是专有名词）。
+先反查语言文件里值相同的既有键（`recent_play`/`default_list`/`source_all`/`player__prev` 等）再新增，
+最终新增约 90 个键 × 3 语言。
+发现 `BaseStore` 的 `persistKeys` 是**死选项**（声明并解构了但从未使用）——设置实际全靠
+`onStateChange → saveSetting` 持久化；按惯例仍把新设置键登记进去。
+
+### 验证
+main + renderer 两个构建目标 **0 error**；i18n 键自检通过（剩余 7 条为动态拼接键的已知误报）；
+硬编码扫描复扫后 UI 文案清零。
+
+### 待人工验证
+- 本地音乐：封面陆续出现、编辑歌曲信息后重扫不丢、目录变化出现提示条。
+- 播放历史：关闭开关后不再新增记录；调小上限后旧记录被修剪；导出备份 → 恢复后「最近播放」一致。
+- 单曲指定音质：右键指定后播放的是该档位；选「跟随全局」后恢复。
+- 回收站：删除歌单 → 回收站出现 → 还原后歌曲完整；彻底删除有二次确认。
+- 键盘：列表聚焦后 ↑↓/Enter；Esc 依次关闭弹层。
+
+
 
 ## 验收记录
 
@@ -932,3 +1373,11 @@ export const getRootOrigin = () => {
 | 2026-10-04 | ㊷ 弹窗偏左真因 + 悬停提示分级 | **偏左真因**：`Popup.vue` 的 `.list` 挂了全局 `.scroll`（`scrollbar-gutter: stable`），常驻预留 8px 滚动条槽 → 卡片 76 宽而内容只有 66，右侧成为死区、内容与箭头看着偏左。单类覆盖无效（与 `.scroll` **特异性相同**，靠注入顺序），改用 **`.popup .list`** 两级选择器才盖住；卡片 76→68，`+` 钮中心 677 = 按钮中心 677。**悬停提示改为分级**：只对「会弹窗的控件」（音量/音质/播放模式/播放队列/更多/倍速/音效 + 弹窗内部按钮）保持 `ignore-tip`，其余控件（喜欢/评论/上一曲/播放暂停/下一曲/桌面歌词/音频可视化/歌词选择/添加到）恢复悬停气泡。**实机验收**：`下一曲` 气泡恢复、`播放模式` 与 `音量` 仍无气泡；ESLint 与构建 0 error |
 | 2026-10-04 | ㊸ 右键菜单对齐 QQ + 添加到二级面板 | 参考图实测（1:1 确认）：卡 210 宽/圆角 6/项高 32/满幅 hover #3B3B3D/分隔线 #323234 上下 11px/图标盒 20 左缩 12/文字 46px 起/箭头右缩 6px/禁用 #929293；二级面板 210 宽、左间距 8px、首项与父项对心。`base/Menu.vue` 重写（icon/divider/submenu/明暗主题），新增 `useListTargetMenu`（试听列表/我的收藏/添加到新歌单/用户歌单，已在列表置灰，直接增删不移除弹窗），各列表 useMenu 按 QQ 顺序重排，新增 10 个图标与 3 条文案。**实机验收**：主卡 210×446、项高 32、gap 8、子面板对心全部命中；ESLint 与构建 0 error |
 | 2026-10-04 | ㊻ 歌单列表页 / 榜单详情页一比一重做 | **页头结构**：QQ 的列表页头是**三段竖排**（30px 大标题 → 13px 页签行含 3px 主色下划线 → 32px 工具栏），原实现把三者挤在一行。`MusicList` 重做页头并补 **34px 行内缩**（行背景 x 248..1118，右边界与参考图完全一致）；`Recent` 标题统一 30px。**榜单页**：封面 132→**170**、加「曲序 / 歌手」两列 + 50px 封面占位列（表头「歌曲」354 与行内歌名 353 仅差 1px）、序号补零、按钮组改「全部播放 / 全部收藏 / 返回」。列位经复测**本就与参考图一致**（歌名 7.3%/专辑 62.6%/时长 89.1% vs 既有 6.9%/63%/90%），差距全在页头与行内缩。i18n×3 统一为「歌名 / 歌手」。ESLint 与 renderer 构建均 **0 error**。顺带记录一个待修项：列表页之间切换偶发 `#view` 子节点为 0（`Component` undefined 挂载竞态，与 ㉝ 同源） |
+| 2026-10-01 | ㉕ 搜索专辑/歌手 | 新增「专辑 / 歌手」两个结果类型（接口先验后写：wy type=10/100 实测 200 出数据）；方形/圆形双网格 + 分页；非 wy 源给换源引导；三语言文案齐全；构建通过 |
+| 2026-10-01 | ㉗ 乐馆专题页签接真实数据 | 「视频」「边听边玩」由占位页改为真实榜单（影视金曲 100 首 / 综艺新歌、动漫 100 首 / 游戏 110 首，均实测 code=0）；新增 `TopicBoards.vue`；其余 4 个无公开源页签改为「说明原因 + 替代入口」 |
+| 2026-10-01 | ㉖ 任意列表看评论 | 「歌曲评论」进单曲右键菜单 + 全局评论弹层（复用原 `MusicComment` 面板），播放页之外也能看热门/最新评论；本地与无 comment 音源自动置灰 |
+| 2026-10-01 | ㉘ 审查后「止血」修复 | 深色主题硬编码白底 4 处修复；音质角标空值保护 3 文件；裂图兜底反逻辑修复 2 文件；乐馆 4 个无源页签 + 主题中心「桌面装扮」+ 最近播放占位页整体移除；删除未引用的 HomeSidebar（526 行）；侧栏歌单真实分组；新增 `common-empty-state` 三态组件；榜单详情增量渲染 + 重试；排行榜左栏三态；修复「最近播放」双击不播放（P0，下标误当 id 传入 `playListById`）；首页「喜欢」判重与取消；首页私藏歌单改并发。`build:renderer` 0 error 通过 |
+| 2026-10-01 | ㉙ 设计 token 全量收敛 | 先给 PlayDetail 补 `--qm-*` 镜像覆写（打通新旧两层语义，修掉「浅色主题下深色画布内组件深底深字」的存量问题）；删除 `--home-*` 别名体系（迁移最后 11 处 + 删除 index.less 两处定义块），全项目 `--home-*` 归零；按语义等价映射全局收敛旧 token 64 文件 / 258 处；清理自引用 fallback 13 处；修正「引用不存在 token 名」36 处（`--qm-radius-lg/md`、`--qm-font-sm` 等，此前靠 fallback 伪装成 token）；修 `--color-label` 未定义引用；`AdvancedDsp` 品牌色修正。自检脚本确认「未定义 CSS 变量引用 = 0」。`build:renderer` 0 error |
+| 2026-10-01 | ㉚ 播放历史持久化 | 新增 `play_history` 表（DB_VERSION 2→3）与 upsert/淘汰/清空 SQL、独立 IPC 处理端 `rendererEvent/playHistory.ts`、`store/playHistory.ts`；记录点挂在 `handlePlay()`（覆盖所有播放模式，此前 playedList 只在随机会写入 → 默认模式下「最近播放」恒空）；最近播放页与侧栏计数、个性化推荐输入均切到持久化历史；顺带修复 `migrate.ts` 的 `switch` 会跳过中间迁移段（会把老用户库判为校验失败）的隐患。用 node:sqlite 实测 SQL 与迁移路径 4/4 通过；main + renderer 构建 0 error |
+| 2026-10-01 | ㉛ 本地曲库扫描 | 新增「注册目录 → 扫描 → 曲库」完整链路（`worker/main/localLibrary.ts` 递归遍历+元数据解析、`store/localLibrary.ts`、`views/LocalMusic/index.vue` 歌曲/歌手/专辑/文件夹四视图、路由 `/local` + 侧栏入口）；存储走通用 data store（`DATA_KEYS.localLibrary`），不新增表、无迁移风险。遍历内置防成环/黑名单/深度上限/无权限跳过等约束，解析串行+进度节流。顺带修复：页签角标三处显示同一数字；补齐 5 个「被引用但未定义」的 i18n 键（含搜索页音源页签显示字面量 `all` 的可见 bug）。真实目录树算法实测 17/17 通过；main + renderer 构建 0 error |
+| 2026-10-01 | ㉜ 功能补齐收尾 + i18n 收敛 | 本地音乐封面懒加载（并发 4 队列，复用 getMusicFilePic）+ 元数据应用内覆盖（重扫不丢）；目录实时监听（Linux 退化逐目录监听，检测到变化仅提示不自动重扫）；播放历史设置项（记录开关/条数上限）并纳入 allData_v2 备份恢复（新增批量写入 IPC）；单曲指定音质（按歌曲 id 存覆盖表，策略层优先级：显式传入 > 单曲 > 全局，弹层只列实际支持的档位）；歌单回收站（删除前快照、上限 20 份、侧栏入口弹层可还原/彻底删除）；交互补齐（统一弹层栈支持 Esc 关最上层、列表键盘 ↑↓/Enter/Home/End 导航、歌单卡右键菜单）；i18n 硬编码收敛约 92 处 UI 文案（先反查既有键再新增约 90 键 × 3 语）。main + renderer 0 error |

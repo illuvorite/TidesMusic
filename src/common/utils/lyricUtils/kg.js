@@ -1,7 +1,6 @@
 import { inflate } from 'zlib'
 import { decodeName } from './util'
 
-// https://github.com/lyswhut/lx-music-desktop/issues/296#issuecomment-683285784
 const enc_key = Buffer.from([0x40, 0x47, 0x61, 0x77, 0x5e, 0x32, 0x74, 0x47, 0x51, 0x36, 0x31, 0x2d, 0xce, 0xd2, 0x6e, 0x69], 'binary')
 // KRC 文件本身限制 10MB，但解码后是完全可控的 DEFLATE 流，
 // 不限制输出长度时少量输入即可膨胀到GB 级导致进程 OOM

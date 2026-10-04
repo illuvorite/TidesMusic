@@ -83,7 +83,7 @@ export default {
   // overflow: hidden;
   h2 {
     font-size: var(--qm-fs-sm, 13px);
-    color: var(--color-font);
+    color: var(--qm-text-2);
     line-height: 1.3;
     word-break: break-all;
     // text-align: center;

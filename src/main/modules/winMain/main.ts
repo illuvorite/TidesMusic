@@ -1,6 +1,6 @@
 // ============================================================
 // 受保护文件：该文件已与 lx-music-desktop-2.12.2 同步，
-// 包含修复音源切换卡在“初始化中”的关键逻辑。
+// 包含修复音源切换卡在"初始化中"的关键逻辑。
 // 未经授权不得修改。若需变更，请先移除本注释并联系相关负责人。
 // ============================================================
 import { BrowserWindow, dialog, session } from 'electron'
@@ -113,7 +113,14 @@ export const createWindow = () => {
   registerTrustedSender(browserWindow.webContents.id)
 
   const winURL = process.env.NODE_ENV !== 'production' ? 'http://localhost:9080' : `file://${path.join(encodePath(__dirname), 'index.html')}`
-  void browserWindow.loadURL(winURL + `?os=${getPlatform()}&dt=${global.envParams.cmdParams.dt}&dark=${shouldUseDarkColors}&theme=${encodeURIComponent(JSON.stringify(theme))}`)
+  void browserWindow.loadURL(winURL + `?os=${getPlatform()}&dt=${global.envParams.cmdParams.dt}&dark=${shouldUseDarkColors}&theme=${encodeURIComponent(JSON.stringify(theme))}`).catch(_ => _).then(() => {
+    // 兜底显示：透明窗口在部分打包环境下 ready-to-show 不会触发，
+    // 导致窗口创建后一直不可见（进程在跑但界面上没有窗口）。
+    // 以 loadURL 完成后延迟检查可见性为准，避免影响原有的 ready-to-show 流程。
+    setTimeout(() => {
+      if (browserWindow && !browserWindow.isVisible() && !browserWindow.isMinimized() && !global.envParams.cmdParams.hidden) showWindow()
+    }, 1500)
+  })
 
   winEvent()
 

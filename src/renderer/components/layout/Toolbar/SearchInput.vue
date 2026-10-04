@@ -45,7 +45,7 @@ export default {
 
     // 搜索源：聚合搜索 + 已在设置里启用的音源
     const sourceOptions = computed(() => [
-      { id: 'all', name: '聚合搜索' },
+      { id: 'all', name: window.i18n.t('source_all') },
       ...getAvailableSources().map(id => ({ id, name: getSourceName(id) })),
     ])
     const currentSource = ref('all')

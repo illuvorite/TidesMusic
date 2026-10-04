@@ -132,7 +132,7 @@ export default {
   justify-content: center;
   h2 {
     font-size: var(--qm-fs-xl, 16px);
-    color: var(--color-font);
+    color: var(--qm-text-2);
     line-height: 1.3;
     text-align: center;
   }
@@ -146,7 +146,7 @@ export default {
     margin-top: var(--qm-sp-4, 10px);
   }
   .label {
-    color: var(--color-font-label);
+    color: var(--qm-text-4);
     font-size: var(--qm-fs-md, 14px);
     line-height: 2;
   }

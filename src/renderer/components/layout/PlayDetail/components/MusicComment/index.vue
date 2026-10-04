@@ -549,7 +549,7 @@ export default {
   padding-top: 10%;
   text-align: center;
   font-size: var(--qm-fs-md, 14px);
-  color: var(--color-font-label);
+  color: var(--qm-text-4);
 }
 
 </style>

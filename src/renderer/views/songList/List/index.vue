@@ -129,7 +129,7 @@ export default {
   display: flex;
   flex-flow: column nowrap;
   position: relative;
-  background-color: var(--color-surface-base);
+  background-color: var(--qm-surface);
 }
 .header {
   flex: none;
@@ -177,21 +177,21 @@ export default {
     .label-content {
       background-color: transparent !important;
       transition: color @transition-fast;
-      color: var(--color-font);
+      color: var(--qm-text-2);
       // line-height: 38px;
       // height: 38px;
       border-radius: 0;
       &:hover {
         // background: none !important;
-        color: var(--color-primary-font-hover);
+        color: var(--qm-primary-hover);
         .icon {
           opacity: 1;
-          // color: var(--color-primary-font-hover);
+          // color: var(--qm-primary-hover);
         }
       }
     }
     // .label {
-    //   color: var(--color-font) !important;
+    //   color: var(--qm-text-2) !important;
     // }
     .icon {
       svg {
@@ -199,22 +199,22 @@ export default {
       }
       // opacity: .6;
       // transition: color @transition-fast;
-      // color: var(--color-font-label);
+      // color: var(--qm-text-4);
     }
 
     .selection-list {
       max-height: 500px;
       box-shadow: 0 1px 4px 0 rgba(0,0,0,.2);
       li {
-        // background-color: var(--color-main-background);
+        // background-color: var(--qm-card);
         text-align: center;
         line-height: 38px;
         font-size: var(--qm-fs-sm, 13px);
         &:hover {
-          background-color: var(--color-button-background-hover);
+          background-color: var(--qm-hover);
         }
         &:active {
-          background-color: var(--color-button-background-active);
+          background-color: var(--qm-hover-strong);
         }
       }
     }

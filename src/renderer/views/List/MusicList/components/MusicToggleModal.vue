@@ -207,7 +207,7 @@ export default {
     border-radius: var(--qm-radius-2xs, 4px);
 
     &:hover {
-      background-color: var(--color-primary-background-hover);
+      background-color: var(--qm-hover);
     }
     // &:last-child {
     //   border-bottom-left-radius: 4px;
@@ -220,7 +220,7 @@ export default {
     font-size: var(--qm-fs-xs, 12px);
     width: 20px;
     text-align: center;
-    color: var(--color-font-label);
+    color: var(--qm-text-4);
   }
   .textContent {
     flex: auto;
@@ -263,7 +263,7 @@ export default {
     margin-right: 5px;
     cursor: pointer;
     padding: 4px 7px;
-    color: var(--color-button-font);
+    color: var(--qm-text-3);
     outline: none;
     transition: background-color 0.2s ease;
     line-height: 0;
@@ -277,10 +277,10 @@ export default {
     }
 
     &:hover {
-      background-color: var(--color-primary-background-hover);
+      background-color: var(--qm-hover);
     }
     &:active {
-      background-color: var(--color-primary-font-active);
+      background-color: var(--qm-primary-active);
     }
   }
 
@@ -294,7 +294,7 @@ export default {
 
     p {
       font-size: var(--qm-fs-xl, 16px);
-      color: var(--color-font-label);
+      color: var(--qm-text-4);
     }
   }
 }
@@ -317,7 +317,7 @@ export default {
 
     h2 {
       min-width: 0;
-      color: var(--color-font);
+      color: var(--qm-text-2);
       line-height: 1.5;
       word-break: break-all;
     }
@@ -341,7 +341,7 @@ export default {
     }
     .singer {
       // font-size: 0.9em;
-      color: var(--color-font-label);
+      color: var(--qm-text-4);
       .mixin-ellipsis();
     }
   }

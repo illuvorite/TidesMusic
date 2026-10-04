@@ -1,2 +1,2 @@
-export * from './PlaybackController'
+export * from './action'
 export * from './timeoutStop'

@@ -11,6 +11,8 @@ import { appSetting } from '@renderer/store/setting'
 import { langS2T, toNewMusicInfo, toOldMusicInfo } from '@renderer/utils'
 import { requestMsg } from '@renderer/utils/message'
 import { apis } from '@renderer/utils/musicSdk/api-source'
+// 音质阶梯与降级匹配（移植自 CeruMusic / 澜音）
+import { calculateBestQuality } from '@common/utils/quality'
 
 
 const getOtherSourcePromises = new Map()
@@ -221,11 +223,22 @@ export const getOnlineOtherSourcePicByLocal = async(musicInfo: LX.Music.MusicInf
 export const TRY_QUALITYS_LIST = ['flac24bit', 'flac', '320k'] as const
 type TryQualityType = typeof TRY_QUALITYS_LIST[number]
 export const getPlayQuality = (highQuality: LX.Quality, musicInfo: LX.Music.MusicInfoOnline): LX.Quality => {
+  // 可用音质 = 歌曲实际提供的音质 ∩ 该音源在设置里启用的音质
+  const enabledList = qualityList.value[musicInfo.source]
+  const available = Object.keys(musicInfo.meta._qualitys ?? {})
+    .filter(q => !enabledList || enabledList.includes(q as LX.Quality))
+
+  // 使用与 CeruMusic 一致的降级匹配算法：优先取目标音质，否则取「不高于目标」的最高可用音质；
+  // 若全部可用音质都高于目标，则取其中最低的（保证一定能播放）
+  const matched = calculateBestQuality(available, highQuality)
+  if (matched) return matched as LX.Quality
+
+  // 没有任何可用信息时回退到原逻辑（保守取 128k）
   let type: LX.Quality = '128k'
   if (TRY_QUALITYS_LIST.includes(highQuality as TryQualityType)) {
-    let list = qualityList.value[musicInfo.source]
+    const list = qualityList.value[musicInfo.source]
 
-    let t = TRY_QUALITYS_LIST
+    const t = TRY_QUALITYS_LIST
       .slice(TRY_QUALITYS_LIST.indexOf(highQuality as TryQualityType))
       .find(q => musicInfo.meta._qualitys[q] && list?.includes(q))
 

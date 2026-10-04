@@ -169,7 +169,7 @@ export default {
   // 不加 transform 过渡：组件重渲染时过渡会重播，视觉上表现为“滑杆自己滑动”
   width: 100%;
   height: 100%;
-  background-color: var(--qm-primary, var(--color-button-font));
+  background-color: var(--qm-primary, var(--qm-text-3));
 }
 
 // hover 时轻微加粗，给出「可拖动」的暗示

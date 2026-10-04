@@ -568,7 +568,7 @@ export default {
   max-width: 94%;
   display: flex;
   flex-flow: column nowrap;
-  background-color: var(--color-main-background, #fff);
+  background-color: var(--qm-card, #fff);
   border-radius: var(--qm-radius-sm, 8px);
   box-shadow: var(--qm-shadow-3, 0 12px 32px rgba(0, 0, 0, 0.2));
   overflow: hidden;
@@ -749,7 +749,7 @@ export default {
 .label {
   flex: none;
   font-size: var(--qm-fs-sm, 13px);
-  color: var(--color-font);
+  color: var(--qm-text-2);
 }
 .colorDot {
   flex: none;
@@ -775,7 +775,7 @@ export default {
   border-radius: var(--qm-radius-2xs, 4px);
   padding: 8px 18px;
   font-size: var(--qm-fs-sm, 13px);
-  color: var(--color-font, #333);
+  color: var(--qm-text-2, #333);
   background-color: #f0f0f0;
   cursor: pointer;
   transition: background-color @transition-fast;

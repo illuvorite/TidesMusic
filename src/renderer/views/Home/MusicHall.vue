@@ -122,26 +122,43 @@
           </div>
         </div>
       </section>
-      <div v-if="!sections.length" :class="$style.tip">{{ loading ? '加载中…' : '该平台暂时没有取到歌单' }}</div>
+      <common-empty-state v-if="loading && !sections.length" variant="loading" />
+      <common-empty-state
+        v-else-if="!sections.length"
+        icon="music-note-list"
+        :title="$t('common__songlist_none')"
+        :description="$t('common__empty_desc_retry')"
+        :action-text="$t('common__reload')"
+        @action="reload"
+      />
     </template>
 
-    <div v-else-if="tab === 'boards'" :class="$style.boards">
-      <div v-for="board in boards" :key="board.id" :class="$style.board" @click="openBoard(board)">
-        <div :class="$style.boardCover">
-          <img v-if="board.img" :src="board.img" alt="" loading="lazy">
-          <span v-else class="row-cover-empty"><svg-icon name="music" /></span>
-        </div>
-        <div :class="$style.boardInfo">
-          <p :class="$style.boardName">{{ board.name }}</p>
-          <p v-for="(song, index) in board.songs" :key="index" :class="$style.boardSong">
-            <i>{{ index + 1 }}</i>
-            <span :title="`${song.name} - ${song.singer}`">{{ song.name }}<template v-if="song.singer"> - {{ song.singer }}</template></span>
-          </p>
+    <template v-else-if="tab === 'boards'">
+      <common-empty-state v-if="loading && !boards.length" variant="loading" />
+      <common-empty-state
+        v-else-if="!boards.length"
+        icon="list-ordered"
+        :title="$t('common__board_none_fetched')"
+        :description="$t('common__empty_desc_retry')"
+        :action-text="$t('common__reload')"
+        @action="reload"
+      />
+      <div v-else :class="$style.boards">
+        <div v-for="board in boards" :key="board.id" :class="$style.board" @click="openBoard(board)">
+          <div :class="$style.boardCover">
+            <img v-if="board.img" :src="board.img" alt="" loading="lazy">
+            <span v-else class="row-cover-empty"><svg-icon name="music" /></span>
+          </div>
+          <div :class="$style.boardInfo">
+            <p :class="$style.boardName">{{ board.name }}</p>
+            <p v-for="(song, index) in board.songs" :key="index" :class="$style.boardSong">
+              <i>{{ index + 1 }}</i>
+              <span :title="`${song.name} - ${song.singer}`">{{ song.name }}<template v-if="song.singer"> - {{ song.singer }}</template></span>
+            </p>
+          </div>
         </div>
       </div>
-      <div v-if="!boards.length" :class="$style.tip">{{ loading ? '加载中…' : '该平台暂时没有取到榜单' }}</div>
-    </div>
-
+    </template>
     <!-- ============ 分类歌单（内嵌歌单广场：标签筛选 + 排序 + 歌单网格 + 分页） ============ -->
     <section v-else-if="tab === 'square'" :class="$style.squarePane">
       <div :class="$style.squareBar">
@@ -161,16 +178,22 @@
       <open-list-modal v-model="visibleImport" :source-list="sourceList" />
     </section>
 
-    <!-- 听书 / 数字专辑 / 音质专区 / 边听边玩 / 视频 / 频道：暂无内容源 -->
-    <div v-else :class="$style.squareTip">
-      <p>「{{ activeTabLabel }}」频道暂未接入</p>
-      <button type="button" :class="$style.btnGhost" @click="handleTabClick('featured')">回到精选</button>
-    </div>
+    <!-- 视频 / 边听边玩：改用 QQ 音乐官方专题榜（影视金曲榜 / 动漫·游戏音乐榜），实测各出 100+ 首 -->
+    <topic-boards
+      v-else-if="topicBoardsMap[tab]"
+      :source="source"
+      :topic-boards="topicBoardsMap[tab]"
+    />
+
+    <!-- 兜底：resolveTab() 已把非法/过期的 ?tab= 取值（如旧链接的 audiobook）强制回落 featured，
+         此处理论上不可达，仅作为模板完整性占位。 -->
+    <div v-else />
   </div>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from '@common/utils/vueTools'
+import { useI18n } from '@renderer/plugins/i18n'
 import { useRoute, useRouter } from '@common/utils/vueRouter'
 import SourceTabs from '@renderer/components/common/SourceTabs.vue'
 import musicSdk from '@renderer/utils/musicSdk'
@@ -179,21 +202,40 @@ import TagList from '@renderer/views/songList/List/components/TagList.vue'
 import SortTab from '@renderer/views/songList/List/components/SortTab.vue'
 import SongList from '@renderer/views/songList/List/components/SongList.vue'
 import OpenListModal from '@renderer/views/songList/List/components/OpenListModal.vue'
+import TopicBoards from '@renderer/views/Home/components/TopicBoards.vue'
+
+const t = useI18n()
+
+
+// 专题榜页签 → QQ 音乐官方榜单（bangid）。
+// 实测（按项目 tx/leaderboard.js 的真实请求体复现）：以下榜单均 code=0 且出 100+ 首。
+//  - 影视金曲榜 29 → 100 首（对应「视频」：影视/OST 歌曲）
+//  - 动漫音乐榜 72 → 100 首、 游戏音乐榜 73 → 110 首（对应「边听边玩」）
+// 注意：「有声榜」(bangid 75) 的 period 不在 c.y.qq.com 榜单页（该页只含 29 个榜），
+// getPeriods 会返回 undefined 导致 getList 重试 3 次后 reject，故「听书」不能走这条路。
+const topicBoardsMap = {
+  video: [
+    { bangid: 29, name: '影视金曲榜' },
+    { bangid: 64, name: '综艺新歌榜' },
+  ],
+  game: [
+    { bangid: 72, name: '动漫音乐榜' },
+    { bangid: 73, name: '游戏音乐榜' },
+  ],
+}
 
 const router = useRouter()
-// 页签顺序对齐参考图：精选 / 听书 / 排行 / 歌手 / 分类歌单 / 数字专辑 / 音质专区 / 边听边玩 / 视频 / 频道
-// （听书、数字专辑、音质专区、边听边玩、视频、频道暂无内容源，仅保留入口）
+// 页签定义：只保留「有真实内容源」的 6 项。
+// 原先的 听书 / 数字专辑 / 音质专区 / 频道 四个页签在公开接口下拿不到内容，
+// 点进去只有一段说明文字 —— 属于「半成品入口」，已按用户要求整体移除，
+// resolveTab() 会把旧链接里的这些取值回落到「精选」。
 const tabs = [
-  { id: 'featured', label: '精选' },
-  { id: 'audiobook', label: '听书' },
-  { id: 'boards', label: '排行' },
-  { id: 'singer', label: '歌手' },
-  { id: 'square', label: '分类歌单' },
-  { id: 'album', label: '数字专辑' },
-  { id: 'hires', label: '音质专区' },
-  { id: 'game', label: '边听边玩' },
-  { id: 'video', label: '视频' },
-  { id: 'channel', label: '频道' },
+  { id: 'featured', label: t('common__featured') },
+  { id: 'boards', label: t('musichall__tab_boards') },
+  { id: 'singer', label: t('musichall__tab_singer') },
+  { id: 'square', label: t('musichall__tab_square') },
+  { id: 'game', label: t('musichall__tab_game') },
+  { id: 'video', label: t('musichall__tab_video') },
 ]
 // 页签与路由 query 双向同步：切换页签时写入 ?tab=xxx，
 // 这样顶部工具栏的「后退/前进」能回到具体的页签（否则重新挂载只会回到默认的精选页）
@@ -206,7 +248,6 @@ const handleTabClick = (id) => {
   tab.value = id
   void router.push({ path: '/home/music-hall', query: { tab: id } }).catch(() => {})
 }
-const activeTabLabel = computed(() => tabs.find(item => item.id === tab.value)?.label ?? '该')
 const source = ref(getInitialSource())
 const loading = ref(false)
 const banners = ref([])
@@ -332,21 +373,21 @@ async function loadBoards() {
 // ------- 歌手（乐馆 - 歌手页） -------
 const pageRef = ref(null)
 const singerAreaList = [
-  { id: 'all', label: '全部' },
-  { id: 'mainland', label: '内地' },
-  { id: 'hktw', label: '港台' },
-  { id: 'western', label: '欧美' },
-  { id: 'japan', label: '日本' },
-  { id: 'korea', label: '韩国' },
+  { id: 'all', label: t('common__all') },
+  { id: 'mainland', label: t('musichall__area_mainland') },
+  { id: 'hktw', label: t('musichall__area_hktw') },
+  { id: 'western', label: t('musichall__area_western') },
+  { id: 'japan', label: t('musichall__area_japan') },
+  { id: 'korea', label: t('musichall__area_korea') },
 ]
 const singerSexList = [
-  { id: 'all', label: '全部' },
-  { id: 'male', label: '男' },
-  { id: 'female', label: '女' },
-  { id: 'group', label: '组合' },
+  { id: 'all', label: t('common__all') },
+  { id: 'male', label: t('musichall__sex_male') },
+  { id: 'female', label: t('musichall__sex_female') },
+  { id: 'group', label: t('musichall__sex_group') },
 ]
 const singerIndexList = [
-  { id: 'all', label: '全部' },
+  { id: 'all', label: t('common__all') },
   ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter => ({ id: letter, label: letter })),
   { id: '#', label: '#' },
 ]
@@ -741,7 +782,7 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(7, 28px);
   gap: var(--qm-sp-0, 2px);
   padding: var(--qm-sp-3, 8px);
-  border-radius: var(--qm-radius-md, 10px);
+  border-radius: var(--qm-radius-card);
   background-color: var(--qm-card);
   box-shadow: var(--qm-shadow-2);
 }
@@ -905,7 +946,7 @@ onBeforeUnmount(() => {
 .banner {
   position: relative;
   margin: 10px var(--qm-content-pad-right) 28px var(--qm-content-pad-left);
-  border-radius: var(--qm-radius-lg, 12px);
+  border-radius: var(--qm-radius-panel);
   overflow: hidden;
 }
 
@@ -1031,7 +1072,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: var(--qm-sp-5, 12px);
   padding: var(--qm-sp-4, 10px);
-  border-radius: var(--qm-radius-lg, 12px);
+  border-radius: var(--qm-radius-panel);
   background-color: var(--qm-hover);
   color: var(--qm-text-1);
   cursor: pointer;
@@ -1103,15 +1144,6 @@ onBeforeUnmount(() => {
   color: var(--qm-text-4);
 
   p { margin: 0; }
-}
-
-.squareTip {
-  display: flex;
-  flex-flow: column nowrap;
-  align-items: center;
-  gap: var(--qm-sp-5, 12px);
-  padding: 60px 0;
-  p { margin: 0; font-size: var(--qm-fs-sm, 13px); color: var(--qm-text-4); }
 }
 
 .btnGhost {

@@ -143,7 +143,7 @@ export default {
     align-items: center;
 
     &:hover {
-      background-color: var(--color-primary-background-hover);
+      background-color: var(--qm-hover);
     }
     // border-radius: var(--qm-radius-2xs, 4px);
     // &:last-child {
@@ -158,7 +158,7 @@ export default {
   font-size: var(--qm-fs-xs, 12px);
   width: 30px;
   text-align: center;
-  color: var(--color-font-label);
+  color: var(--qm-text-4);
 }
 
 .textContent {
@@ -203,7 +203,7 @@ export default {
   margin-right: 5px;
   cursor: pointer;
   padding: 4px 7px;
-  color: var(--color-button-font);
+  color: var(--qm-text-3);
   outline: none;
   transition: background-color 0.2s ease;
   line-height: 0;
@@ -216,10 +216,10 @@ export default {
   }
 
   &:hover {
-    background-color: var(--color-primary-background-hover);
+    background-color: var(--qm-hover);
   }
   &:active {
-    background-color: var(--color-primary-font-active);
+    background-color: var(--qm-primary-active);
   }
 }
 
@@ -233,7 +233,7 @@ export default {
 
   p {
     font-size: var(--qm-fs-xl, 16px);
-    color: var(--color-font-label);
+    color: var(--qm-text-4);
   }
 }
 
