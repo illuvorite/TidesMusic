@@ -16,8 +16,11 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  // 注意：tx 的 sortList 里 id 是 Number（5/2），不要写 type: String，
+  // 不然非空值走到该类型分支时 assertType 抛 `Right-hand side of 'instanceof' is not an object`，
+  // 进而打断组件更新、把 vnode 树补丁搞乱。允许 [String, Number] 并在内部统一 String 化。
   sortId: {
-    type: String,
+    type: [String, Number],
     default: '',
   },
   // 内联模式：不写路由，改为 emit('change', sortId)（供乐馆「分类歌单」内嵌复用）
@@ -36,8 +39,13 @@ const list = shallowReactive([])
 
 
 const handleToggle = (id) => {
+  // 统一把 id 转成 String：tx 的 sortList 里是 Number，其它源可能是 String，
+  // 上下游（MusicHall.squareSortId、loadSquare、TagList 期望 String）若混用会让
+  // active class 比较失败、数据 key 不一致。Type 已在 props 上放宽到 [String, Number]，
+  // 这里再做一次最终兜底。
+  const sortId = String(id ?? '')
   if (props.inline) {
-    emit('change', id)
+    emit('change', sortId)
     return
   }
   void router.replace({
@@ -45,7 +53,7 @@ const handleToggle = (id) => {
     query: {
       source: props.source,
       tagId: props.tagId,
-      sortId: id,
+      sortId,
     },
   })
 }
@@ -53,7 +61,10 @@ watch(() => props.source, async(source) => {
   // const source = (await getLeaderboardSetting()).source as LX.OnlineSource
   if (!source) return
   let _list = sortList[source] ?? []
-  list.splice(0, list.length, ..._list)
+  // 列表里也存一份 String 化后的 id，下游 base-tab 用 == 比较无问题，
+  // 但 emit 给 MusicHall.squareSortId 的必须是 String，否则 loadSquare 会把 Number 传下去
+  // 让 watch(key) 的 key 包含 `${source}__${squareSortId.value}__...` 时类型抖动。
+  list.splice(0, list.length, ..._list.map(item => ({ ...item, id: String(item.id) })))
   if (!props.sortId && list.length) handleToggle(list[0].id)
   // console.log(list)
 }, {

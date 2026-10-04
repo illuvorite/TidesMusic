@@ -234,7 +234,14 @@ const startElectron = async() => {
     args = args.concat(process.argv.slice(2))
   }
 
-  electronProcess = spawn(electron, args)
+  // 部分开发环境（CI / 容器宿主 / 沙箱 shell）会预设 ELECTRON_RUN_AS_NODE=1。
+  // 此时 electron.exe 会退化为纯 Node 运行：require('electron') 只返回 exe 路径字符串，
+  // 主进程读 app 立即崩（Cannot read properties of undefined (reading 'requestSingleInstanceLock')）。
+  // dev 场景必然要真实 Electron 运行时，这里显式剔除该变量。
+  const electronEnv = { ...process.env }
+  delete electronEnv.ELECTRON_RUN_AS_NODE
+
+  electronProcess = spawn(electron, args, { env: electronEnv })
 
   electronProcess.stdout.on('data', data => {
     electronLog(data, 'blue')
@@ -243,8 +250,11 @@ const startElectron = async() => {
     electronLog(data, 'red')
   })
 
-  electronProcess.on('close', () => {
-    process.exit()
+  // 打印退出码/signal：Electron 异常退出（如 STATUS_BREAKPOINT -2147483645）时
+  // 之前是静默 process.exit()，只能看到 dev 整体消失，无法判断是谁退的。
+  electronProcess.on('close', (code, signal) => {
+    console.log(chalk.yellow(`[dev] electron exited (code=${code}, signal=${signal})`))
+    process.exit(code ?? 0)
   })
 }
 

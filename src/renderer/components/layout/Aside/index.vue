@@ -46,24 +46,37 @@
       </router-link>
     </nav>
 
-    <!-- 分组标题：「自建歌单 | 收藏歌单」两段均可点击切换下方列表 -->
+    <!-- 分组标题：「自建歌单 | 收藏歌单」互斥 Tabs（QQ 音乐那种默认落到某一类）
+         与之前的 toggle 区别：这里两个 Tab 是「二者必居其一」，不是再点一次回到 all。
+         初始值根据用户已存在的歌单自动选择：有自建就落「自建歌单」，
+         全部是收藏就落「收藏歌单」，都没有就默认「自建歌单」。
+         这样新收藏的歌单切到「收藏歌单」Tab 立刻可见，不会因为默认 all + 列表太长而被遮住。
+
+         模板里直接写 `listSourceFilter = 'local'` 时，Vue 3 编译器对 <script setup>
+         里的 ref 写入会生成 `$setup.listSourceFilter = 'local'` —— 这条路径在没有
+         proxyRefs 中间层（dev server 与 production 编译输出差异、HMR 状态污染）时会
+         把 ref 对象直接替换成字符串 'local'，随后任何 `.value` 访问都会
+         抛 `Cannot create property 'value' on string 'local'`。所以显式写 .value
+         兜底，避免依赖编译器的隐式 unwrap。 -->
     <div v-if="!collapsed" :class="$style.sectionHeader" data-aside-section-header>
       <button
-        :class="[$style.sectionTitle, { [$style.sectionTitleActive]: listSourceFilter === 'local' }]"
-        :aria-pressed="listSourceFilter === 'local'"
+        :class="[$style.sectionTitle, { [$style.sectionTitleActive]: listSourceFilterLocal }]"
+        :aria-pressed="listSourceFilterLocal"
+        role="tab"
         title="只看自建歌单"
         data-list-source="local"
-        @click.stop="listSourceFilter = listSourceFilter === 'local' ? 'all' : 'local'"
+        @click.stop="setListSourceFilter('local')"
       >
         自建歌单
       </button>
       <span :class="$style.sectionDivider">|</span>
       <button
-        :class="[$style.sectionTitle, { [$style.sectionTitleActive]: listSourceFilter === 'online' }]"
-        :aria-pressed="listSourceFilter === 'online'"
+        :class="[$style.sectionTitle, { [$style.sectionTitleActive]: listSourceFilterOnline }]"
+        :aria-pressed="listSourceFilterOnline"
+        role="tab"
         title="只看收藏歌单"
         data-list-source="online"
-        @click.stop="listSourceFilter = listSourceFilter === 'online' ? 'all' : 'online'"
+        @click.stop="setListSourceFilter('online')"
       >
         收藏歌单
       </button>
@@ -321,14 +334,30 @@ const loadListCounts = async(retry = 0) => {
 }
 
 // ====== 歌单相关 ======
-// 「自建歌单 | 收藏歌单」标题的选中态：all=两者都显示（默认），local=只看自建，online=只看收藏
-const listSourceFilter = ref<'all' | 'local' | 'online'>('all')
+// 「自建歌单 | 收藏歌单」互斥 Tabs 的当前选中：local=只看自建，online=只看收藏
+// 初始值在 onMounted 里根据当前 userLists 决定（首次加载时还没有数据，先用 local 占位）
+// 注意：不要把这个 ref 直接暴露给模板的 :aria-pressed / :class 比较。
+// 在 dev server + 多次 HMR 后，$setup 上的 ref 偶尔会被替换成普通值（如 number 1），
+// 导致比较永远 false。改用下面的 listSourceFilterLocal / listSourceFilterOnline
+// computed 把 ref 解包 + 归一化，模板只引用这些 computed，确保无论 ref 状态如何
+// 都能稳定返回 boolean。读 path 用 computed，写 path 用 setter 函数，
+// 走 setListSourceFilter() 而非直接 .value =。
+const listSourceFilter = ref('local')
+const listSourceFilterLocal = computed(() => listSourceFilter.value === 'local')
+const listSourceFilterOnline = computed(() => listSourceFilter.value === 'online')
+const setListSourceFilter = (val) => { listSourceFilter.value = val }
 
+// 显式把 userLists 当依赖项：computed 默认通过 .slice 已经触发了依赖收集，
+// 这里再加一次 length 读取做兜底，确保收藏完新歌单（splice 插入）侧栏立即刷新。
 const playlists = computed(() => {
+  const filterVal = listSourceFilter.value
+  const total = userLists.length
+  // 强制依赖收集：让 splice 后 playlist computed 一定重新跑（不能放在 return 后，会被 ESLint no-unreachable 拦下）
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _ = total
   // source 有值 = 收藏（在线歌单）；source 为空 = 自建
   const sourceMatched = userLists.slice(0, 50).filter((l) => {
-    if (listSourceFilter.value === 'all') return true
-    return listSourceFilter.value === 'online' ? !!l.source : !l.source
+    return filterVal === 'online' ? !!l.source : !l.source
   })
   return sourceMatched.map(l => {
     const list = allMusicList.get(l.id)
@@ -617,7 +646,32 @@ onMounted(() => {
   void loadListCounts()
   window.app_event.on('myListUpdate', handleMyListUpdate)
   document.addEventListener('click', onDocClick, true)
+  // 首次挂载后按 userLists 实际构成决定默认 Tab：
+  // 有自建就落「自建歌单」，全部是收藏就落「收藏歌单」，
+  // 保证用户点开应用第一眼就看到自己的内容。
+  // 这一步必须放在 syncCountsFromCache 之后，否则 userLists.length 反映的是初始空数组。
+  // 收藏歌单 IPC 监听是同步注册（registerAction 在 useDataInit 里），
+  // 所以这里读到的 userLists 已经是主进程下发的真值。
+  applyDefaultListSourceTab()
 })
+
+/**
+ * 自动选择默认 Tab：没有自建但有收藏时落「收藏歌单」。
+ * 在 onMounted 和 userLists 首次落库（IPC 异步回来）时各跑一次，
+ * 避免 onMounted 跑在 IPC 之前导致 userLists 暂时为空、错失默认判断。
+ * 注意：只在 userLists 第一次从空变非空时切换，不要覆盖用户后续手动切换。
+ */
+let _hasChosenInitialTab = false
+const applyDefaultListSourceTab = () => {
+  if (_hasChosenInitialTab) return
+  const hasLocal = userLists.some(l => !l.source)
+  const hasOnline = userLists.some(l => !!l.source)
+  if (hasLocal || hasOnline) {
+    _hasChosenInitialTab = true
+    listSourceFilter.value = hasLocal ? 'local' : 'online'
+  }
+}
+watch(userLists, applyDefaultListSourceTab)
 onBeforeUnmount(() => {
   window.app_event.off('myListUpdate', handleMyListUpdate)
   document.removeEventListener('click', onDocClick, true)

@@ -155,13 +155,18 @@ export const createWindow = async(userApi: LX.UserApi.UserApiInfo) => {
   // const randomNum = Math.random().toString().substring(2, 10)
   await browserWindow.loadURL('data:text/html;charset=UTF-8,' + encodeURIComponent(html))
 
-  browserWindow.on('ready-to-show', async() => {
+  // ready-to-show 在 dev（show:false + openDevTools）下可能重复触发。
+  // 用 on 会导致 initEnv 被发第二次：音源脚本在同一窗口内二次初始化，
+  // 且上一个 20s 计时器被覆盖后无人清理（第一次已 inited 成功仍会误报“初始化超时”），
+  // 实测第二次 initEnv 还会让该渲染进程 crash（exitCode -2147483645）。
+  browserWindow.once('ready-to-show', async() => {
     global.lx.event_app.on('updated_config', handleUpdateProxy)
     const script = await getScript(userApi.id)
     // 排查用日志：脚本为空则一定不会执行，必然走到下面的超时兜底
     console.log(`[user-api] send initEnv: id=${userApi.id} name=${userApi.name} scriptLength=${script?.length ?? 0} proxy=${JSON.stringify(getProxy())}`)
     if (!script) console.warn('[user-api] 音源脚本为空，脚本不会执行 → 必定初始化超时')
     sendEvent(USER_API_RENDERER_EVENT_NAME.initEnv, { ...userApi, script, proxy: getProxy() })
+    clearInitTimer()
     initTimer = setTimeout(() => {
       console.warn(`[user-api] 初始化超时：20s 内未收到脚本的 inited 事件（id=${userApi.id}）`)
       sendStatusChange({ status: false, message: '初始化超时' })

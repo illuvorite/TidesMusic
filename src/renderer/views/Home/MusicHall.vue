@@ -15,6 +15,17 @@
       </nav>
     </header>
 
+    <!-- 打开歌单模态：必须放在所有 v-else-if 分支外面。
+         原因（踩过的坑）：模态内 <material-modal teleport="#view"> 会把模态层挪到 #view 下，
+         而 View.vue 的 router-view 是用 :key="fullPath" 强制每次重建 MusicHall（?tab= 变化
+         即触发）。当 MusicHall 整体被卸载 → 立刻重建（初始 tab=featured → watch 立即把
+         tab 改成 square）时，square 分支内的 <open-list-modal> 跟着 unmount/mount，
+         Teleport 的占位锚点和 #view 上的实际节点分离，下一次 patch 算 anchor 失败，
+         触发 `NotFoundError: Failed to execute 'insertBefore' on 'Node'`，
+         整棵 patch 中断导致 #view 整体空白（表现为「点击分类歌单 → 整页白屏」）。
+         把它上移到分支外面即可让它脱离 v-else-if 的 destroy/create，只受 visibleImport 控制。 -->
+    <open-list-modal v-if="visibleImport" v-model="visibleImport" :source-list="sourceList" />
+
     <!-- ============ 歌手 ============ -->
     <section v-if="tab === 'singer'" :class="$style.singerPane">
       <div :class="$style.filterRow">
@@ -88,7 +99,11 @@
       <div v-else-if="singers.length && !singerHasMore" :class="$style.loadingMore">没有更多了</div>
     </section>
 
-    <template v-else-if="tab === 'featured'">
+    <!-- ============ 精选 ============ -->
+    <!-- 注意：这里必须用 <section> 而不是 <template v-else-if>，否则与下面的 <section v-else-if="tab === 'square'"> 混用时，
+         Vue 的 anchor 跟踪在 patch 阶段会算出错的插入位置，触发 `NotFoundError: Failed to execute 'insertBefore' on 'Node'`，
+         整棵分支被吃掉，表现为「点击 分类歌单 → 页面完全空白」。 -->
+    <section v-else-if="tab === 'featured'" :class="$style.featuredPane">
       <section v-if="banners.length" :class="$style.banner" @mouseenter="paused = true" @mouseleave="paused = false">
         <div :class="$style.bannerTrack" :style="{ transform: `translateX(-${bannerIndex * 100}%)` }">
           <div v-for="item in banners" :key="item.id" :class="$style.bannerSlide" @click="openPlaylist(item)">
@@ -131,9 +146,10 @@
         :action-text="$t('common__reload')"
         @action="reload"
       />
-    </template>
+    </section>
 
-    <template v-else-if="tab === 'boards'">
+    <!-- ============ 排行 ============ -->
+    <section v-else-if="tab === 'boards'" :class="$style.boardsPane">
       <common-empty-state v-if="loading && !boards.length" variant="loading" />
       <common-empty-state
         v-else-if="!boards.length"
@@ -158,7 +174,7 @@
           </div>
         </div>
       </div>
-    </template>
+    </section>
     <!-- ============ 分类歌单（内嵌歌单广场：标签筛选 + 排序 + 歌单网格 + 分页） ============ -->
     <section v-else-if="tab === 'square'" :class="$style.squarePane">
       <div :class="$style.squareBar">
@@ -175,19 +191,19 @@
       <div :class="$style.squareBody">
         <song-list :list-info="squareListInfo" @toggle-page="handleSquarePage" />
       </div>
-      <open-list-modal v-model="visibleImport" :source-list="sourceList" />
     </section>
 
     <!-- 视频 / 边听边玩：改用 QQ 音乐官方专题榜（影视金曲榜 / 动漫·游戏音乐榜），实测各出 100+ 首 -->
-    <topic-boards
-      v-else-if="topicBoardsMap[tab]"
-      :source="source"
-      :topic-boards="topicBoardsMap[tab]"
-    />
+    <section v-else-if="topicBoardsMap[tab]" :class="$style.topicPane">
+      <topic-boards
+        :source="source"
+        :topic-boards="topicBoardsMap[tab]"
+      />
+    </section>
 
     <!-- 兜底：resolveTab() 已把非法/过期的 ?tab= 取值（如旧链接的 audiobook）强制回落 featured，
          此处理论上不可达，仅作为模板完整性占位。 -->
-    <div v-else />
+    <section v-else :class="$style.emptyPane" />
   </div>
 </template>
 
@@ -261,6 +277,11 @@ const officialSortId = ref('')
 const newSortId = ref('')
 const hotSortId = ref('')
 
+// featured 加载世代号：与 squareRequestSeq 同思路 —— 切页 / 切源导致新一轮 loadFeatured
+// 进入时把上一轮的过期结果丢掉，避免 SDK 单例请求被 loadSquare cancel 之后，
+// 上轮的 retry 把空数据写回当前轮导致「精选内容全空」。
+let featuredSeq = 0
+
 // 取不到数据的区块直接不显示（不要回退成其它池子，否则两个区块会出现完全相同的内容）
 const sections = computed(() => ([
   { key: 'official', title: '官方歌单', sub: '官方精选订阅歌单', sortId: officialSortId.value, list: officialList.value },
@@ -278,12 +299,11 @@ const shuffle = (list) => {
 }
 
 // tx 的 getList 内部会 cancelHttp 掉上一个未完成的请求：与页面其它模块（榜单 / 分类歌单）
-// 并发时可能被取消，因此单页请求失败后延迟重试几次
-async function fetchSquarePage(sdk, sortId, tagId, page, retry = 0) {
-  const result = await sdk.getList(sortId, tagId, page).catch(() => null)
-  if (result || retry >= 2) return result
-  await new Promise(resolve => { setTimeout(resolve, 300 * (retry + 1)) })
-  return fetchSquarePage(sdk, sortId, tagId, page, retry + 1)
+// 并发时可能被取消。但 SDK 内部已经有 3 次重试（getList(sortId, tagId, page, tryNum)），
+// 这里**不再做应用层重试**——之前叠加应用层 + SDK 层重试 = 单页最多 9 次，跨 6 页就是 54 次
+// 串行请求，最坏情况用户要等近一分钟才看到第一个区块。SDK 的 3 次重试已经足够应付网络抖动。
+async function fetchSquarePage(sdk, sortId, tagId, page) {
+  return sdk.getList(sortId, tagId, page).catch(() => null)
 }
 
 // 取一个排序（或分类）下 2 页歌单并打乱：每次进入乐馆内容都不同。
@@ -299,6 +319,7 @@ async function fetchPlaylistPool(sdk, sortId, tagId = '') {
 }
 
 async function loadFeatured() {
+  const seq = ++featuredSeq
   loading.value = true
   try {
     const sdk = musicSdk[source.value]?.songList
@@ -316,6 +337,7 @@ async function loadFeatured() {
       // （部分平台 getTag 的返回结构与预期不符），`?.` 只保护了 tagGroups 本身，
       // 后面的 .flatMap 仍会抛 `flatMap is not a function`，把整个乐馆的加载流程打断。
       const tagGroups = await sdk.getTag().catch(() => null)
+      if (seq !== featuredSeq) return
       const groupList = Array.isArray(tagGroups) ? tagGroups : []
       const tag = groupList
         .flatMap(group => (Array.isArray(group?.list) ? group.list : []))
@@ -326,8 +348,11 @@ async function loadFeatured() {
 
     // 串行拉取（见 fetchPlaylistPool 注释：并发会被 getList 内部互相取消）
     const official = await fetchPlaylistPool(sdk, officialSortId.value, officialTagId)
+    if (seq !== featuredSeq) return
     const fresh = await fetchPlaylistPool(sdk, newSortId.value)
+    if (seq !== featuredSeq) return
     const hot = await fetchPlaylistPool(sdk, hotSortId.value)
+    if (seq !== featuredSeq) return
     officialList.value = official.slice(0, 10)
     newList.value = fresh.slice(0, 10)
     hotList.value = hot.slice(0, 10)
@@ -335,7 +360,7 @@ async function loadFeatured() {
     banners.value = shuffle([...official, ...hot]).slice(0, 5)
     bannerIndex.value = 0
   } finally {
-    loading.value = false
+    if (seq === featuredSeq) loading.value = false
   }
 }
 
@@ -508,14 +533,22 @@ async function loadSquare(page = 1) {
     squareListInfo.noItemLabel = `当前音源（${getSourceName(source.value)}）暂不支持分类歌单，可在上方切换音源`
     return
   }
-  // 排序项由 SortTab 在挂载 / 换源后自动选中并 emit，未就绪前先不请求
-  if (!squareSortId.value) return
+  // 排序项未就绪前，先在 UI 上明确告诉用户「正在准备排序」，
+  // 避免 list/noItemLabel 都为空造成「白屏」。
+  if (!squareSortId.value) {
+    squareListInfo.list = []
+    squareListInfo.total = 0
+    squareListInfo.noItemLabel = '正在加载排序项…'
+    return
+  }
   const requestId = ++squareRequestSeq
   squareLoading.value = true
   squareListInfo.noItemLabel = '加载中…'
   try {
     // 失败重试：与页面其它模块（精选/榜单）并发时请求可能被互相取消
     const result = await fetchSquarePage(sdk, squareSortId.value, squareTagId.value, page)
+    // 被更新的请求（最新 sortId / tagId / source 触发的 loadSquare）取代时，直接丢弃旧响应，
+    // 不要把「被取消」的 null 当成失败塞进 UI —— 这正是用户看到的「歌单获取失败」。
     if (requestId !== squareRequestSeq) return
     if (!result) {
       squareListInfo.list = []
@@ -544,7 +577,17 @@ const handleSquareTagChange = (id) => {
 }
 
 const handleSquareSortChange = (id) => {
-  squareSortId.value = id
+  // 强转 String：tx 的 sortList id 是 Number（5/2），emit 给父级之前
+  // SortTab 已 String 化，但为防御性再兜底一次，避免 squareListInfo.key / 序列化等环节出错。
+  const next = String(id ?? '')
+  squareSortId.value = next
+  // QQ 音乐 SDK 上游限制：`get_category_content` 完全忽略 sortId，
+  // 且 `get_playlist_by_tag` (plaza) 当前在 u.y.qq.com 上已失效（全 0 条）。
+  // sortId 2/5 实际上是两个独立分类 ID（实测 cat=2 返回「小众特供…」、
+  // cat=5 返回「站内评论999+超热日语精选」），切到排序项时把它当 tagId 用，
+  // 才能让「最新 / 最热」两个 Tab 真正看到不同的歌单。
+  // 用户再去 TagList 选具体分类时会被 handleSquareTagChange 覆盖回去。
+  if (source.value === 'tx' && next) squareTagId.value = next
   void loadSquare(1)
 }
 
@@ -594,7 +637,12 @@ watch(tab, (value) => {
   showLetterMenu.value = false
   if (pageRef.value) pageRef.value.scrollTop = 0
   if (value === 'singer' && !singers.value.length) void loadSingers(true)
-  if (value === 'square' && !squareListInfo.list.length) void loadSquare(1)
+  if (value === 'square') {
+    // 进入 square 即时给个状态，避免 SortTab emit 之前的视觉空窗
+    squareListInfo.list = []
+    squareListInfo.noItemLabel = squareSortId.value ? '加载中…' : '正在加载排序项…'
+    void loadSquare(1)
+  }
 })
 
 const openPlaylist = (item) => {
@@ -646,6 +694,13 @@ onBeforeUnmount(() => {
   overflow-y: auto;
   background-color: var(--qm-surface);
 }
+
+// ---- 各 tab 内容面板：保证 v-else-if 链上每个分支都有真实 DOM 节点 ----
+// 之前「精选 / 排行」用 <template v-else-if>，「分类歌单 / 视频 / 兜底」用 <section v-else-if> / <topic-boards> / <div v-else>，
+// anchor 在 patch 阶段错位会触发 NotFoundError，整棵分支被吃掉。这里统一为 <section>，DOM 节点对齐。
+.featuredPane, .boardsPane, .topicPane, .emptyPane { display: block; }
+.featuredPane, .boardsPane, .topicPane { padding: 0 0 30px 0; }
+.emptyPane { display: none; }
 
 .head {
   padding: 20px var(--qm-content-pad-right) 14px var(--qm-content-pad-left);

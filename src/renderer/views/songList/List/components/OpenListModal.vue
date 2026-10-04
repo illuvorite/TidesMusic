@@ -1,11 +1,11 @@
 <template>
-  <material-modal :show="props.modelValue" teleport="#view" width="60%" @close="emit('update:model-value', $event)" @after-enter="$refs.input.focus()">
+  <material-modal :show="props.modelValue" teleport="#view" width="60%" @close="emit('update:model-value', $event)" @after-enter="onAfterEnter">
     <main class="scroll" :class="$style.main">
       <h2>{{ $t('songlist__import_input_title') }}</h2>
       <div :class="$style.inputContent">
         <base-selection v-model="source" :class="$style.select" :list="props.sourceList" item-key="id" item-name="name" />
         <base-input
-          ref="input"
+          ref="inputRef"
           v-model.trim="text"
           :class="$style.input"
           :placeholder="$t('songlist__import_input_tip')"
@@ -55,6 +55,11 @@ const router = useRouter()
 const route = useRoute()
 const text = ref('')
 const source = ref('')
+
+// Vue 3 <script setup> 用 ref="inputRef" 绑到模板，after-enter 时主动聚焦：
+// 原本用的是 Vue 2 风格的 `$refs.input.focus()`，但 setup 模式下 `$refs` 不可用。
+const inputRef = ref(null)
+const onAfterEnter = () => inputRef.value?.focus()
 
 watch(() => props.modelValue, (visible) => {
   if (!visible) return
