@@ -2,7 +2,7 @@
 dt#about {{ $t('setting__about') }}
 dd
   .p.small
-    | 本项目基于落雪音乐助手（LX Music Desktop）二次开发，遵循 Apache License 2.0 协议。
+    | 本项目为落雪 Plus，基于落雪音乐助手（LX Music Desktop）二次开发，遵循 Apache License 2.0 协议。
   .p.small
     | 原项目地址：
     span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/lyswhut/lx-music-desktop')") https://github.com/lyswhut/lx-music-desktop

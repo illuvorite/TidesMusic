@@ -1,5 +1,5 @@
 {
-  "name": "lx-music-desktop",
+  "name": "lx-music-plus",
   "version": "2.12.2",
   "description": "一个免费的音乐查找助手",
   "main": "./dist/main.js",
@@ -76,16 +76,16 @@
   },
   "macLanguagesInfoPlistStrings": {
     "en": {
-      "CFBundleDisplayName": "LX Music",
-      "CFBundleName": "LX Music"
+      "CFBundleDisplayName": "LX Music Plus",
+      "CFBundleName": "LX Music Plus"
     },
     "zh_CN": {
-      "CFBundleDisplayName": "LX Music",
-      "CFBundleName": "LX Music"
+      "CFBundleDisplayName": "落雪 Plus",
+      "CFBundleName": "落雪 Plus"
     },
     "zh_TW": {
-      "CFBundleDisplayName": "LX Music",
-      "CFBundleName": "LX Music"
+      "CFBundleDisplayName": "落雪 Plus",
+      "CFBundleName": "落雪 Plus"
     }
   },
   "repository": {
