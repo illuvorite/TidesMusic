@@ -1,4 +1,4 @@
-import { checkUpdate, getEnvParams, getViewPrevState, sendInited } from '@renderer/utils/ipc'
+import { getEnvParams, getViewPrevState, sendInited } from '@renderer/utils/ipc'
 
 import { watch } from '@common/utils/vueTools'
 import { proxy, isFullscreen, themeId } from '@renderer/store'
@@ -11,7 +11,6 @@ import { loadQualityOverrides } from '@renderer/store/qualityOverride'
 import useSync from './useSync'
 import useOpenAPI from './useOpenAPI'
 import useStatusbarLyric from './useStatusbarLyric'
-import useUpdate from './useUpdate'
 import useDataInit from './useDataInit'
 import useHandleEnvParams from './useHandleEnvParams'
 import useEventListener from './useEventListener'
@@ -54,7 +53,6 @@ export default () => {
   const initDeeplink = useDeeplink()
   // const handleListAutoUpdate = useListAutoUpdate()
 
-  useUpdate()
   useSettingSync()
 
   void getEnvParams().then(envParams => {
@@ -96,7 +94,6 @@ export default () => {
       sendInited()
 
       handleListAutoUpdate()
-      if (window.lx.isProd && appSetting['common.isAgreePact']) checkUpdate()
     })
   })
 }

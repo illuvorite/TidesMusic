@@ -28,28 +28,17 @@ dd
   .p.small
     strong 本项目没有微信公众号之类的所谓「官方账号」，谨防被骗！
   br
-
-  .p.small
-    | 你已签署本软件的
-    base-btn(min @click="handleShowPact") 许可协议
-    | 。
 </template>
 
 <script>
-// import { ref, onBeforeUnmount } from '@common/utils/vueTools'
-import { isShowPact } from '@renderer/store'
 import { openUrl, clipboardWriteText } from '@common/utils/electron'
 
 export default {
   name: 'SettingAbout',
   setup() {
-    const handleShowPact = () => {
-      isShowPact.value = true
-    }
     return {
       openUrl,
       clipboardWriteText,
-      handleShowPact,
     }
   },
 }
