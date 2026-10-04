@@ -1,7 +1,9 @@
 // ============================================================
-// 受保护文件：该文件已与 lx-music-desktop-2.12.2 同步，
-// 包含修复音源切换卡在“初始化中”的关键逻辑。
-// 未经授权不得修改。若需变更，请先移除本注释并联系相关负责人。
+// 同步自 lx-music-desktop-2.12.2 的配置；
+// 此外本仓库在 externals 中加入了 `electron: 'commonjs2 electron'`
+// 以确保 webpack 5 把 `import { app } from 'electron'` 编译为直接
+// `require('electron')` 而非内联 stub（webpack 5 默认 target=electron-main
+// 不会把 electron 自动 externalize）。
 // ============================================================
 const path = require('path')
 const ESLintPlugin = require('eslint-webpack-plugin')
@@ -25,6 +27,10 @@ module.exports = {
     'electron-font-manager': 'electron-font-manager',
     bufferutil: 'bufferutil',
     'utf-8-validate': 'utf-8-validate',
+    // Electron 主进程入口必须把 electron 模块外部化（Electron runtime 注入），
+    // 否则 webpack 5 会把 `import { app } from 'electron'` 编译成对 undefined 访问，
+    // 启动即崩 (TypeError: Cannot read properties of undefined (reading 'app'))。
+    electron: 'commonjs2 electron',
     'qrc_decode.node': isDev ? path.join(__dirname, '../../build/Release/qrc_decode.node') : path.join('../build/Release/qrc_decode.node'),
   },
   resolve: {

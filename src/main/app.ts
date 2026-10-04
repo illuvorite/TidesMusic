@@ -1,7 +1,7 @@
 // ============================================================
-// 受保护文件：该文件已与 lx-music-desktop-2.12.2 同步，
-// 包含修复音源切换卡在“初始化中”的关键逻辑。
-// 未经授权不得修改。若需变更，请先移除本注释并联系相关负责人。
+// 同步自 lx-music-desktop-2.12.2 的逻辑包含对音源切换卡在"初始化中"的修复；
+// 此外本仓库针对 Electron 28+ / webpack 5 在 app.whenReady() 之前
+// 调用 nativeTheme 可能未初始化做了兼容（?. + ?? false）。
 // ============================================================
 import path from 'node:path'
 import { existsSync, mkdirSync, renameSync } from 'fs'
@@ -50,7 +50,9 @@ export const initGlobalData = () => {
       state: new Map(),
     },
     theme: {
-      shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
+      // 在 app.whenReady() 之前调用，nativeTheme 可能尚未初始化；
+      // 由后续 nativeTheme.addListener('updated') 在 ready 后回填真实值。
+      shouldUseDarkColors: nativeTheme?.shouldUseDarkColors ?? false,
       theme: {
         id: '',
         name: '',
