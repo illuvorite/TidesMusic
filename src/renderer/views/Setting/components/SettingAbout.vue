@@ -8,19 +8,19 @@ dd
     span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/lyswhut/lx-music-desktop')") https://github.com/lyswhut/lx-music-desktop
   .p.small
     | 本仓库地址：
-    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/illuvorite/tides-music-desktop')") https://github.com/illuvorite/tides-music-desktop
+    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/illuvorite/TidesMusic')") https://github.com/illuvorite/TidesMusic
   .p.small
     | 最新版下载地址：
-    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/illuvorite/tides-music-desktop/releases')") GitHub Releases
+    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/illuvorite/TidesMusic/releases')") GitHub Releases
   br
   .p.small
     strong 本软件没有客服
     | ，使用过程中遇到问题请先阅读
-    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/illuvorite/tides-music-desktop/issues?q=is%3Aissue+')") 仓库 Issue
+    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/illuvorite/TidesMusic/issues?q=is%3Aissue+')") 仓库 Issue
     | 列表，确认是否已有同类反馈。
   .p.small
     | 仍有问题可到&nbsp;GitHub&nbsp;
-    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/illuvorite/tides-music-desktop/issues/new')") 提交&nbsp;Issue
+    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/illuvorite/TidesMusic/issues/new')") 提交&nbsp;Issue
     | 。
   br
   .p.small

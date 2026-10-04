@@ -1,5 +1,5 @@
 {
-  "name": "tides-music-desktop",
+  "name": "TidesMusic",
   "version": "2.12.2",
   "description": "一个免费的音乐查找助手",
   "main": "./dist/main.js",
@@ -90,7 +90,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/illuvorite/tides-music-desktop.git"
+    "url": "git+https://github.com/illuvorite/TidesMusic.git"
   },
   "keywords": [
     "music-player",
@@ -102,9 +102,9 @@
   },
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/illuvorite/tides-music-desktop/issues"
+    "url": "https://github.com/illuvorite/TidesMusic/issues"
   },
-  "homepage": "https://github.com/illuvorite/tides-music-desktop#readme",
+  "homepage": "https://github.com/illuvorite/TidesMusic#readme",
   "devDependencies": {
     "@tsconfig/recommended": "^1.0.13",
     "@types/better-sqlite3": "^7.6.13",

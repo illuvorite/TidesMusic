@@ -37,7 +37,7 @@ material-modal(:show="modelValue" bg-close teleport="#root" max-width="620px" mi
     section(:class="$style.note")
       p(:class="$style.noteLine")
         span {{ $t('user_api__readme') }}
-        button(:class="$style.link" type="button" aria-label="https://github.com/illuvorite/tides-music-desktop#readme" @click="handleOpenUrl('https://github.com/illuvorite/tides-music-desktop#readme')")
+        button(:class="$style.link" type="button" aria-label="https://github.com/illuvorite/TidesMusic#readme" @click="handleOpenUrl('https://github.com/illuvorite/TidesMusic#readme')")
           | FAQ
           svg(v-once :class="$style.linkIcon" viewBox="0 0 24 24" aria-hidden="true")
             path(d="M14 4h6v6M20 4l-8.5 8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round")

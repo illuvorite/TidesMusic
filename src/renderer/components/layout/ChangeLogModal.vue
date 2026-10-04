@@ -18,7 +18,7 @@ material-modal(:show="isShowChangeLog" max-width="60%" @close="isShowChangeLog =
       div(:class="$style.desc")
         p 📢&nbsp;为了减少疑问，我们墙裂建议阅读版本更新日志来了解当前所用版本的变化！
         p 📢&nbsp;若遇到问题可以阅读
-          strong.hover.underline(:aria-label="$t('common__open_link')" @click="openUrl('https://github.com/illuvorite/tides-music-desktop#readme')") 仓库说明
+          strong.hover.underline(:aria-label="$t('common__open_link')" @click="openUrl('https://github.com/illuvorite/TidesMusic#readme')") 仓库说明
           | 。
         p(v-if="!info.isLatest") 🚀&nbsp;发现新版本 (v{{ versionInfo.newVersion.version }})！建议去「设置 → 软件更新」更新新版本。
 </template>

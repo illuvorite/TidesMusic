@@ -10,7 +10,7 @@ const afterPack = require('./build-after-pack')
 */
 const options = {
   appId: 'cn.toside.music.desktop',
-  productName: 'tides-music-desktop',
+  productName: 'TidesMusic',
   beforePack,
   afterPack,
   protocols: {
@@ -48,7 +48,7 @@ const options = {
     {
       provider: 'github',
       owner: 'illuvorite',
-      repo: 'tides-music-desktop',
+      repo: 'TidesMusic',
     },
   ],
 }

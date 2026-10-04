@@ -8,7 +8,7 @@
 
 本项目是基于 [lyswhut/lx-music-desktop](https://github.com/lyswhut/lx-music-desktop) 的二次开发版本，遵循 Apache License 2.0。原项目由原作者开发与维护，本仓库仅在原项目基础上进行二次开发与个性化定制。
 
-- 项目地址：https://github.com/illuvorite/tides-music-desktop
+- 项目地址：https://github.com/illuvorite/TidesMusic
 - 原项目地址：https://github.com/lyswhut/lx-music-desktop
 
 ## 技术栈
@@ -164,7 +164,7 @@ pnpm lint:fix     # ESLint 自动修复
 
 ## 项目协议
 
-本项目基于 [Apache License 2.0](https://github.com/illuvorite/tides-music-desktop/blob/master/LICENSE) 许可证发行，以下协议是对于 Apache License 2.0 的补充，如有冲突，以以下协议为准。
+本项目基于 [Apache License 2.0](https://github.com/illuvorite/TidesMusic/blob/master/LICENSE) 许可证发行，以下协议是对于 Apache License 2.0 的补充，如有冲突，以以下协议为准。
 
 ---
 

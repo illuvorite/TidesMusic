@@ -22,7 +22,7 @@
 
 ## 反馈与建议
 
-- 提交 Issue：https://github.com/illuvorite/tides-music-desktop/issues
+- 提交 Issue：https://github.com/illuvorite/TidesMusic/issues
 - 二次开发相关的反馈、问题、Bug 报告，请发到本仓库的 Issue 区。
 
 ## 免责声明
