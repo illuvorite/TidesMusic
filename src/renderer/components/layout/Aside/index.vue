@@ -2,7 +2,7 @@
   <aside :class="[$style.aside, { [$style.collapsed]: collapsed, [$style.fullscreen]: isFullscreen }]">
     <!-- 顶部品牌标识：渐变贴片 + 音符标记（矢量，跟随主题色） -->
     <header :class="[$style.brand, { [$style.brandCollapsed]: collapsed }]">
-      <span :class="$style.brandMark" role="img" aria-label="潮汐音乐">
+      <span :class="$style.brandMark" role="img" aria-label="LX Music">
         <svg-icon name="brand-logo" :class="$style.brandIcon" />
       </span>
     </header>
@@ -25,8 +25,8 @@
       v-if="!collapsed"
       type="button"
       :class="$style.createDashed"
-      :aria-label="$t('nav__create_playlist')"
-      :title="$t('nav__create_playlist')"
+      aria-label="新建歌单"
+      title="新建歌单"
       data-new-list-trigger
       @click.stop="handleShowNew"
     >
@@ -46,75 +46,47 @@
       </router-link>
     </nav>
 
-    <!-- 歌单列表：自建歌单 / 收藏歌单 两组（分组标题由 playlistEntries 一并产出） -->
-    <ul v-if="!collapsed" :class="$style.playlist">
-      <template v-for="entry in playlistEntries" :key="entry.key">
-        <!-- 分组标题 -->
-        <li
-          v-if="entry.type === 'header'"
-          :class="$style.sectionHeader"
-          :data-aside-section-header="entry.isAnchor ? '' : null"
-        >
-          <span :class="$style.sectionTitle">{{ entry.title }}</span>
-          <span :class="$style.sectionCount">{{ entry.count }}</span>
-          <span :class="$style.sectionSpacer" />
-          <button
-            v-if="entry.showAdd"
-            :class="$style.sectionBtn"
-            :aria-label="$t('nav__create_playlist')"
-            :title="$t('nav__create_playlist')"
-            data-new-list-trigger
-            @click.stop="handleShowNew"
-          >
-            <svg-icon name="plus" :class="$style.sectionIcon" />
-          </button>
-          <button
-            v-if="entry.showRefresh && updatableLists.length"
-            :class="$style.sectionBtn"
-            :aria-label="$t('list_update_modal__title')"
-            :title="$t('list_update_modal__title')"
-            data-update-trigger
-            @click.stop="toggleUpdatePanel"
-          >
-            <svg-icon name="refresh" :class="$style.sectionIcon" />
-          </button>
-        </li>
-
-        <!-- 分组空态 -->
-        <li v-else-if="entry.type === 'empty'" :class="$style.playlistEmpty">{{ entry.text }}</li>
-
-        <!-- 歌单项 -->
-        <li
-          v-else
-          :class="[$style.playlistItem, { [$style.active]: $route.path === '/list' && String($route.query.id) === String(entry.id) }]"
-          @click="openList(entry)"
-          @contextmenu.prevent="handleContextMenu($event, entry.index)"
-        >
-          <template v-if="isRenaming && renameIndex === entry.index">
-            <input
-              ref="dom_renameInput"
-              :class="$style.renameInput"
-              type="text"
-              :value="renameValue"
-              @input="renameValue = $event.target.value"
-              @blur="handleSaveRename"
-              @keyup.enter="handleSaveRename"
-              @keyup.esc="handleCancelRename"
-              @click.stop
-              @contextmenu.stop
-            >
-          </template>
-          <template v-else>
-            <span :class="$style.playlistCover" @click="openList(entry)">
-              <img v-if="entry.cover" :src="entry.cover">
-              <svg-icon v-else name="music" :class="$style.playlistCoverIcon" />
-            </span>
-            <span :class="$style.playlistLabel" :title="entry.name" @click="openList(entry)">{{ entry.name }}</span>
-            <span v-if="entry.count != null" :class="$style.playlistCount">{{ entry.count }}</span>
-          </template>
-        </li>
-      </template>
-    </ul>
+    <!-- 分组标题：「自建歌单 | 收藏歌单」两段均可点击切换下方列表 -->
+    <div v-if="!collapsed" :class="$style.sectionHeader" data-aside-section-header>
+      <button
+        :class="[$style.sectionTitle, { [$style.sectionTitleActive]: listSourceFilter === 'local' }]"
+        :aria-pressed="listSourceFilter === 'local'"
+        title="只看自建歌单"
+        data-list-source="local"
+        @click.stop="listSourceFilter = listSourceFilter === 'local' ? 'all' : 'local'"
+      >
+        自建歌单
+      </button>
+      <span :class="$style.sectionDivider">|</span>
+      <button
+        :class="[$style.sectionTitle, { [$style.sectionTitleActive]: listSourceFilter === 'online' }]"
+        :aria-pressed="listSourceFilter === 'online'"
+        title="只看收藏歌单"
+        data-list-source="online"
+        @click.stop="listSourceFilter = listSourceFilter === 'online' ? 'all' : 'online'"
+      >
+        收藏歌单
+      </button>
+      <button
+        :class="$style.sectionBtn"
+        aria-label="新建歌单"
+        title="新建歌单"
+        data-new-list-trigger
+        @click.stop="handleShowNew"
+      >
+        <svg-icon name="plus" :class="$style.sectionIcon" />
+      </button>
+      <button
+        v-if="updatableLists.length"
+        :class="$style.sectionBtn"
+        aria-label="列表更新管理"
+        title="列表更新管理"
+        data-update-trigger
+        @click.stop="toggleUpdatePanel"
+      >
+        <svg-icon name="refresh" :class="$style.sectionIcon" />
+      </button>
+    </div>
 
     <!-- 新建歌单内嵌输入（弹层定位到 sectionHeader 下方） -->
     <teleport v-if="isShowNewList && !collapsed" to="body">
@@ -131,13 +103,13 @@
             ref="dom_newInput"
             v-model="newListName"
             type="text" maxlength="30"
-            :placeholder="$t('nav__create_playlist_input')"
+            placeholder="输入歌单名，按回车确认"
             @keyup.enter="handleCreateList"
             @keyup.esc="handleCancelCreate"
           >
         </div>
         <footer :class="$style.createPopoverFooter">
-          <span :class="$style.createPopoverHint">{{ $t('nav__create_hint') }}</span>
+          <span :class="$style.createPopoverHint">↵ 创建 · Esc 取消</span>
           <div :class="$style.createPopoverActions">
             <button
               :class="$style.createPopoverBtn"
@@ -158,8 +130,8 @@
     <teleport v-if="isShowUpdatePanel && !collapsed" to="body">
       <div :class="$style.updatePanel" :style="updatePanelStyle" data-update-panel @click.stop>
         <header :class="$style.updatePanelHeader">
-          <h3>{{ $t('list_update_modal__title') }}</h3>
-          <button :class="$style.updatePanelClose" :aria-label="$t('close')" @click="isShowUpdatePanel = false">
+          <h3>列表更新管理</h3>
+          <button :class="$style.updatePanelClose" aria-label="关闭" @click="isShowUpdatePanel = false">
             <svg-icon name="close" />
           </button>
         </header>
@@ -186,7 +158,7 @@
               <button
                 :class="$style.updateItemSync"
                 :disabled="fetchingListStatus[list.id]"
-                :aria-label="$t('list_update_modal__update')"
+                aria-label="立即更新"
                 @click="handleUpdate(list)"
               >
                 <svg-icon name="refresh" />
@@ -200,6 +172,43 @@
         </footer>
       </div>
     </teleport>
+
+    <!-- 歌单列表 -->
+    <ul v-if="!collapsed" :class="$style.playlist">
+      <li
+        v-for="(p, idx) in playlists"
+        :key="p.id"
+        :class="[$style.playlistItem, { [$style.active]: $route.path === '/list' && String($route.query.id) === String(p.id) }]"
+        @click="openList(p)"
+        @contextmenu.prevent="handleContextMenu($event, idx)"
+      >
+        <template v-if="isRenaming && renameIndex === idx">
+          <input
+            ref="dom_renameInput"
+            :class="$style.renameInput"
+            type="text"
+            :value="renameValue"
+            @input="renameValue = $event.target.value"
+            @blur="handleSaveRename"
+            @keyup.enter="handleSaveRename"
+            @keyup.esc="handleCancelRename"
+            @click.stop
+            @contextmenu.stop
+          >
+        </template>
+        <template v-else>
+          <span :class="$style.playlistCover" @click="openList(p)">
+            <img v-if="p.cover" :src="p.cover">
+            <svg-icon v-else name="music" :class="$style.playlistCoverIcon" />
+          </span>
+          <span :class="$style.playlistLabel" :title="p.name" @click="openList(p)">{{ p.name }}</span>
+          <span v-if="p.count != null" :class="$style.playlistCount">{{ p.count }}</span>
+        </template>
+      </li>
+      <li v-if="!playlists.length" :class="$style.playlistEmpty">
+        点击标题栏的 + 新建歌单
+      </li>
+    </ul>
 
     <!-- 右键菜单 -->
     <base-menu
@@ -215,26 +224,19 @@
       <button
         :class="$style.footerBtn"
         :aria-label="collapsed ? '展开侧边栏' : '折叠侧边栏'"
-        :title="collapsed ? $t('nav__expand_sidebar') : $t('nav__collapse_sidebar')"
+        :title="collapsed ? '展开侧边栏' : '折叠侧边栏'"
         @click="toggleCollapsed"
       >
         <svg-icon name="arrow-left-circle-outline" />
       </button>
-      <button :class="$style.footerBtn" :aria-label="$t('setting')" :title="$t('setting')" @click="goSetting">
+      <button :class="$style.footerBtn" aria-label="设置" title="设置" @click="goSetting">
         <svg-icon name="hexagon-outline" />
       </button>
-      <button :class="$style.footerBtn" :aria-label="$t('nav__theme')" :title="$t('nav__theme')" @click="goTheme">
+      <button :class="$style.footerBtn" aria-label="主题装扮" title="主题装扮" @click="goTheme">
         <svg-icon name="tshirt" />
       </button>
-      <button :class="$style.footerBtn" :aria-label="$t('nav__change_log')" :title="$t('nav__change_log')" @click="openChangeLog">
+      <button :class="$style.footerBtn" aria-label="更新日志" title="更新日志" @click="openChangeLog">
         <svg-icon name="gamepad" />
-      </button>
-      <button
-        :class="$style.footerBtn"
-        :aria-label="$t('list_trash__title')" :title="$t('list_trash__title')"
-        @click="openListTrash"
-      >
-        <svg-icon name="trash" />
       </button>
     </footer>
   </aside>
@@ -252,9 +254,6 @@ import {
   allMusicList,
   fetchingListStatus,
 } from '@renderer/store/list/state'
-import { playHistoryList } from '@renderer/store/playHistory'
-import { localMusicList } from '@renderer/store/localLibrary'
-import { listTrashLoaded, loadListTrash, showListTrashModal } from '@renderer/store/listTrash'
 import {
   createUserList,
   removeUserList,
@@ -287,10 +286,6 @@ const goSetting = () => { void router.push('/setting').catch(() => {}) }
 const goTheme = () => { void router.push('/theme').catch(() => {}) }
 // 更新日志：复用已有的变更日志弹窗
 const openChangeLog = () => { isShowChangeLog.value = true }
-const openListTrash = () => {
-  if (!listTrashLoaded.value) void loadListTrash()
-  showListTrashModal()
-}
 
 // ====== 列表真实计数 ======
 // 注意：allMusicList 是 markRaw 的普通 Map（非响应式），
@@ -340,8 +335,6 @@ const playlists = computed(() => {
     return {
       id: l.id,
       name: l.name,
-      // 带 source 的歌单是从平台订阅/收藏来的，其余是用户自建
-      source: l.source ?? '',
       // 用歌单首曲封面当歌单封面，没有则退回占位图标
       cover: list?.[0]?.meta?.picUrl ?? null,
       count: listCounts[l.id] ?? null,
@@ -349,33 +342,9 @@ const playlists = computed(() => {
   })
 })
 
-// 侧栏歌单分组：原实现把「自建歌单 | 收藏歌单」两个标题挂在同一个合并列表上（语义自相矛盾）。
-// 这里按数据真实分组渲染；同时保留每项在扁平列表中的原始下标 index，
-// 因为重命名 / 右键菜单仍以扁平下标定位（见 handleContextMenu / renameIndex）。
-const playlistEntries = computed(() => {
-  const entries = []
-  const groups = [
-    { key: 'self', title: t('home__created_list'), match: l => !l.source, emptyText: t('nav__create_empty_tip'), showAdd: true },
-    { key: 'fav', title: t('home__collected_list'), match: l => !!l.source, emptyText: t('nav__fav_empty_tip'), showRefresh: true },
-  ]
-  const all = playlists.value
-  for (const group of groups) {
-    entries.push({ key: `h-${group.key}`, type: 'header', ...group, count: all.filter(group.match).length, isAnchor: group.key === 'self' })
-    let count = 0
-    all.forEach((p, index) => {
-      if (!group.match(p)) return
-      entries.push({ key: p.id, type: 'item', index, ...p })
-      count += 1
-    })
-    if (!count) entries.push({ key: `e-${group.key}`, type: 'empty', text: group.emptyText })
-  }
-  return entries
-})
-
 const loveListCount = computed(() => listCounts[loveList.id] ?? 0)
-// 最近播放：直接用持久化历史的条数（历史本身已按歌曲去重）
-const recentListCount = computed(() => playHistoryList.length)
-const defaultListCount = computed(() => listCounts[defaultList.id] ?? 0)
+// 最近播放：与「最近播放」页一致（该页展示试听列表 default 的内容）
+const recentListCount = computed(() => listCounts[defaultList.id] ?? 0)
 
 // 首页 + 乐馆，并列排放
 const mainQuickNav = computed(() => [
@@ -384,12 +353,9 @@ const mainQuickNav = computed(() => [
 ])
 // 其余入口（按设计稿顺序：喜欢 / 最近播放 / 本地和下载 / 试听列表）
 const mainNav = computed(() => [
-  { to: { name: 'ListLove' }, icon: 'heart-outline', label: t('nav__love'), name: 'ListLove', badge: loveListCount.value },
-  { to: { name: 'ListRecent' }, icon: 'clock', label: t('recent_play'), name: 'ListRecent', badge: recentListCount.value },
-  // 本地音乐与「本地和下载」拆成两项（对齐主流平台的「本地音乐 / 下载管理」分法）
-  { to: { name: 'LocalMusic' }, icon: 'folder', label: t('local_library'), name: 'LocalMusic', badge: localMusicList.length || null },
-  { to: { name: 'Download' }, icon: 'download-box', label: t('nav__local_and_download'), name: 'Download' },
-  { to: { name: 'ListDefault' }, icon: 'music-note-list', label: t('default_list'), name: 'ListDefault', badge: defaultListCount.value },
+  { to: { name: 'ListLove' }, icon: 'heart-outline', label: '喜欢', name: 'ListLove', badge: loveListCount.value },
+  { to: { name: 'ListRecent' }, icon: 'clock', label: '最近播放', name: 'ListRecent', badge: recentListCount.value },
+  { to: { name: 'Download' }, icon: 'download-box', label: '本地和下载', name: 'Download' },
 ])
 const isActive = (item) => {
   if (item.name === 'Home') return route.path === '/home' || route.path === '/'
@@ -398,7 +364,6 @@ const isActive = (item) => {
   if (item.name === 'ListRecent') return route.path === '/list/recent'
   if (item.name === 'ListDefault') return route.path === '/list/default'
   if (item.name === 'Download') return route.path === '/download'
-  if (item.name === 'LocalMusic') return route.path === '/local'
   if (item.name === 'SongList') return route.path.startsWith('/songList')
   if (item.name === 'List') {
     if (!route.path.startsWith('/list')) return false
@@ -580,8 +545,8 @@ const handleCancelRename = () => {
 const handleRemove = async(item) => {
   try {
     const ok = await dialog.confirm({
-      message: t('nav__delete_list_confirm', { name: item.name }),
-      confirmButtonText: t('common__delete'),
+      message: `确定要删除歌单 "${item.name}" 吗？`,
+      confirmButtonText: '删除',
     })
     if (!ok) return
     await removeUserList([item.id])
@@ -685,7 +650,7 @@ watch(userLists, () => {
   box-sizing: border-box;
   // 皮肤面板材质：跟随「皮肤透明度」滑块（--qm-surface 由 applySkinSurface 写入），
   // 与主面板同底色，壁纸/皮肤图可从半透明面板透出
-  background-color: var(--qm-surface, var(--qm-card, #F5F5F5));
+  background-color: var(--qm-surface, var(--color-main-background, #F5F5F5));
   user-select: none;
   -webkit-app-region: no-drag;
 
@@ -722,7 +687,7 @@ watch(userLists, () => {
   justify-content: center;
   width: 30px;
   height: 30px;
-  border-radius: var(--qm-radius-card);
+  border-radius: var(--qm-radius-md, 10px);
   background: linear-gradient(135deg, var(--qm-primary), var(--qm-primary-active));
   box-shadow:
     0 2px 6px color-mix(in srgb, var(--qm-primary) 34%, transparent),
@@ -767,19 +732,19 @@ watch(userLists, () => {
   align-items: center;
   justify-content: center;
   border-radius: var(--qm-radius-card, 10px);
-  background-color: var(--qm-tile-bg);
-  color: var(--qm-text-3);
+  background-color: var(--home-tile-bg);
+  color: var(--home-icon);
   text-decoration: none;
   cursor: pointer;
   transition: background-color var(--qm-t-base), color var(--qm-t-base), transform var(--qm-t-fast);
 
-  &:hover { background-color: var(--qm-tile-bg-active); }
+  &:hover { background-color: var(--home-tile-bg-active); }
   &:active { transform: scale(0.97); }
 
   &.active {
-    background-color: var(--qm-tile-bg-active);
+    background-color: var(--home-tile-bg-active);
     // 跟随主题文字色阶，避免深色主题下出现近黑的硬编码色
-    color: var(--qm-text-1);
+    color: var(--home-text-strong);
   }
 }
 .quickNavLabel { display: none; }
@@ -813,7 +778,7 @@ watch(userLists, () => {
   :global(.svg-icon) { width: var(--qm-icon-xs); height: var(--qm-icon-xs); fill: currentColor; }
   &:hover {
     color: var(--qm-primary);
-    background-color: var(--qm-hover);
+    background-color: var(--qm-hover, var(--home-hover-bg));
   }
   &:active { transform: scale(0.98); }
 }
@@ -835,7 +800,7 @@ watch(userLists, () => {
   height: 40px;
   padding: 0 12px;
   border-radius: var(--qm-radius-card, 10px);
-  color: var(--qm-text-2);
+  color: var(--home-text);
   text-decoration: none;
   font-size: var(--qm-font-title-md, 13px);
   font-weight: var(--qm-fw-medium, 500);
@@ -851,15 +816,15 @@ watch(userLists, () => {
     width: 3px;
     height: 0;
     border-radius: 0 3px 3px 0;
-    background-color: var(--qm-primary, var(--qm-primary-hover));
+    background-color: var(--qm-primary, var(--home-green-deep));
     transform: translateY(-50%);
     transition: height var(--qm-t-base);
   }
 
-  &:hover { background-color: var(--qm-hover); }
+  &:hover { background-color: var(--qm-hover, var(--home-hover-bg)); }
 
   &.active {
-    color: var(--qm-primary, var(--qm-primary-hover));
+    color: var(--qm-primary, var(--home-green-deep));
     background-color: var(--qm-primary-soft);
     font-weight: var(--qm-fw-semibold, 600);
 
@@ -873,14 +838,14 @@ watch(userLists, () => {
   flex: none;
   width: 18px;
   height: 18px;
-  color: var(--qm-text-3);
+  color: var(--home-icon);
   fill: currentColor;
   transition: color var(--qm-t-fast);
   :global(.svg-icon) { width: var(--qm-icon-sm); height: var(--qm-icon-sm); fill: currentColor; }
 }
 
 .navItem:hover .navIcon,
-.navItem.active .navIcon { color: var(--qm-primary, var(--qm-primary-hover)); }
+.navItem.active .navIcon { color: var(--qm-primary, var(--home-green-deep)); }
 
 .navLabel {
   flex: none;
@@ -944,17 +909,9 @@ watch(userLists, () => {
   }
 }
 
-// 分组计数：弱化的数字，跟在小标题后
-.sectionCount {
+.sectionDivider {
+  color: var(--qm-line-2);
   font-size: var(--qm-fs-2xs, 11px);
-  color: var(--qm-text-5);
-  font-variant-numeric: tabular-nums;
-}
-
-// 占位撑开，把操作按钮推到右侧
-.sectionSpacer {
-  flex: auto;
-  min-width: 0;
 }
 
 .sectionBtn {
@@ -968,12 +925,12 @@ watch(userLists, () => {
   border: 0;
   border-radius: var(--qm-radius-xs, 6px);
   background: transparent;
-  color: var(--qm-text-4);
+  color: var(--home-text-weak);
   cursor: pointer;
   transition: background-color var(--transition-fast), color var(--transition-fast);
 
   &:first-of-type { margin-left: auto; }
-  &:hover { background-color: var(--qm-hover); color: var(--qm-text-1); }
+  &:hover { background-color: var(--home-hover-bg); color: var(--home-text-strong); }
 }
 
 .sectionIcon {
@@ -1008,15 +965,15 @@ watch(userLists, () => {
   height: 38px;
   padding: 0 10px;
   border-radius: var(--qm-radius-card, 10px);
-  color: var(--qm-text-2);
+  color: var(--home-text);
   cursor: pointer;
   font-size: var(--qm-font-title-md, 13px);
   transition: background-color var(--qm-t-fast), color var(--qm-t-fast);
 
-  &:hover { background-color: var(--qm-hover); }
+  &:hover { background-color: var(--qm-hover, var(--home-hover-bg)); }
 
   &.active {
-    color: var(--qm-primary, var(--qm-primary-hover));
+    color: var(--qm-primary, var(--home-green-deep));
     background-color: var(--qm-primary-soft);
     font-weight: var(--qm-fw-semibold, 600);
   }
@@ -1027,7 +984,7 @@ watch(userLists, () => {
   width: 26px;
   height: 26px;
   border-radius: var(--qm-radius-cover, 8px);
-  background-color: var(--qm-field);
+  background-color: var(--home-field-bg);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1038,7 +995,7 @@ watch(userLists, () => {
 .playlistCoverIcon {
   width: 13px;
   height: 13px;
-  color: var(--qm-text-4);
+  color: var(--home-text-weak);
   fill: currentColor;
 }
 
@@ -1060,7 +1017,7 @@ watch(userLists, () => {
   padding: 12px 8px;
   text-align: center;
   font-size: var(--qm-fs-2xs, 11px);
-  color: var(--qm-text-4);
+  color: var(--home-text-weak);
   line-height: 1.6;
 }
 
@@ -1090,8 +1047,8 @@ watch(userLists, () => {
   transition: background-color var(--qm-t-fast), color var(--qm-t-fast), transform var(--qm-t-fast);
 
   &:hover {
-    background-color: var(--qm-hover);
-    color: var(--qm-text-1);
+    background-color: var(--qm-hover, var(--home-hover-bg));
+    color: var(--home-text-strong);
   }
   &:active { transform: scale(0.94); }
   &:focus-visible { box-shadow: var(--focus-ring, 0 0 0 3px rgba(0, 0, 0, .12)); }
@@ -1109,9 +1066,9 @@ watch(userLists, () => {
   flex-flow: column nowrap;
   padding: var(--qm-sp-5, 12px);
   box-sizing: border-box;
-  border-radius: var(--qm-radius-panel);
-  border: 1px solid var(--glass-border, var(--qm-line-2));
-  background-color: var(--glass-bg-strong, var(--qm-card));
+  border-radius: var(--qm-radius-lg, 12px);
+  border: 1px solid var(--glass-border, var(--color-border));
+  background-color: var(--glass-bg-strong, var(--color-surface-raised, #fff));
   backdrop-filter: blur(@glass-blur) saturate(@glass-saturate);
   -webkit-backdrop-filter: blur(@glass-blur) saturate(@glass-saturate);
   box-shadow: var(--shadow-4), var(--glass-highlight);
@@ -1159,14 +1116,14 @@ watch(userLists, () => {
   min-width: 0;
   font-size: var(--qm-fs-sm, 13px);
   font-weight: var(--qm-fw-bold, 700);
-  color: var(--qm-text-2, var(--qm-text-1));
+  color: var(--color-font, var(--home-text-strong));
   .mixin-ellipsis-1();
 }
 
 .createPopoverCount {
   flex: none;
   font-size: var(--qm-fs-2xs, 11px);
-  color: var(--qm-text-4);
+  color: var(--home-text-weak);
   font-variant-numeric: tabular-nums;
   transition: color var(--transition-fast);
 }
@@ -1178,16 +1135,16 @@ watch(userLists, () => {
     width: 100%;
     height: 36px;
     padding: 0 12px;
-    border: 1px solid var(--qm-line-2);
-    border-radius: var(--qm-radius-card);
-    background: color-mix(in srgb, var(--qm-text-2) 4%, transparent);
-    color: var(--qm-text-2, var(--qm-text-1));
+    border: 1px solid var(--color-border-strong, var(--color-border));
+    border-radius: var(--qm-radius-md, 10px);
+    background: color-mix(in srgb, var(--color-font) 4%, transparent);
+    color: var(--color-font, var(--home-text-strong));
     font-size: var(--qm-fs-sm, 13px);
     outline: none;
     box-sizing: border-box;
     transition: border-color var(--transition-base), box-shadow var(--transition-base), background-color var(--transition-base);
 
-    &::placeholder { color: var(--qm-text-4); opacity: 0.75; }
+    &::placeholder { color: var(--home-text-weak); opacity: 0.75; }
 
     &:focus {
       border-color: var(--color-primary);
@@ -1210,7 +1167,7 @@ watch(userLists, () => {
 .createPopoverHint {
   flex: none;
   font-size: var(--qm-fs-2xs, 11px);
-  color: var(--qm-text-4);
+  color: var(--home-text-weak);
   letter-spacing: 0.2px;
   opacity: 0.85;
 }
@@ -1228,19 +1185,19 @@ watch(userLists, () => {
   border: 0;
   border-radius: var(--qm-radius-sm, 8px);
   background: transparent;
-  color: var(--qm-text-2, var(--qm-text-1));
+  color: var(--color-font, var(--home-text-strong));
   font-size: var(--qm-fs-xs, 12px);
   font-weight: var(--qm-fw-medium, 500);
   cursor: pointer;
   transition: background-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 
-  &:hover { background: color-mix(in srgb, var(--qm-text-2) 7%, transparent); }
+  &:hover { background: color-mix(in srgb, var(--color-font) 7%, transparent); }
   &:active { transform: scale(0.96); }
 }
 
 .createPopoverBtnPrimary {
   background: var(--color-primary);
-  color: var(--qm-text-invert);
+  color: #fff;
 
   &:hover { background: var(--color-primary-dark-100, var(--color-primary)); }
   &:active { transform: scale(0.96); }
@@ -1252,7 +1209,7 @@ watch(userLists, () => {
   padding: 2px 6px;
   border-radius: var(--qm-radius-xs, 6px);
   background: rgba(0, 0, 0, 0.04);
-  color: var(--qm-text-1);
+  color: var(--home-text-strong);
   font-size: var(--qm-fs-sm, 13px);
   outline: none;
   &:focus { box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06); }
@@ -1266,10 +1223,9 @@ watch(userLists, () => {
   max-height: 70vh;
   display: flex;
   flex-flow: column nowrap;
-  // 必须用 --qm-card（跟随主题）：写死 #fff 会在深色主题下白底配浅字 → 面板内容不可读
-  background-color: var(--qm-card);
-  border: 1px solid var(--qm-line-2);
-  border-radius: var(--qm-radius-card);
+  background-color: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--qm-radius-md, 10px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16);
   overflow: hidden;
 }
@@ -1280,13 +1236,13 @@ watch(userLists, () => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--qm-line-1);
-  background: var(--qm-hover);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: rgba(0, 0, 0, 0.02);
   h3 {
     margin: 0;
     font-size: var(--qm-fs-md, 14px);
     font-weight: var(--qm-fw-semibold, 600);
-    color: var(--qm-text-1);
+    color: var(--home-text-strong);
   }
 }
 
@@ -1300,7 +1256,7 @@ watch(userLists, () => {
   border: 0;
   border-radius: var(--qm-radius-xs, 6px);
   background: transparent;
-  color: var(--qm-text-4);
+  color: var(--home-text-weak);
   cursor: pointer;
   &:hover { background-color: rgba(0, 0, 0, 0.06); color: var(--home-text-strong); }
   :global(.svg-icon) { width: var(--qm-icon-xs); height: var(--qm-icon-xs); fill: currentColor; }
@@ -1323,9 +1279,9 @@ watch(userLists, () => {
   gap: var(--qm-sp-3, 8px);
   padding: 10px 14px;
   transition: background-color var(--transition-fast), opacity var(--transition-fast);
-  border-bottom: 1px solid var(--qm-line-1);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   &:last-child { border-bottom: 0; }
-  &:hover { background-color: var(--qm-hover); }
+  &:hover { background-color: rgba(0, 0, 0, 0.03); }
   &.fetching { opacity: 0.5; }
 }
 
@@ -1340,7 +1296,7 @@ watch(userLists, () => {
 .updateItemName {
   font-size: var(--qm-fs-sm, 13px);
   font-weight: var(--qm-fw-medium, 500);
-  color: var(--qm-text-1);
+  color: var(--home-text-strong);
   .mixin-ellipsis-1();
 }
 
@@ -1348,7 +1304,7 @@ watch(userLists, () => {
   margin-left: var(--qm-sp-2, 6px);
   font-size: var(--qm-fs-2xs, 11px);
   font-weight: var(--qm-fw-regular, 400);
-  color: var(--qm-text-4);
+  color: var(--home-text-weak);
   opacity: 0.7;
   text-transform: lowercase;
 }
@@ -1358,7 +1314,7 @@ watch(userLists, () => {
   align-items: center;
   gap: var(--qm-sp-1, 4px);
   font-size: var(--qm-fs-xs, 12px);
-  color: var(--qm-text-4);
+  color: var(--home-text-weak);
   cursor: pointer;
   user-select: none;
   input {
@@ -1379,7 +1335,7 @@ watch(userLists, () => {
   border: 0;
   border-radius: var(--qm-radius-sm, 8px);
   background: transparent;
-  color: var(--qm-primary-hover);
+  color: var(--home-green-deep);
   cursor: pointer;
   transition: background-color var(--transition-fast), transform var(--transition-fast);
   &:hover:not(:disabled) { background-color: rgba(35, 240, 140, 0.12); }
@@ -1392,7 +1348,7 @@ watch(userLists, () => {
   padding: 32px 16px;
   text-align: center;
   font-size: var(--qm-fs-sm, 13px);
-  color: var(--qm-text-4);
+  color: var(--home-text-weak);
 }
 
 .updatePanelFooter {
@@ -1400,8 +1356,8 @@ watch(userLists, () => {
   padding: 8px 14px;
   font-size: var(--qm-fs-xs, 12px);
   line-height: 1.5;
-  color: var(--qm-text-4);
-  border-top: 1px solid var(--qm-line-1);
+  color: var(--home-text-weak);
+  border-top: 1px solid var(--color-border-subtle);
   background: rgba(0, 0, 0, 0.02);
 }
 </style>

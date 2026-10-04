@@ -76,7 +76,7 @@ body {
   user-select: none;
   height: 100%;
   // 不透明兜底：主题的面板可为半透明（让背景图透出），此处避免透视到窗口透明层
-  background-color: var(--qm-card, #F5F5F5);
+  background-color: var(--color-primary-light-1000, #F5F5F5);
   // 全局字体抗锯齿
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -86,7 +86,7 @@ body {
   height: 100%;
   position: relative;
   overflow: hidden;
-  color: var(--qm-text-2);
+  color: var(--color-font);
   background: var(--background-image) var(--background-image-position) no-repeat;
   background-size: var(--background-image-size);
   transition: background-color @transition-normal;
@@ -94,7 +94,7 @@ body {
   // （--color-app-background 部分主题自带透明度，如蓝田生玉的 alpha-700）
   // 之下必须垫一层不透明底色，否则无壁纸主题会直接透视到桌面。
   // 取主题的主面板色（各主题均为不透明值）；有壁纸时被壁纸完全覆盖，不影响观感。
-  background-color: var(--qm-card, #F5F5F5);
+  background-color: var(--color-main-background, #F5F5F5);
   box-sizing: border-box;
 }
 
@@ -107,9 +107,9 @@ body {
   background: transparent;
 }
 .disableTransparent {
-  background-color: var(--qm-surface);
+  background-color: var(--color-content-background);
   #body {
-    border: 1px solid var(--qm-line-2);
+    border: 1Px solid var(--color-primary-light-500);
   }
   #right {
     border-top-left-radius: 0;

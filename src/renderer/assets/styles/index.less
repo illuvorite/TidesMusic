@@ -373,6 +373,28 @@
   --shadow-modal:         var(--shadow-4);
 
   // ============================================================
+  //  首页外壳 token（按设计稿复刻：中性灰面板 + 亮绿强调）
+  //  说明：这些值取自设计稿实测像素，属于「中性灰」体系，
+  //  不随主题主色变化（深色主题下的壳层仍按此稿渲染）。
+  // ============================================================
+  --home-shell-bg:        rgb(240, 240, 240);   // 窗口底 / 侧栏底
+  --home-panel-bg:        rgb(245, 245, 245);   // 主面板 / 播放栏底
+  --home-tile-bg:         rgb(232, 232, 232);   // 侧栏快捷块（常态）
+  --home-tile-bg-active:  rgb(215, 215, 215);   // 侧栏快捷块（选中）
+  --home-field-bg:        rgb(224, 224, 224);   // 搜索框底
+  --home-hover-bg:        rgba(0, 0, 0, 0.05);  // 通用 hover 底
+  --home-text-strong:     rgb(38, 38, 38);      // 标题
+  --home-text:            rgb(74, 74, 74);      // 正文
+  --home-text-weak:       rgb(140, 140, 140);   // 次要文案 / 图标
+  --home-text-mute:       rgb(176, 176, 176);   // 链接 / 占位
+  --home-icon:            rgb(110, 110, 110);   // 图标默认色
+  --home-line:            rgb(201, 201, 201);   // 虚线 / 分隔
+  --home-green:           rgb(35, 240, 140);    // 品牌绿（播放钮 / 图标）
+  --home-green-deep:      rgb(31, 214, 125);    // 品牌绿（深一档）
+  --home-radius-panel:    10px;                 // 主面板 / 播放栏圆角
+  --home-gap-panel:       11px;                 // 窗口外边距 / 面板间距
+
+  // ============================================================
   //  --qm-* 设计 token（QQ 音乐风格）
   //  取值依据：docs/qq-music-design-system.md
   //  约定：页面样式只允许引用本段，禁止再写裸色值
@@ -401,8 +423,6 @@
   --qm-hover:              color-mix(in srgb, var(--color-1000) 7%, transparent);
   --qm-hover-strong:       color-mix(in srgb, var(--color-1000) 11%, transparent);
   --qm-field:              color-mix(in srgb, var(--color-1000) 9%, transparent);
-  // 侧栏/首页快捷块填充：由「墨色」透明度派生而非硬编码浅灰，
-  // 浅色主题是浅灰底，深色主题自动变为浅色叠加，保持中性与克制
   --qm-tile-bg:            color-mix(in srgb, var(--color-1000) 6%, transparent);
   --qm-tile-bg-active:     color-mix(in srgb, var(--color-1000) 12%, transparent);
   --qm-mask:               rgba(0, 0, 0, 0.45);
@@ -531,6 +551,26 @@
   --qm-t-base:             200ms var(--qm-ease);
   --qm-t-slow:             280ms var(--qm-ease);
   --qm-t-spring:           320ms var(--qm-ease-spring);
+
+  // —— 外壳别名：历史代码里的 --home-* 统一指向 --qm-* ——
+  --home-shell-bg:         var(--qm-shell);
+  --home-panel-bg:         var(--qm-surface);
+  --home-field-bg:         var(--qm-field);
+  --home-hover-bg:         var(--qm-hover);
+  --home-text-strong:      var(--qm-text-1);
+  --home-text:             var(--qm-text-2);
+  --home-text-weak:        var(--qm-text-4);
+  --home-text-mute:        var(--qm-text-5);
+  --home-icon:             var(--qm-text-3);
+  --home-line:             var(--qm-line-dashed);
+  --home-green:            var(--qm-primary);
+  --home-green-deep:       var(--qm-primary-hover);
+  --home-radius-panel:     var(--qm-radius-panel);
+  --home-gap-panel:        var(--qm-shell-gap);
+  // 侧栏快捷块：由「墨色」透明度派生而非硬编码浅灰，
+  // 深色主题自动变为浅色叠加，保持中性、克制的填充感
+  --home-tile-bg:          color-mix(in srgb, var(--color-1000) 6%, transparent);
+  --home-tile-bg-active:   color-mix(in srgb, var(--color-1000) 12%, transparent);
 }
 
 html {
@@ -822,7 +862,7 @@ small {
   font-size: .9em;
 }
 .tip {
-  color: var(--qm-text-4);
+  color: var(--color-label);
 }
 strong {
   font-weight: bold;
@@ -838,12 +878,12 @@ svg {
 }
 
 button, input, textarea, a {
-  color: var(--qm-text-2);
+  color: var(--color-font);
 }
 
 input, textarea {
   &::placeholder {
-    color: var(--qm-text-4);
+    color: var(--color-font-label);
   }
 }
 ::selection {
@@ -853,7 +893,7 @@ input, textarea {
 
 // 全局键盘焦点环（不抢鼠标 focus 状态）
 :focus-visible {
-  outline: 2px solid var(--qm-primary);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: var(--qm-radius-2xs, 4px);
 }
@@ -983,7 +1023,7 @@ table {
 .list {
   width: 100%;
   overflow: hidden;
-  color: var(--qm-text-2);
+  color: var(--color-font);
   flex: auto;
 
 
@@ -1013,11 +1053,7 @@ table {
       // 参考图悬停行底色比页面底亮约 4.5% 墨色（深色下 #272729）
       background-color: color-mix(in srgb, var(--color-1000) 4.5%, transparent);
     }
-    // active  = 多选态（selectedList 命中）
-    // playing = 当前播放行（列表页通过 activeIndex 指定）
-    // 两者视觉一致，语义独立：多选与播放行可能同时存在，不能互相覆盖
-    &.active,
-    &.playing {
+    &.active {
       background-color: var(--qm-primary-soft);
 
       .list-item-cell { color: var(--qm-text-active); }
@@ -1038,12 +1074,6 @@ table {
     }
     &.selected {
       background-color: var(--qm-hover-strong);
-    }
-    // 键盘光标行：↑↓ 导航时的高亮，与勾选（selected）/播放中（active）区分开
-    &.keyboard {
-      background-color: var(--qm-hover);
-
-      .list-item-cell { color: var(--qm-text-1); }
     }
     &.disabled {
       opacity: .5;
@@ -1068,7 +1098,7 @@ table {
         padding-left: 3px;
         padding-right: 3px;
         font-size: @font-size-caption;
-        color: var(--qm-text-4);
+        color: var(--color-font-label);
         font-variant-numeric: tabular-nums;
         font-feature-settings: 'tnum' 1;
       }

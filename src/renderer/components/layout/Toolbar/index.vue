@@ -37,18 +37,18 @@
       <div :class="$style.searchWrap">
         <SearchInput />
       </div>
-      <button type="button" :class="$style.greenBtn" :aria-label="$t('nav__now_playing')" :title="$t('nav__now_playing')" ignore-tip @click="goPlaying">
+      <button type="button" :class="$style.greenBtn" aria-label="正在播放" title="正在播放" ignore-tip @click="goPlaying">
         <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
-          <circle cx="11" cy="12.5" r="8.4" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.45" />
-          <circle cx="10.4" cy="13" r="4.4" fill="var(--qm-primary)" />
-          <circle cx="10.4" cy="13" r="1.05" fill="var(--qm-text-invert)" />
-          <path d="M15.6 9.4V4.2h4.6v4.2z" fill="var(--qm-primary)" />
+          <circle cx="11" cy="12.5" r="8.4" fill="none" stroke="#C9C9C9" stroke-width="1.2" />
+          <circle cx="10.4" cy="13" r="4.4" fill="var(--home-green)" />
+          <circle cx="10.4" cy="13" r="1.05" fill="#fff" />
+          <path d="M15.6 9.4V4.2h4.6v4.2z" fill="var(--home-green)" />
         </svg>
       </button>
-      <button type="button" :class="$style.greenBtn" :aria-label="$t('nav__songlist_square')" :title="$t('nav__songlist_square')" ignore-tip @click="goSongListPlaza">
+      <button type="button" :class="$style.greenBtn" aria-label="免费音源" title="免费音源" ignore-tip @click="goFreeSource">
         <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
-          <circle cx="12" cy="12" r="8.8" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.45" />
-          <text x="12" y="16.2" text-anchor="middle" font-size="11" font-weight="600" fill="var(--qm-primary)">免</text>
+          <circle cx="12" cy="12" r="8.8" fill="none" stroke="#C9C9C9" stroke-width="1.2" />
+          <text x="12" y="16.2" text-anchor="middle" font-size="11" font-weight="600" fill="var(--home-green)">免</text>
         </svg>
       </button>
     </div>
@@ -131,8 +131,8 @@ const reload = () => {
 const goPlaying = () => {
   setShowPlayerDetail(true)
 }
-// 绿色入口：歌单广场（原实现标注为「免费音源」但跳转目标一直是歌单广场，此处让文案与目标一致）
-const goSongListPlaza = () => {
+// 绿色入口：免费音源说明
+const goFreeSource = () => {
   void router.push('/songList/list').catch(() => {})
 }
 </script>
@@ -182,17 +182,17 @@ const goSongListPlaza = () => {
   border: 0;
   border-radius: var(--qm-radius-sm, 8px);
   background: transparent;
-  color: var(--qm-text-3);
+  color: rgb(110, 110, 110);
   cursor: pointer;
   transition: background-color var(--transition-fast), color var(--transition-fast);
 
   &:hover:not(:disabled) {
-    background-color: var(--qm-hover);
-    color: var(--qm-text-1);
+    background-color: var(--home-hover-bg);
+    color: var(--home-text-strong);
   }
   &:active:not(:disabled) { transform: scale(0.94); }
   &:disabled {
-    color: var(--qm-text-5);
+    color: rgb(180, 180, 180);
     cursor: default;
   }
   svg { display: block; }
