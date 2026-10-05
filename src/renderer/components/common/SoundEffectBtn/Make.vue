@@ -4,10 +4,11 @@
     <!-- ===== 主页 ===== -->
     <template v-if="view === 'home'">
       <div :class="$style.cardGrid">
-        <button type="button" :class="$style.bigCard" @click="view = 'general'">
+        <button type="button" :class="$style.bigCard" @click="openGeneral">
           <svg :class="$style.bigIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h3v14H5zM11 8h3v8h-3zM17 5h3v14h-3z" fill="none" stroke="currentColor" stroke-width="1.5" /><circle cx="6.5" cy="15" r="2" fill="currentColor" /><circle cx="12.5" cy="9" r="2" fill="currentColor" /><circle cx="18.5" cy="13" r="2" fill="currentColor" /></svg>
           <b :class="$style.bigName">{{ $t('player__sound_effect_make_general') }}</b>
           <span :class="$style.bigDesc">{{ $t('player__sound_effect_make_general_desc') }}</span>
+          <span v-if="chainEnabled" :class="$style.bigBadge">{{ $t('player__sound_effect_make_live') }}</span>
         </button>
         <button type="button" :class="$style.bigCard" @click="view = 'dj'">
           <svg :class="$style.bigIcon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
@@ -36,8 +37,7 @@
         <b :class="$style.subTitle">{{ $t('player__sound_effect_make_general') }}</b>
       </div>
       <div :class="$style.genToolbar">
-        <input v-model="generalName" :class="$style.genName" type="text" :placeholder="$t('player__sound_effect_make_new_general')">
-        <span :class="$style.genPhone">{{ $t('player__sound_effect_make_phone') }}</span>
+        <input v-model="generalName" :class="$style.genName" type="text" :placeholder="$t('player__sound_effect_make_new_general')" @input="persist()">
         <button type="button" :class="[$style.genSwitch, { [$style.genSwitchOn]: chainEnabled }]" :aria-label="$t('player__sound_effect_make_enable_effect')" @click="toggleChainEnabled">
           <span :class="$style.genSwitchDot" />
         </button>
@@ -45,10 +45,19 @@
         <button type="button" :class="$style.genPill" @click="clearChain">{{ $t('player__sound_effect_make_clear') }}</button>
         <button type="button" :class="$style.genPill" @click="exportChain">{{ $t('player__sound_effect_make_export') }}</button>
       </div>
+
+      <!-- 降级说明：把「哪些效果没有真的生效」直接讲清楚，而不是让用户自己猜 -->
+      <div v-if="warnings.length" :class="$style.warnBox">
+        <div v-for="(w, i) in warnings" :key="i" :class="$style.warnRow">
+          <b v-if="w.fxId" :class="$style.warnName">{{ $t('player__sound_effect_fx_' + w.fxId) }}</b>
+          <span>{{ warningText(w.kind) }}</span>
+        </div>
+      </div>
+
       <div v-if="showAddGrid" :class="$style.addArea">
         <div :class="$style.addHead">
           <b>{{ $t('player__sound_effect_make_add_effect') }}</b>
-          <button type="button" :class="$style.addLocalBtn">{{ $t('player__sound_effect_make_add_local') }}</button>
+          <button type="button" :class="$style.addLocalBtn" @click="importChain">{{ $t('player__sound_effect_make_add_local') }}</button>
         </div>
         <p :class="$style.addGroup">{{ $t('player__sound_effect_make_basic_effects') }}</p>
         <div :class="$style.fxGrid">
@@ -57,7 +66,7 @@
             :key="fx.id"
             type="button"
             :class="$style.fxBtn"
-            @click="addEffect(fx)"
+            @click="addEffect(fx.id)"
           >{{ $t('player__sound_effect_fx_' + fx.id) }}</button>
         </div>
       </div>
@@ -65,6 +74,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
       </button>
 
+      <p v-if="!chain.length" :class="$style.emptyTip">{{ $t('player__sound_effect_make_empty') }}</p>
       <div :class="$style.chainList">
         <div v-for="(item, index) in chain" :key="item.uid" :class="$style.chainItem">
           <button type="button" :class="$style.chainHead" @click="toggleExpand(item.uid)">
@@ -118,9 +128,25 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from '@common/utils/vueTools'
+import { computed, onBeforeUnmount, ref } from '@common/utils/vueTools'
 import { dialog } from '@renderer/plugins/Dialog'
 import { playDjEffect } from '@renderer/plugins/player'
+import {
+  USER_CHAIN_MAX_ITEMS,
+  USER_FX_CATALOG,
+  compileUserChain,
+  createUserChainItem,
+  findUserFx,
+  parseUserChain,
+  serializeUserChain,
+} from '@renderer/plugins/player/galaxy'
+import type { UserChain, UserFxDef, UserChainWarning } from '@renderer/plugins/player/galaxy'
+import {
+  loadUserChainForEdit,
+  saveUserChain,
+  setUserChainEnabled,
+} from '@renderer/plugins/player/galaxy/bridge'
+import { appSetting } from '@renderer/store/setting'
 import SeSlider from './SeSlider.vue'
 
 const view = ref<'home' | 'general' | 'dj'>('home')
@@ -130,116 +156,117 @@ const handleMultiTrack = () => {
   void dialog({ message: window.i18n.t('player__sound_effect_make_multi_soon') })
 }
 
-// ===== 34 种基础音效器（QQ 银河音效名单） =====
-// 支持实时应用：EQ 类（十段/30段）、低音类、高保真、声道平衡、环绕、混响（脉冲响应/混响器）、动态类（压缩/限制/推进）、变调
-// 其余类型可添加保存，应用时忽略（面板标灰）
-interface FxDef { id: string, params: Array<{ key: string, label: string, min: number, max: number, def: number }> }
-const P = (key: string, label: string, min: number, max: number, def: number) => ({ key, label, min, max, def })
-const EQ_BANDS: FxDef['params'] = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000].map((f: number, i: number) => P(`b${i}`, `player__sound_effect_fx_band_${f}`, -15, 15, 0))
-const effectCatalog: FxDef[] = [
-  { id: 'impulse', params: [P('wet', 'player__sound_effect_fx_param_wet', 0, 50, 20)] },
-  { id: 'volume', params: [P('gain', 'player__sound_effect_fx_param_gain', 0, 200, 100)] },
-  { id: 'rotary', params: [P('speed', 'player__sound_effect_fx_param_speed', 1, 50, 25)] },
-  { id: 'limiter', params: [P('threshold', 'player__sound_effect_fx_param_threshold', 0, 50, 20)] },
-  { id: 'stacker', params: [P('gain', 'player__sound_effect_fx_param_gain', 0, 200, 100)] },
-  { id: 'eq30', params: EQ_BANDS },
-  { id: 'exciter', params: [P('amount', 'player__sound_effect_fx_param_amount', 0, 50, 10)] },
-  { id: 'stereo_wide', params: [P('amount', 'player__sound_effect_fx_param_amount', 0, 50, 10)] },
-  { id: 'delay', params: [P('time', 'player__sound_effect_fx_param_time', 0, 1000, 200)] },
-  { id: 'hifi', params: [P('amount', 'player__sound_effect_fx_param_amount', 0, 50, 10)] },
-  { id: 'bass', params: [P('amount', 'player__sound_effect_fx_param_amount', 0, 50, 10)] },
-  { id: 'surround', params: [P('amount', 'player__sound_effect_fx_param_amount', 1, 30, 5)] },
-  { id: 'ambient', params: [P('wet', 'player__sound_effect_fx_param_wet', 0, 50, 20)] },
-  { id: 'dynamic', params: [P('amount', 'player__sound_effect_fx_param_amount', 0, 50, 10)] },
-  { id: 'balance', params: [P('pan', 'player__sound_effect_fx_param_pan', -50, 50, 0)] },
-  { id: 'pitch', params: [P('rate', 'player__sound_effect_fx_param_rate', 50, 150, 100)] },
-  { id: 'virtual_bass', params: [P('amount', 'player__sound_effect_fx_param_amount', 0, 50, 10)] },
-  { id: 'lowpass', params: [P('freq', 'player__sound_effect_fx_param_freq', 100, 20000, 18000)] },
-  { id: 'highpass', params: [P('freq', 'player__sound_effect_fx_param_freq', 20, 2000, 100)] },
-  { id: 'bandpass', params: [P('freq', 'player__sound_effect_fx_param_freq', 100, 10000, 1000)] },
-  { id: 'notch', params: [P('freq', 'player__sound_effect_fx_param_freq', 100, 10000, 1000)] },
-  { id: 'lowshelf', params: [P('gain', 'player__sound_effect_fx_param_gain', -15, 15, 0)] },
-  { id: 'highshelf', params: [P('gain', 'player__sound_effect_fx_param_gain', -15, 15, 0)] },
-  { id: 'bell', params: [P('freq', 'player__sound_effect_fx_param_freq', 100, 10000, 1000), P('gain', 'player__sound_effect_fx_param_gain', -15, 15, 0)] },
-  { id: 'tilt', params: [P('gain', 'player__sound_effect_fx_param_gain', -15, 15, 0)] },
-  { id: 'super_bass', params: [P('amount', 'player__sound_effect_fx_param_amount', 0, 50, 10)] },
-  { id: 'clear_vocal', params: [P('amount', 'player__sound_effect_fx_param_amount', 0, 50, 10)] },
-  { id: 'wide_field', params: [P('amount', 'player__sound_effect_fx_param_amount', 0, 50, 10)] },
-  { id: 'reverb', params: [P('wet', 'player__sound_effect_fx_param_wet', 0, 50, 20)] },
-  { id: 'compressor', params: [P('threshold', 'player__sound_effect_fx_param_threshold', 0, 50, 20)] },
-  { id: 'eq10', params: EQ_BANDS },
-  { id: 'dynamic_eq', params: EQ_BANDS.slice(0, 4) },
-  { id: 'spatial', params: [P('amount', 'player__sound_effect_fx_param_amount', 0, 50, 10)] },
-  { id: 'chorus', params: [P('amount', 'player__sound_effect_fx_param_amount', 0, 50, 10)] },
-]
-const effectMap = computed(() => {
-  const map: Record<string, FxDef> = {}
-  for (const fx of effectCatalog) map[fx.id] = fx
-  return map
-})
-const getFx = (id: string) => effectMap.value[id] ?? { params: [] }
+// ===== 效果器目录 =====
+// 参数定义与实际 DSP 映射都集中在 galaxy/userChain.ts：
+// 这一页只负责「编辑」，不关心每个效果如何落到 Web Audio 节点上。
+const effectCatalog: UserFxDef[] = USER_FX_CATALOG
+const getFx = (id: string) => findUserFx(id) ?? { id, params: [] }
 
-// ===== 通用音效链（localStorage 持久化） =====
-const CHAIN_KEY = 'lx_galaxy_general_chain'
-const generalName = ref('') // 未命名音效
-const chainEnabled = ref(false)
-const chain = ref<Array<{ uid: string, fxId: string, params: Record<string, number> }>>([])
+// ===== 通用音效链（设置持久化，实时生效）=====
+const generalName = ref('')
+const chain = ref<UserChainItemList>([])
 const showAddGrid = ref(false)
 const expandUid = ref('')
 
-const loadChain = () => {
-  try {
-    const raw = localStorage.getItem(CHAIN_KEY)
-    if (!raw) return
-    const data = JSON.parse(raw)
-    chain.value = data.chain ?? []
-    generalName.value = data.name ?? ''
-    chainEnabled.value = !!data.enabled
-  } catch {}
+type UserChainItemList = UserChain['items']
+
+const chainEnabled = computed(() => appSetting['player.soundEffect.galaxy.userChain.enable'])
+
+// 打开编辑器时从设置里载入
+const load = () => {
+  const saved = loadUserChainForEdit()
+  chain.value = saved.items
+  generalName.value = saved.name
 }
-const persistChain = (enabled = chainEnabled.value) => {
-  localStorage.setItem(CHAIN_KEY, JSON.stringify({ chain: chain.value, name: generalName.value, enabled }))
+load()
+
+/**
+ * 落盘。拖动滑杆时每次 change 都写设置会带来大量
+ * 「设置变更 → 重算整条链 → 重建音频路由」的抖动，因此做 150ms 合并；
+ * 开关/清空这类结构性操作立即写入（`persist(true)`）。
+ */
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+const persist = (immediate = false) => {
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = null
+  }
+  const write = () => { saveUserChain({ name: generalName.value, items: chain.value }) }
+  if (immediate) write()
+  else saveTimer = setTimeout(write, 150)
 }
-loadChain()
+onBeforeUnmount(() => {
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = null
+    saveUserChain({ name: generalName.value, items: chain.value })
+  }
+})
 
 const toggleExpand = (uid: string) => {
   expandUid.value = expandUid.value === uid ? '' : uid
 }
-const addEffect = (fx: FxDef) => {
-  const params: Record<string, number> = {}
-  for (const p of fx.params) params[p.key] = p.def
-  const uid = Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
-  chain.value = [...chain.value, { uid, fxId: fx.id, params }]
-  expandUid.value = uid
-  persistChain()
+const addEffect = (fxId: string) => {
+  if (chain.value.length >= USER_CHAIN_MAX_ITEMS) {
+    void dialog({ message: window.i18n.t('player__sound_effect_make_too_many') })
+    return
+  }
+  const item = createUserChainItem(fxId)
+  chain.value = [...chain.value, item]
+  expandUid.value = item.uid
+  persist(true)
 }
 const removeEffect = (index: number) => {
   chain.value = chain.value.filter((_, i) => i !== index)
-  persistChain()
+  persist(true)
 }
 const setParam = (uid: string, key: string, value: number) => {
-  chain.value = chain.value.map(item => item.uid === uid ? { ...item, params: { ...item.params, [key]: Math.round(value) } } : item)
-  persistChain()
+  chain.value = chain.value.map(item => item.uid === uid
+    ? { ...item, params: { ...item.params, [key]: Math.round(value) } }
+    : item)
+  persist()
 }
 const clearChain = () => {
   chain.value = []
   showAddGrid.value = false
-  persistChain(false)
-  chainEnabled.value = false
+  setUserChainEnabled(false)
+  persist(true)
 }
 
 const toggleChainEnabled = () => {
-  chainEnabled.value = !chainEnabled.value
-  persistChain()
-  // 通用音效的实时应用即将支持：当前开关仅保存状态，
-  // 不写全局音效设置（避免与均衡器/推荐音效页的滑条互相覆盖）
-  void dialog({ message: window.i18n.t('player__sound_effect_make_enable_soon') })
+  if (!chainEnabled.value && chain.value.length === 0) {
+    // 空链开启等于「什么都没发生」，直说比留一个没反应的开关好
+    void dialog({ message: window.i18n.t('player__sound_effect_make_empty_chain') })
+    return
+  }
+  persist(true)
+  setUserChainEnabled(!chainEnabled.value)
+}
+
+// ===== 编译反馈 =====
+// 直接把编译结果跑一遍给用户看：哪些效果真的生效、哪些只能近似、哪些没有落点。
+// 一个「点了没反应但界面说已启用」的开关，比明说"不支持"要糟得多。
+const compiled = computed(() => {
+  if (chain.value.length === 0) return null
+  return compileUserChain({ name: generalName.value, items: chain.value })
+})
+const warnings = computed<UserChainWarning[]>(() => compiled.value?.warnings ?? [])
+
+const warningText = (kind: UserChainWarning['kind']): string => {
+  const key = kind === 'dropped'
+    ? 'player__sound_effect_make_warn_dropped'
+    : kind === 'approximated'
+      ? 'player__sound_effect_make_warn_approximated'
+      : 'player__sound_effect_make_warn_overflow'
+  return window.i18n.t(key)
 }
 
 // ===== 导入 / 导出（JSON） =====
 const fileRef = ref<HTMLInputElement | null>(null)
 const exportChain = () => {
-  const data = JSON.stringify({ type: 'lx-galaxy-general', name: generalName.value, chain: chain.value }, null, 2)
+  if (chain.value.length === 0) return
+  persist(true)
+  const data = serializeUserChain({ name: generalName.value, items: chain.value })
   const blob = new Blob([data], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -252,23 +279,24 @@ const importChain = () => {
   fileRef.value?.click()
 }
 const handleImportFile = (event: Event) => {
-  const file = (event.target as HTMLInputElement).files?.[0]
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
   if (!file) return
   const reader = new FileReader()
   reader.onload = () => {
-    try {
-      const data = JSON.parse(String(reader.result))
-      if (data.type != 'lx-galaxy-general' || !Array.isArray(data.chain)) throw new Error('bad format')
-      chain.value = data.chain
-      generalName.value = data.name ?? ''
-      persistChain()
-      void dialog({ message: window.i18n.t('player__sound_effect_make_import_ok') })
-    } catch {
+    // 用与设置同一条解析路径：格式不对就明确报错，而不是载入半份数据
+    const parsed = parseUserChain(reader.result)
+    if (!parsed) {
       void dialog({ message: window.i18n.t('player__sound_effect_make_import_bad') })
+    } else {
+      chain.value = parsed.items
+      generalName.value = parsed.name
+      persist(true)
+      void dialog({ message: window.i18n.t('player__sound_effect_make_import_ok') })
     }
   }
   reader.readAsText(file)
-  ;(event.target as HTMLInputElement).value = ''
+  input.value = ''
 }
 
 // ===== DJ 音效 =====
@@ -334,6 +362,7 @@ const playDj = (type: DjType) => {
   padding: 34px 10px 0;
 }
 .bigCard {
+  position: relative;
   display: flex;
   flex-flow: column nowrap;
   align-items: center;
@@ -365,6 +394,18 @@ const playDj = (type: DjType) => {
   line-height: 1.6;
   color: var(--se-text-weak, #666);
   text-align: center;
+}
+// 「已实时生效」角标：让用户一眼知道这条链正在参与音频路径
+.bigBadge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background-color: var(--se-accent, #1ecc94);
+  color: #fff;
+  font-size: 10px;
+  line-height: 1.4;
 }
 .homeFooter {
   display: flex;
@@ -452,6 +493,34 @@ const playDj = (type: DjType) => {
     background-color: var(--se-accent, #1ecc94);
     color: #fff;
   }
+}
+
+// 编译降级说明
+.warnBox {
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background-color: var(--se-field, #f8f8f8);
+  border-left: 3px solid #e8a33d;
+}
+.warnRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--se-fs-aux, 12px);
+  line-height: 1.9;
+  color: var(--se-text-weak, #666);
+}
+.warnName {
+  flex: none;
+  color: var(--se-text, #333);
+}
+
+.emptyTip {
+  margin: 4px 0 10px;
+  font-size: var(--se-fs-aux, 12px);
+  line-height: 1.7;
+  color: var(--se-text-weak, #666);
 }
 
 .addArea {

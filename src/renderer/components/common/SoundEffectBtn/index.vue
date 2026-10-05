@@ -30,7 +30,7 @@
               <span :class="$style.switchDot" />
             </button>
             <span :class="$style.headerState">{{ isAnyActive ? $t('player__sound_effect_state_on') : $t('player__sound_effect_state_off') }}</span>
-            <span v-if="isAnyActive" :class="$style.headerPreset">{{ eqPresetText }}</span>
+            <span v-if="isAnyActive" :class="$style.headerPreset">{{ headerPresetText }}</span>
             <button type="button" :class="$style.closeBtn" aria-label="close" ignore-tip @click="visible = false">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M6 6 18 18M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
@@ -99,6 +99,8 @@ import PitchShifter from './PitchShifter.vue'
 import Make from './Make.vue'
 import { appSetting, updateSetting } from '@renderer/store/setting'
 import { freqs, freqsPreset } from '@renderer/plugins/player'
+import { activeGalaxyPresetId, disableGalaxy, readUserChain } from '@renderer/plugins/player/galaxy/bridge'
+import { findFXPreset } from '@renderer/plugins/player/galaxy'
 
 defineProps({
   teleport: {
@@ -126,13 +128,34 @@ const eqPreset = computed(() => {
 })
 const eqPresetText = computed(() => window.i18n.t(`player__sound_effect_biquad_filter_preset_${eqPreset.value.i18n}`))
 
+// 表头显示的当前生效来源：
+//   音效制作链 > FX 预设名 > 均衡器预设名
+// 与 galaxy/bridge.ts 的优先级栈保持一致，否则表头显示的会和实际听到的不符。
+const headerPresetText = computed(() => {
+  if (appSetting['player.soundEffect.galaxy.userChain.enable']) {
+    const chain = readUserChain()
+    if (chain && chain.items.length > 0) {
+      return chain.name || window.i18n.t('player__sound_effect_make_general')
+    }
+  }
+  const galaxyId = activeGalaxyPresetId()
+  if (galaxyId) {
+    const fx = findFXPreset(galaxyId)
+    if (fx) return fx.name
+  }
+  return eqPresetText.value
+})
+
 // 是否有任一音效生效
 const isAnyActive = computed(() => {
+  if (appSetting['player.soundEffect.galaxy.enable']) return true
+  // 音效制作的通用音效链
+  if (appSetting['player.soundEffect.galaxy.userChain.enable']) return true
   if (freqs.some(f => appSetting[`player.soundEffect.biquadFilter.hz${f}`] !== 0)) return true
   if (appSetting['player.soundEffect.panner.enable']) return true
   if (appSetting['player.soundEffect.convolution.fileName']) return true
   if (appSetting['player.soundEffect.pitchShifter.playbackRate'] !== 1) return true
-  // 增强效果链已实现（见 plugins/player 的 applyEnhanceRouting），需一并计入
+  // 「均衡器」页的 4 条增强滑条（由银河引擎承载，见 galaxy/enhance.ts）
   if (appSetting['player.soundEffect.enhance.bass'] !== 0) return true
   if (appSetting['player.soundEffect.enhance.hifi'] !== 0) return true
   if (appSetting['player.soundEffect.enhance.dynamic'] !== 0) return true
@@ -154,17 +177,9 @@ const handleToggleAll = () => {
   setting['player.soundEffect.enhance.dynamic'] = 0
   setting['player.soundEffect.enhance.balance'] = 0
   updateSetting(setting)
-  // 同步关闭通用音效链的「开启效果」状态，防止其后续再写全局音效
-  try {
-    const raw = localStorage.getItem('lx_galaxy_general_chain')
-    if (raw) {
-      const data = JSON.parse(raw)
-      if (data.enabled) {
-        data.enabled = false
-        localStorage.setItem('lx_galaxy_general_chain', JSON.stringify(data))
-      }
-    }
-  } catch {}
+  // 银河链路（FX 预设 / 智能补偿 / 音效制作链）一并卸载，
+  // 否则它会继续接管尾段，一键关闭形同虚设
+  disableGalaxy()
 }
 
 const activeTab = ref('recommend')
@@ -190,7 +205,7 @@ const sideTabs = computed(() => {
       id: 'eq',
       label: window.i18n.t('player__sound_effect_biquad_filter'),
       // 参考图中该子标签只在「均衡器」页处于选中态时出现，其它页不显示
-      sub: activeTab.value === 'eq' && isAnyActive.value ? eqPresetText.value : '',
+      sub: activeTab.value === 'eq' && isAnyActive.value ? headerPresetText.value : '',
       // 三段竖向推子
       icon: '<path d="M15.4 13v22M24 13v22M32.6 13v22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="15.4" cy="29.4" r="3.6" fill="currentColor"/><circle cx="24" cy="19.6" r="3.6" fill="currentColor"/><circle cx="32.6" cy="32.4" r="3.6" fill="currentColor"/>',
     },

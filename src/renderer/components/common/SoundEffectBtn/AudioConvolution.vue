@@ -1,5 +1,22 @@
 <template>
   <div :class="$style.content">
+    <!-- 智能音效：测量当前播放素材 → 给出修正建议 → 应用。放在最上方，
+         因为它是「让预设适配这首歌」的动作，逻辑上先于选哪个预设 -->
+    <smart-panel />
+
+    <!-- 银河 2.0 强度：仅在银河链启用时出现，避免出现「能拖但没反应」的死控件 -->
+    <div v-if="galaxyOn" :class="$style.intensityRow">
+      <span :class="$style.intensityLabel">{{ $t('player__sound_effect_galaxy_intensity') }}</span>
+      <effect-slider
+        :class="$style.intensitySlider"
+        :value="intensity"
+        :min="0"
+        :max="100"
+        @change="handleIntensity"
+      />
+      <span :class="$style.intensityValue">{{ intensity }}%</span>
+    </div>
+
     <h4 :class="$style.sectionTitle">{{ $t('player__sound_effect_recommend_featured') }}</h4>
     <div :class="$style.featuredGrid">
       <button
@@ -9,7 +26,7 @@
         :class="[$style.featuredCard, $style[item.themeCls], { [$style.active]: activeFeaturedId === item.id }]"
         :aria-label="item.name"
         :aria-pressed="activeFeaturedId === item.id"
-        @click="applyEffect(item.effect)"
+        @click="applyEffect(item)"
       >
         <span :class="$style.featuredName">{{ item.name }}</span>
         <svg v-if="activeFeaturedId === item.id" :class="$style.checkBadge" viewBox="0 0 24 24" aria-hidden="true">
@@ -38,7 +55,7 @@
         :key="item.id"
         :class="[$style.masterItem, { [$style.masterActive]: activeMasterId === item.id }]"
         :aria-label="item.name"
-        @click="applyEffect(item.effect)"
+        @click="applyEffect(item)"
       >
         <span :class="$style.masterName">{{ item.name }}</span>
         <button
@@ -59,6 +76,22 @@ import { computed, onMounted, ref } from '@common/utils/vueTools'
 import { freqs, freqsPreset } from '@renderer/plugins/player'
 import { appSetting, saveMediaDeviceId, updateSetting } from '@renderer/store/setting'
 import { getUserEQPresetList, removeUserEQPreset, saveUserEQPreset } from '@renderer/store/soundEffect'
+import {
+  activeGalaxyPresetId,
+  applyGalaxyPreset,
+  disableGalaxy,
+  markGalaxyEqCustom,
+  setGalaxyIntensity,
+} from '@renderer/plugins/player/galaxy/bridge'
+import EffectSlider from './ui/EffectSlider.vue'
+import SmartPanel from './SmartPanel.vue'
+
+// ===== 银河 2.0 强度（仅银河链启用时显示）=====
+const galaxyOn = computed(() => appSetting['player.soundEffect.galaxy.enable'])
+const intensity = computed(() => appSetting['player.soundEffect.galaxy.intensity'])
+const handleIntensity = value => {
+  setGalaxyIntensity(value)
+}
 
 const ZERO_EQ = { hz31: 0, hz62: 0, hz125: 0, hz250: 0, hz500: 0, hz1000: 0, hz2000: 0, hz4000: 0, hz8000: 0, hz16000: 0 }
 const presetMap = {}
@@ -105,33 +138,78 @@ const builtinMasters = [
   C('m_ethereal', '', window.i18n.t('player__sound_effect_master_ethereal'), eqOf('slow'), ['matrix-reverb1.wav', 15, 6], { panner: true, bass: 3, hifi: 6, dynamic: 3 }),
 ]
 
+// ===== 银河 2.0 预设映射 =====
+// 磁贴保持原有外观/文案不变，点击后改为应用 galaxy/fxPresets 的 64 个预设之一。
+// 这样「推荐音效」页从此走银河引擎（预设 + 强度），不再逐个写 6 条旧增强设置。
+const FEATURED_GALAXY = {
+  smart: 'smart',
+  superdj: 'party-dj',
+  panorama: 'concert-hall',
+  stereo51: 'surround-51',
+  bass: 'bass-super',
+  clearvocal: 'vocal-clear',
+  livebeat: 'live-show',
+  outdoor: 'scene-speaker',
+  china: 'spatial-church',
+}
+const MASTER_GALAXY = {
+  m_galaxy_hifi: 'galaxy-hifi',
+  m_virtual_hall: 'spatial-hall',
+  m_hifi_surround: 'spatial-widefield',
+  m_wide: 'spatial-ultrawide',
+  m_vr: 'spatial-vr',
+  m_oxygen_vocal: 'vocal-crystal',
+  m_highreal: 'hifi-hires',
+  m_sound_real: 'scene-studio',
+  m_folk_dj: 'genre-electronic',
+  m_lsk: 'genre-pop',
+  m_ierz1r: 'hifi-analytic',
+  m_hifi_wrap: 'vocal-ktv',
+  m_outdoor_only: 'scene-speaker',
+  m_perfect_vocal: 'vocal-lead',
+  m_soundbar: 'spatial-cinema',
+  m_ethereal: 'creative-dream',
+}
+
+// 「关闭」磁贴需要复位的旧音效设置（银河链关闭后不能留下残余染色）
+const legacyZeroPatch = () => {
+  const patch = {
+    'player.soundEffect.panner.enable': false,
+    'player.soundEffect.panner.soundR': 0,
+    'player.soundEffect.convolution.fileName': '',
+    'player.soundEffect.convolution.sendGain': 0,
+    'player.soundEffect.reverbMode': 'off',
+    'player.soundEffect.pitchShifter.playbackRate': 1,
+    'player.soundEffect.enhance.bass': 0,
+    'player.soundEffect.enhance.hifi': 0,
+    'player.soundEffect.enhance.dynamic': 0,
+    'player.soundEffect.enhance.balance': 0,
+  }
+  for (const f of freqs) patch[`player.soundEffect.biquadFilter.hz${f}`] = 0
+  return patch
+}
+
 // ===== 应用组合（统一入口） =====
-const applyEffect = effect => {
+const applyEffect = item => {
   if (appSetting['player.mediaDeviceId'] != 'default') saveMediaDeviceId('default')
-  const setting = {
-    'player.soundEffect.enhance.bass': effect.bass ?? 0,
-    'player.soundEffect.enhance.hifi': effect.hifi ?? 0,
-    'player.soundEffect.enhance.dynamic': effect.dynamic ?? 0,
-    'player.soundEffect.enhance.balance': effect.balance ?? 0,
-    'player.soundEffect.pitchShifter.playbackRate': effect.pitch ?? 1,
-    'player.soundEffect.panner.enable': effect.panner ?? false,
-    // 开启环绕时若半径为 0（之前被用户关掉），给一个可感知的默认值，否则 panner 半径为 0 会导致音效静默失效
-    'player.soundEffect.panner.soundR': effect.panner
-      ? (appSetting['player.soundEffect.panner.soundR'] || 5)
-      : appSetting['player.soundEffect.panner.soundR'],
+
+  // 玩家自己保存的「达人音效」：只改 EQ 十段（对应银河 EQ 层的 custom 模式）
+  if (item.eqOnly) {
+    const patch = {}
+    for (const f of freqs) patch[`player.soundEffect.biquadFilter.hz${f}`] = item.eq[`hz${f}`] ?? 0
+    updateSetting(patch)
+    markGalaxyEqCustom()
+    return
   }
-  const eq = effect.eq ?? { ...ZERO_EQ }
-  for (const f of freqs) setting[`player.soundEffect.biquadFilter.hz${f}`] = eq[`hz${f}`] ?? 0
-  setting['player.soundEffect.convolution.fileName'] = effect.conv ? effect.conv.source : ''
-  setting['player.soundEffect.convolution.mainGain'] = effect.conv ? Math.round(effect.conv.mainGain * 10) : 10
-  // 混响强度（sendGain）是用户的独立滑条，组合预设不覆盖它；
-  // 启用混响且当前强度为 0 时给一个可感知的默认值
-  if (effect.conv) {
-    setting['player.soundEffect.convolution.sendGain'] = appSetting['player.soundEffect.convolution.sendGain'] || 12
-  } else {
-    setting['player.soundEffect.convolution.sendGain'] = 0
+
+  const galaxyId = FEATURED_GALAXY[item.id] ?? MASTER_GALAXY[item.id] ?? null
+  if (!galaxyId) {
+    // 「关闭」：卸载银河链并复位旧音效设置
+    disableGalaxy()
+    updateSetting(legacyZeroPatch())
+    return
   }
-  updateSetting(setting)
+  applyGalaxyPreset(galaxyId)
 }
 
 // ===== 当前选中项（值匹配） =====
@@ -144,15 +222,17 @@ const currentSnapshot = computed(() => ({
   dynamic: appSetting['player.soundEffect.enhance.dynamic'],
   balance: appSetting['player.soundEffect.enhance.balance'],
 }))
-const matchSnapshot = effect => {
-  const cur = currentSnapshot.value
-  const eq = effect.eq ?? { ...ZERO_EQ }
-  const eqStr = freqs.map(f => eq[`hz${f}`] ?? 0).join(',')
-  const convMatch = effect.conv ? cur.conv === effect.conv.source : cur.conv === ''
-  return cur.eq === eqStr && convMatch && cur.panner === (effect.panner ? 1 : 0) && cur.bass === (effect.bass ?? 0) && cur.hifi === (effect.hifi ?? 0) && cur.dynamic === (effect.dynamic ?? 0) && cur.balance === (effect.balance ?? 0)
-}
-const activeFeaturedId = computed(() => featuredList.find(item => matchSnapshot(item.effect))?.id ?? '')
-const activeMasterId = computed(() => masterItems.value.find(item => matchSnapshot(item.effect))?.id ?? '')
+// ===== 当前选中项：直接由「当前银河预设 id」判定（比逐参数比对可靠）=====
+const activeFeaturedId = computed(() => {
+  const id = activeGalaxyPresetId()
+  if (!id) return 'close'
+  return featuredList.find(item => FEATURED_GALAXY[item.id] === id)?.id ?? ''
+})
+const activeMasterId = computed(() => {
+  const id = activeGalaxyPresetId()
+  if (!id) return ''
+  return masterItems.value.find(item => MASTER_GALAXY[item.id] === id)?.id ?? ''
+})
 
 // ===== 达人音效：内置 + 用户保存（复用 userEQPreset 存储） =====
 const userMasters = ref([])
@@ -160,7 +240,7 @@ const masterItems = computed(() => {
   const userItems = userMasters.value.map(item => {
     const eq = {}
     for (const f of freqs) eq[`hz${f}`] = item[`hz${f}`] ?? 0
-    return { id: 'u_' + item.id, name: item.name, removable: true, effect: { eq, conv: null, bass: 0, hifi: 0, dynamic: 0, balance: 0, pitch: 1 } }
+    return { id: 'u_' + item.id, name: item.name, removable: true, eqOnly: true, eq, effect: { eq, conv: null, bass: 0, hifi: 0, dynamic: 0, balance: 0, pitch: 1 } }
   })
   return [...userItems, ...builtinMasters]
 })
@@ -198,6 +278,32 @@ onMounted(() => {
 .content {
   user-select: none;
   min-width: 0;
+}
+
+// ===== 银河 2.0 强度（表头下方一行，仅银河链启用时可见）=====
+.intensityRow {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.intensityLabel {
+  flex: none;
+  font-size: var(--se-fs-aux, 12px);
+  color: var(--se-text, #333);
+}
+.intensitySlider {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.intensityValue {
+  flex: none;
+  width: 42px;
+  text-align: right;
+  font-size: var(--se-fs-aux, 12px);
+  font-variant-numeric: tabular-nums;
+  color: var(--se-accent, #1ecc94);
 }
 
 // ===== 区块标题 =====

@@ -1,8 +1,27 @@
+import type { GalaxyEngineHandle } from './galaxy/engine'
+import { createGalaxyEngine } from './galaxy/engine'
+import type { SmartAnalyserSet } from './galaxy/measure'
+import type { EQBand, GalaxyDSPConfig } from './galaxy/types'
+import { ENHANCE_REVERB_MAX_WET } from './audioEffects'
+
 interface HTMLAudioElementChrome extends HTMLAudioElement {
   setSinkId: (id: string) => Promise<void>
 }
-// 转出 audioEffects 中的预设常量（音效面板 presets.ts 从本模块取用）
-export { eqPresets, surroundModes } from './audioEffects'
+// 转出 audioEffects 中的预设常量（EqCurve.vue 从这里取 EQ_GAIN_MIN / EQ_GAIN_MAX）
+// 注意：这几个常量此前漏转出，导致 EQ 曲线控制点的取值范围拿到 undefined（webpack 只报 warning 不报错）。
+// 增强滑条的量程常量也一并转出，供面板的滑条 min/max 使用 —— 让 UI 与引擎共用同一份定义。
+export {
+  eqPresets,
+  surroundModes,
+  EQ_FREQUENCIES,
+  EQ_GAIN_MIN,
+  EQ_GAIN_MAX,
+  EQ_Q,
+  ENHANCE_MAX,
+  ENHANCE_BALANCE_MAX,
+  reverbWetFromIntensity,
+  surroundRadiusFromIntensity,
+} from './audioEffects'
 let audio: HTMLAudioElementChrome | null = null
 let audioContext: AudioContext
 let mediaSource: MediaElementAudioSourceNode
@@ -13,7 +32,7 @@ export const freqs = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as c
 type Freqs = (typeof freqs)[number]
 let biquads: Map<`hz${Freqs}`, BiquadFilterNode>
 export const freqsPreset = [
-  { name: 'pop', hz31: 6, hz62: 5, hz125: -3, hz250: -2, hz500: 5, hz1000: 4, hz2000: -4, hz4000: -3, hz8000: 6, hz16000: 4 },
+  { name: 'pop', hz31: 4, hz62: 2, hz125: 0, hz250: -3, hz500: -6, hz1000: -6, hz2000: -3, hz4000: 0, hz8000: 1, hz16000: 3 },
   { name: 'dance', hz31: 4, hz62: 3, hz125: -4, hz250: -6, hz500: 0, hz1000: 0, hz2000: 3, hz4000: 4, hz8000: 4, hz16000: 5 },
   { name: 'rock', hz31: 7, hz62: 6, hz125: 2, hz250: 1, hz500: -3, hz1000: -4, hz2000: 2, hz4000: 1, hz8000: 4, hz16000: 5 },
   { name: 'classical', hz31: 6, hz62: 7, hz125: 1, hz250: 2, hz500: -1, hz1000: 1, hz2000: -4, hz4000: -6, hz8000: -7, hz16000: -8 },
@@ -69,15 +88,21 @@ export const soundR = 0.5
 let coreOutNode: AudioNode
 let isPannerEnabled = false
 
-// ===== 增强效果链节点（超重低音 / 高保真度 / 动态推进 / 声道平衡）=====
-// 这 4 项都遵循「中性即完全旁路」：只要参数为默认值，节点就不会被插入链路，
-// 避免 ㉓ 里出现过的「未开音效也像套了一层」问题。
-let enhanceBassShelf: BiquadFilterNode
-let enhanceHifiShelf: BiquadFilterNode
-let enhanceComp: DynamicsCompressorNode
-let enhanceMakeup: GainNode
-let enhanceBalance: StereoPannerNode
-let enhanceLimiter: DynamicsCompressorNode
+// ===== 银河音效 2.0 链路（GalaxyDSPConfig 驱动）=====
+//
+// ⚠️ 这里**只有一条**可插拔链路。历史上「增强效果链」（超重低音/高保真度/
+// 动态推进/声道平衡）是另一套独立节点链，与银河引擎互斥，要靠调用方手工维持
+// 互斥关系，还导致同一类路由坑踩两次。现在那 4 项滑条由 `galaxy/enhance.ts`
+// 编译成一份 GalaxyDSPConfig，走同一个引擎 —— 「推荐音效」「均衡器」
+// 「音效制作」三页因此共用同一条链、同一套不变量。
+let galaxyEngine: GalaxyEngineHandle | null = null
+let isGalaxyOn = false
+/**
+ * 当前挂载的配置是否要接管主链路 EQ。
+ * 由 `setGalaxyChain` 的调用方声明：FX 预设与用户链自带 EQ 曲线（true），
+ * 而增强滑条不应该碰用户手调的十段（false）。
+ */
+let galaxyManagesEq = true
 
 
 export const createAudio = () => {
@@ -126,6 +151,17 @@ const initConvolver = () => {
   convolverSourceGainNode = audioContext.createGain()
   convolverOutputGainNode = audioContext.createGain()
   convolverDynamicsCompressor = audioContext.createDynamicsCompressor()
+  // ⚠️ 必须显式设参数。DynamicsCompressorNode 的默认值是
+  //   threshold −24dB / knee 30 / ratio 12:1
+  // 而这一级是「干声 + 湿声」汇合后唯一的压限，一旦开启混响就会把整体动态压掉一大截：
+  // 实测能把 20dB 的输入动态范围压成 ~15dB，小声部被抬高 3.4dB —— 听感就是「混响一开，
+  // 声音变闷变扁、没有起伏」，正是「混响强度不好听」的主因。
+  // 它的本职只是给卷积叠加做**峰值兜底**，所以配成真正的限幅器（只在接近满刻度时介入）。
+  convolverDynamicsCompressor.threshold.value = -1
+  convolverDynamicsCompressor.knee.value = 0
+  convolverDynamicsCompressor.ratio.value = 20
+  convolverDynamicsCompressor.attack.value = 0.003
+  convolverDynamicsCompressor.release.value = 0.25
   convolver = audioContext.createConvolver()
   convolver.connect(convolverOutputGainNode)
   convolverSourceGainNode.connect(convolverDynamicsCompressor)
@@ -163,11 +199,8 @@ const initAdvancedAudioFeatures = () => {
   panner.connect(gainNode)
   gainNode.connect(audioContext.destination)
 
-  // 增强效果链：建节点 → 同步参数 → 由 applyEnhanceRouting 决定「直连」还是「串入」
-  // （全部参数为中性时不插入任何节点，干声零处理）
-  initEnhanceNodes()
-  syncEnhanceParams()
-  // 核心链路（卷积压缩器 / panner）同样按需串入
+  // 核心链路（卷积压缩器 / panner）与尾段路由同样按需串入：
+  // 全部为中性时链路只剩 analyser / 0dB 均衡 / 增益 1，与直通等价
   applyCoreRouting()
 
   // 音频输出设备改变时刷新 audio node 连接
@@ -183,88 +216,34 @@ const initAdvancedAudioFeatures = () => {
 const handleMediaListChange = () => {
   mediaSource.disconnect()
   mediaSource.connect(analyser)
+  // mediaSource.disconnect() 会一并撤销测量支路，这里必须补回来，
+  // 否则换过输出设备之后「智能音效」就再也测不到数据了
+  if (smartTaps) connectSmartTaps()
 }
 
 // ============================================================
-//  增强效果链（QQ 银河音效「均衡器」页 6 条滑条中的 4 条 DSP 项）
-//  另外两项：混响强度 → convolver sendGain、环绕强度 → panner（见 useSoundEffect）
+//  尾段路由：coreOutNode → [银河引擎] → (panner|gain) → destination
 //
-//  链路：convolverDynamicsCompressor → [低频架] → [高频架] → [压限+补偿] → [声像] → [安全限幅] → panner
-//  设计要点：
-//   1. **中性即完全旁路**：4 项都在默认值时，回到 convolverDynamicsCompressor → panner 直连，
-//      干声零处理 —— 避免 ㉓ 里出现过的「未开音效也像套了一层音效」；
-//   2. 节点按需串入（低音/高保真/动态/声像各自独立判断），只开声道平衡时不会多走压缩；
-//   3. 参数一律用 setTargetAtTime 平滑，拖动滑条不会有咔哒声或阶梯噪声；
-//   4. 末尾的安全限幅器只在本链启用时存在：低音架最高 +15dB，没有它会在输出端硬削波。
+//  这里只有**一段**可插拔的链。历史上「增强效果链」（超重低音/高保真度/
+//  动态推进/声道平衡）是与银河引擎并行的第二套节点链，两套链要靠调用方手工
+//  维持互斥关系，同一个路由坑还要踩两次。现在那 4 项滑条由
+//  `galaxy/enhance.ts` 编译成 GalaxyDSPConfig 走同一个引擎，
+//  由 `galaxy/bridge.ts` 的 `syncAudioChain()` 决定挂哪一份配置
+//  （优先级：音效制作链 > FX 预设 > 增强滑条 > 中性）。
+//
+//  铁律：
+//   1. **中性即完全旁路**：没有配置时 coreOutNode 直连 tail，干声零处理；
+//      引擎内部全中性时也会自行 input → output 直连，等价于一段零处理导线。
+//   2. **绝不能 disconnect galaxyEngine.input**（原因见下方注释）。
+//   3. 末尾的安全限幅由引擎自带（只在有活跃模块时串入），本文件不再自建一个。
 // ============================================================
-const ENHANCE_BASS_FREQ = 120
-const ENHANCE_HIFI_FREQ = 8000
-// 每 1 点滑条对应的 dB（与 common/types/app_setting.d.ts 的注释保持一致）
-const ENHANCE_BASS_DB_PER_UNIT = 0.3
-const ENHANCE_HIFI_DB_PER_UNIT = 0.24
-const ENHANCE_DYNAMIC_MAX = 50
-const ENHANCE_BALANCE_MAX = 50
-
-const enhanceState = { bass: 0, hifi: 0, dynamic: 0, balance: 0 }
-type EnhanceKey = keyof typeof enhanceState
 
 const rampParam = (param: AudioParam, value: number) => {
   if (audioContext) param.setTargetAtTime(value, audioContext.currentTime, 0.03)
   else param.value = value
 }
 
-const isEnhanceActive = () =>
-  enhanceState.bass > 0 || enhanceState.hifi > 0 || enhanceState.dynamic > 0 || enhanceState.balance != 0
-
-const initEnhanceNodes = () => {
-  if (enhanceBassShelf) return
-
-  enhanceBassShelf = audioContext.createBiquadFilter()
-  enhanceBassShelf.type = 'lowshelf'
-  enhanceBassShelf.frequency.value = ENHANCE_BASS_FREQ
-  enhanceBassShelf.gain.value = 0
-
-  enhanceHifiShelf = audioContext.createBiquadFilter()
-  enhanceHifiShelf.type = 'highshelf'
-  enhanceHifiShelf.frequency.value = ENHANCE_HIFI_FREQ
-  enhanceHifiShelf.gain.value = 0
-
-  enhanceComp = audioContext.createDynamicsCompressor()
-  enhanceComp.attack.value = 0.003
-  enhanceComp.release.value = 0.25
-
-  enhanceMakeup = audioContext.createGain()
-  enhanceMakeup.gain.value = 1
-
-  enhanceBalance = audioContext.createStereoPanner()
-  enhanceBalance.pan.value = 0
-
-  enhanceLimiter = audioContext.createDynamicsCompressor()
-  enhanceLimiter.threshold.value = -1
-  enhanceLimiter.knee.value = 0
-  enhanceLimiter.ratio.value = 20
-  enhanceLimiter.attack.value = 0.002
-  enhanceLimiter.release.value = 0.1
-}
-
-/** 把 enhanceState 写入各节点参数（state 是唯一数据源） */
-const syncEnhanceParams = () => {
-  if (!enhanceBassShelf) return
-
-  rampParam(enhanceBassShelf.gain, enhanceState.bass * ENHANCE_BASS_DB_PER_UNIT)
-  rampParam(enhanceHifiShelf.gain, enhanceState.hifi * ENHANCE_HIFI_DB_PER_UNIT)
-
-  // 动态推进：0 → 近乎直通（ratio 1 / threshold -6dB / 无补偿）；50 → 明显压限并把峰值补回来
-  const amount = enhanceState.dynamic / ENHANCE_DYNAMIC_MAX
-  rampParam(enhanceComp.threshold, -6 - amount * 24)
-  rampParam(enhanceComp.ratio, 1 + amount * 5)
-  rampParam(enhanceComp.knee, 6 + amount * 18)
-  rampParam(enhanceMakeup.gain, Math.pow(10, (amount * 4) / 20))
-
-  rampParam(enhanceBalance.pan, enhanceState.balance / ENHANCE_BALANCE_MAX)
-}
-
-/** 核心链路按需串入：卷积压缩器只在启用混响时插入；随后重建增强链 */
+/** 核心链路按需串入：卷积压缩器只在启用混响时插入；随后重建尾段路由 */
 const applyCoreRouting = () => {
   if (!audioContext) return
 
@@ -286,18 +265,26 @@ const applyCoreRouting = () => {
     coreOutNode = convolverSourceGainNode
   }
 
-  applyEnhanceRouting()
+  applyTailRouting()
 }
 
-/** 按当前参数重建 卷积段输出 → 增强链 → (panner|gain) 的连接；全部中性时直连 */
-const applyEnhanceRouting = () => {
+/** 按当前挂载状态重建 coreOutNode → [银河引擎] → tail 的连接；无配置时直连 */
+const applyTailRouting = () => {
   initAdvancedAudioFeatures()
-  initEnhanceNodes()
-  syncEnhanceParams()
 
   // 环绕强度未启用时 panner 不参与链路（否则会平白吃掉 ~3dB）
   const tail: AudioNode = isPannerEnabled ? panner : gainNode
-  const nodes = [coreOutNode, enhanceBassShelf, enhanceHifiShelf, enhanceComp, enhanceMakeup, enhanceBalance, enhanceLimiter]
+
+  const nodes = [
+    coreOutNode,
+    // ⚠️ 只能断 output，**绝不能带 galaxyEngine.input**。
+    // 银河引擎的 input 同时承担两个角色：对外接收信号、对内连向第一段子链
+    // （全中性时是 input → output）。把 input 放进这个列表会把「对内」那条出边一起删掉，
+    // 信号进入 input 后就没有出口了 —— 整条链静音，而且因为 engine.apply() 只在
+    // 活跃模块集合变化时才重建路由，它不会自愈（再拖一次强度也还是静音）。
+    // 外部对 input 的唯一操作是 connect，重复 connect 在 Web Audio 里是幂等的。
+    galaxyEngine?.output,
+  ]
   for (const node of nodes) {
     if (!node) continue
     try {
@@ -307,69 +294,182 @@ const applyEnhanceRouting = () => {
     }
   }
 
-  if (!isEnhanceActive()) {
-    coreOutNode.connect(tail)
+  if (galaxyEngine && isGalaxyOn) {
+    coreOutNode.connect(galaxyEngine.input)
+    galaxyEngine.output.connect(tail)
     return
   }
 
-  let last: AudioNode = coreOutNode
-  if (enhanceState.bass > 0) {
-    last.connect(enhanceBassShelf)
-    last = enhanceBassShelf
-  }
-  if (enhanceState.hifi > 0) {
-    last.connect(enhanceHifiShelf)
-    last = enhanceHifiShelf
-  }
-  if (enhanceState.dynamic > 0) {
-    last.connect(enhanceComp)
-    enhanceComp.connect(enhanceMakeup)
-    last = enhanceMakeup
-  }
-  if (enhanceState.balance != 0) {
-    last.connect(enhanceBalance)
-    last = enhanceBalance
-  }
-  last.connect(enhanceLimiter)
-  enhanceLimiter.connect(tail)
+  coreOutNode.connect(tail)
 }
 
 /** 环绕强度开关：决定 panner 是否参与链路（关闭时链路与直通等价） */
 export const setPannerEnable = (enable: boolean) => {
   if (isPannerEnabled === enable) return
   isPannerEnabled = enable
-  if (audioContext) applyEnhanceRouting()
+  if (audioContext) applyTailRouting()
 }
 
-const setEnhanceValue = (key: EnhanceKey, value: number) => {
-  const wasActive = enhanceState[key] != 0
-  enhanceState[key] = value
-  if (wasActive != (value != 0)) {
-    // 是否活跃发生变化 → 需要重接链路（内部会一并同步参数）
-    applyEnhanceRouting()
-  } else if (enhanceBassShelf) {
-    syncEnhanceParams()
+// ============================================================
+//  银河音效 2.0 —— 对外接入点
+//
+//  两个函数共同构成 P1 的落地接口；**未被调用时链路与改动前完全一致**。
+// ============================================================
+
+/**
+ * 把 10 段 EQ 写入主链路的 biquad。
+ * 银河链的 EQ 复用主链路，避免「两套 EQ 叠加」；同时让设计要求的
+ * 首段 lowshelf / 末段 highshelf / 中间 peaking 真正生效。
+ */
+export const setEqBands = (bands: EQBand[]) => {
+  initAdvancedAudioFeatures()
+  freqs.forEach((hz, index) => {
+    const filter = biquads.get(`hz${hz}`)
+    const band = bands[index]
+    if (!filter || !band) return
+    if (filter.type !== band.type) filter.type = band.type
+    rampParam(filter.frequency, band.frequency)
+    rampParam(filter.Q, band.q)
+    rampParam(filter.gain, band.gain)
+  })
+}
+
+/**
+ * 挂载 / 卸载银河音效链。
+ *
+ *   · 传 null            → 卸载，coreOutNode 直连 tail（干声零处理）
+ *   · 传配置 + manageEq  → 启用链路；manageEq 决定这份配置是否接管主链路 EQ
+ *
+ * `manageEq` 必须由调用方显式声明，不能由配置内容推断：
+ *   · FX 预设 / 「音效制作」用户链自带 EQ 曲线 → true
+ *   · 「均衡器」页的 4 条增强滑条不碰用户手调的十段 → false
+ *     否则一份全平的 EQ 会把用户刚拖好的曲线无声清掉。
+ */
+export const setGalaxyChain = (
+  config: GalaxyDSPConfig | null,
+  options: { manageEq?: boolean } = {},
+) => {
+  if (!config) {
+    if (!galaxyEngine) return
+    isGalaxyOn = false
+    galaxyEngine.dispose()
+    galaxyEngine = null
+    if (audioContext) applyTailRouting()
+    return
   }
+
+  initAdvancedAudioFeatures()
+  if (!galaxyEngine) {
+    galaxyEngine = createGalaxyEngine(audioContext, {
+      // 用可变标志而不是两个引擎：EQ 的接管权随「谁在驱动这条链」变化，
+      // 而引擎本体（及其全部节点与缓存）应该复用。
+      applyEq: bands => {
+        if (galaxyManagesEq) setEqBands(bands)
+      },
+    })
+  }
+  galaxyManagesEq = options.manageEq ?? true
+  isGalaxyOn = true
+  galaxyEngine.apply(config)
+  applyTailRouting()
 }
 
-/** 超重低音（0~50）：低频架 120Hz，增益 = 值 × 0.3dB */
-export const setEnhanceBass = (value: number) => {
-  setEnhanceValue('bass', value)
+/**
+ * 把主链路 EQ 恢复为「原有行为」：全段 peaking、Q = 1.4，增益取传入的十段值。
+ * 银河链卸载时调用，确保 biquad 不残留银河链写入的 shelf 类型与 Q 值。
+ */
+export const resetEqToLegacy = (gains: readonly number[]) => {
+  initAdvancedAudioFeatures()
+  freqs.forEach((hz, index) => {
+    const filter = biquads.get(`hz${hz}`)
+    if (!filter) return
+    filter.type = 'peaking'
+    rampParam(filter.frequency, hz)
+    rampParam(filter.Q, 1.4)
+    rampParam(filter.gain, gains[index] ?? 0)
+  })
 }
 
-/** 高保真度（0~50）：高频架 8kHz，增益 = 值 × 0.24dB */
-export const setEnhanceHifi = (value: number) => {
-  setEnhanceValue('hifi', value)
+/** 当前银河链真正串入的模块（供 UI 显示 / 调试；未启用时为空数组） */
+export const getGalaxyActiveStages = (): string[] =>
+  galaxyEngine && isGalaxyOn ? galaxyEngine.activeStages() : []
+
+// ============================================================
+//  「智能音效」测量取样点
+//
+//  取样点刻意放在 **mediaSource 之后、EQ 与音效链之前**：
+//  智能补偿要描述的是「音乐本身」的特征。若在链路末端取样，自己刚才的处理结果
+//  会被当成素材特征，形成「补偿 → 测量结果变化 → 再补偿」的正反馈 ——
+//  每检测一次就把上一次的结果再放大一遍。
+// ============================================================
+/**
+ * 取样支路的节点。
+ *
+ * 这里刻意持有**具体的 AnalyserNode** 而不是 `SmartAnalyserSet`：
+ * 后者是给 measure.ts 用的最小结构化接口（只要求两个 getFloat 方法），
+ * 拿它去 `connect()` 会因为不是 `AudioNode` 而编译不过。
+ * 「对外的窄接口」与「对内的真实节点类型」要分开，否则连接处必然要断言。
+ */
+let smartTaps: {
+  splitter: ChannelSplitterNode
+  spectrum: AnalyserNode
+  left: AnalyserNode
+  right: AnalyserNode
+} | null = null
+
+/** 惰性建出取样支路；已建过则直接返回 */
+const ensureSmartTaps = () => {
+  if (!audioContext) return null
+
+  if (!smartTaps) {
+    const spectrum = audioContext.createAnalyser()
+    // 2048 → 48kHz 下 bin 宽约 23Hz，20~250Hz 有约 10 个 bin。
+    // 沿用主链路那个 256（bin 宽 187Hz，低频只剩 1 个 bin）会让 lowRatio 完全不可用。
+    spectrum.fftSize = 2048
+    // 取瞬时值：跨帧平均由 measure.ts 负责，节点再做时间平滑会变成双重平滑、掩盖动态
+    spectrum.smoothingTimeConstant = 0
+
+    const left = audioContext.createAnalyser()
+    left.fftSize = 2048
+    const right = audioContext.createAnalyser()
+    right.fftSize = 2048
+
+    const splitter = audioContext.createChannelSplitter(2)
+    splitter.connect(left, 0)
+    splitter.connect(right, 1)
+
+    // AnalyserNode 允许不接下游，但不同实现可能因此不调度该支路。
+    // 接一个 0 增益汇点到 destination：保证支路一定被渲染，对输出零影响。
+    // 该汇点被音频图强引用，无需在模块里再留变量。
+    const sink = audioContext.createGain()
+    sink.gain.value = 0
+    for (const node of [spectrum, left, right]) node.connect(sink)
+    sink.connect(audioContext.destination)
+
+    smartTaps = { splitter, spectrum, left, right }
+  }
+
+  return smartTaps
 }
 
-/** 动态推进（0~50）：映射压限器 threshold / ratio / knee + 峰值补偿增益 */
-export const setEnhanceDynamic = (value: number) => {
-  setEnhanceValue('dynamic', value)
+const connectSmartTaps = () => {
+  if (!audioContext || !mediaSource) return
+  const taps = ensureSmartTaps()
+  if (!taps) return
+  // 同一个 (输出, 输入) 对重复连接在 Web Audio 里是幂等的，因此这里可以无脑重接
+  mediaSource.connect(taps.splitter)
+  mediaSource.connect(taps.spectrum)
 }
 
-/** 声道平衡（-50~50）：映射 StereoPanner 的 pan（-1 ~ 1） */
-export const setEnhanceBalance = (value: number) => {
-  setEnhanceValue('balance', value)
+/**
+ * 智能测量用的分析器集合。音频上下文尚未建立时返回 null，
+ * 由调用方提示「请先播放音乐」而不是静默失败。
+ */
+export const getSmartAnalysers = (): SmartAnalyserSet | null => {
+  initAdvancedAudioFeatures()
+  connectSmartTaps()
+  if (!smartTaps) return null
+  return { spectrum: smartTaps.spectrum, left: smartTaps.left, right: smartTaps.right }
 }
 
 // let isConnected = true
@@ -436,13 +536,15 @@ export const getBiquadFilter = () => {
 }
 
 // let isConvolverConnected = false
+/** 干路增益（与湿声分开，见 setConvolverMainGain） */
 export const setConvolver = (buffer: AudioBuffer | null, mainGain: number, sendGain: number) => {
   initAdvancedAudioFeatures()
   convolver.buffer = buffer
   // console.log(mainGain, sendGain)
   if (buffer) {
     convolverSourceGainNode.gain.value = mainGain
-    convolverOutputGainNode.gain.value = sendGain
+    // 与 setConvolverSendGain 同一套钳位，避免两条写入路径行为不一致
+    convolverOutputGainNode.gain.value = Math.min(ENHANCE_REVERB_MAX_WET, Math.max(0, sendGain))
   } else {
     convolverSourceGainNode.gain.value = 1
     convolverOutputGainNode.gain.value = 0
@@ -458,9 +560,11 @@ export const setConvolverMainGain = (gain: number) => {
 }
 
 export const setConvolverSendGain = (gain: number) => {
-  if (convolverOutputGainNode.gain.value == gain) return
-  // console.log(gain)
-  convolverOutputGainNode.gain.value = gain
+  // 兜底钳位：设置里可能存着历史遗留的超大值（滑条上限从 50 收到 20 之前调的），
+  // 5.0 的湿声（≈ +14dB）会糊成一团。这里钳住而不是去改用户的存档，避免静默改数据。
+  const safe = Math.min(ENHANCE_REVERB_MAX_WET, Math.max(0, gain))
+  if (convolverOutputGainNode.gain.value == safe) return
+  convolverOutputGainNode.gain.value = safe
 }
 
 let pannerInfo = {

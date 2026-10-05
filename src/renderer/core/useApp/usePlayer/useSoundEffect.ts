@@ -12,13 +12,12 @@ import {
   setConvolverMainGain,
   setConvolverSendGain,
   setPitchShifter,
-  setEnhanceBass,
-  setEnhanceHifi,
-  setEnhanceDynamic,
-  setEnhanceBalance,
+  reverbWetFromIntensity,
+  surroundRadiusFromIntensity,
 } from '@renderer/plugins/player'
 
 import { appSetting } from '@renderer/store/setting'
+import { syncAudioChain } from '@renderer/plugins/player/galaxy/bridge'
 
 const cache = new Map<string, AudioBuffer>()
 const loadBuffer = async(name: string) => new Promise<AudioBuffer>((resolve, reject) => {
@@ -61,7 +60,7 @@ export default () => {
   // 未启用环绕强度时 panner 不参与链路（否则停泊在原点也会平白吃掉 ~3dB）
   setPannerEnable(!!appSetting['player.soundEffect.panner.enable'])
   if (appSetting['player.soundEffect.panner.enable']) startPanner()
-  setPannerSoundR(appSetting['player.soundEffect.panner.soundR'] / 10)
+  setPannerSoundR(surroundRadiusFromIntensity(appSetting['player.soundEffect.panner.soundR']))
   setPannerSpeed(2 * (appSetting['player.soundEffect.panner.speed'] / 10))
   if (freqs.some(v => appSetting[`player.soundEffect.biquadFilter.hz${v}`] != 0)) {
     const bfs = getBiquadFilter()
@@ -71,7 +70,7 @@ export default () => {
   }
   if (appSetting['player.soundEffect.convolution.fileName']) {
     void loadBuffer(appSetting['player.soundEffect.convolution.fileName']).then((buffer) => {
-      setConvolver(buffer, appSetting['player.soundEffect.convolution.mainGain'] / 10, appSetting['player.soundEffect.convolution.sendGain'] / 10)
+      setConvolver(buffer, appSetting['player.soundEffect.convolution.mainGain'] / 10, reverbWetFromIntensity(appSetting['player.soundEffect.convolution.sendGain']))
     }).catch(err => {
       // 资源缺失/损坏时安全降级为干声，避免混响无声且无提示
       console.error('load reverb IR failed:', err)
@@ -81,12 +80,8 @@ export default () => {
   if (appSetting['player.soundEffect.pitchShifter.playbackRate'] != 1) {
     setPitchShifter(appSetting['player.soundEffect.pitchShifter.playbackRate'])
   }
-  // 增强效果链（超重低音/高保真度/动态推进/声道平衡）：
-  // 全为默认值时 setEnhance* 既不建节点、也不建 AudioContext，保持干声零处理
-  setEnhanceBass(appSetting['player.soundEffect.enhance.bass'])
-  setEnhanceHifi(appSetting['player.soundEffect.enhance.hifi'])
-  setEnhanceDynamic(appSetting['player.soundEffect.enhance.dynamic'])
-  setEnhanceBalance(appSetting['player.soundEffect.enhance.balance'])
+  // 「均衡器」页的 4 条增强滑条不再有独立的节点链：它们由 syncAudioChain
+  // 编译进同一份 GalaxyDSPConfig（见本文件末尾的唯一一个 watch）。
 
 
   watch(() => appSetting['player.soundEffect.panner.enable'], (enable) => {
@@ -98,7 +93,7 @@ export default () => {
     }
   })
   watch(() => appSetting['player.soundEffect.panner.soundR'], (soundR) => {
-    setPannerSoundR(soundR / 10)
+    setPannerSoundR(surroundRadiusFromIntensity(soundR))
   })
   watch(() => appSetting['player.soundEffect.panner.speed'], (speed) => {
     setPannerSpeed(2 * (speed / 10))
@@ -107,7 +102,7 @@ export default () => {
     setTimeout(() => {
       if (fileName) {
         void loadBuffer(fileName).then((buffer) => {
-          setConvolver(buffer, appSetting['player.soundEffect.convolution.mainGain'] / 10, appSetting['player.soundEffect.convolution.sendGain'] / 10)
+          setConvolver(buffer, appSetting['player.soundEffect.convolution.mainGain'] / 10, reverbWetFromIntensity(appSetting['player.soundEffect.convolution.sendGain']))
         }).catch(err => {
           console.error('load reverb IR failed:', err)
           setConvolver(null, 1, 0)
@@ -123,7 +118,7 @@ export default () => {
   })
   watch(() => appSetting['player.soundEffect.convolution.sendGain'], (sendGain) => {
     if (!appSetting['player.soundEffect.convolution.fileName']) return
-    setConvolverSendGain(sendGain / 10)
+    setConvolverSendGain(reverbWetFromIntensity(sendGain))
   })
   watch(() => appSetting['player.soundEffect.biquadFilter.hz31'], (hz31) => {
     const bfs = getBiquadFilter()
@@ -170,17 +165,32 @@ export default () => {
     setPitchShifter(playbackRate)
   })
 
-  watch(() => appSetting['player.soundEffect.enhance.bass'], (v) => {
-    setEnhanceBass(v)
-  })
-  watch(() => appSetting['player.soundEffect.enhance.hifi'], (v) => {
-    setEnhanceHifi(v)
-  })
-  watch(() => appSetting['player.soundEffect.enhance.dynamic'], (v) => {
-    setEnhanceDynamic(v)
-  })
-  watch(() => appSetting['player.soundEffect.enhance.balance'], (v) => {
-    setEnhanceBalance(v)
+  // ===== 银河音效 2.0：三套系统共用一条链 =====
+  //
+  // 「推荐音效」FX 预设、「均衡器」4 条增强滑条、「音效制作」用户链最终都归到
+  // 同一份 GalaxyDSPConfig，由 syncAudioChain 按优先级栈选出生效的那一份。
+  // 因此这里**只需要一个 watch** —— 任何一路设置变化都重算整条链，
+  // 不再需要「谁退出、谁接管」的互斥代码（那是两套链时代的产物）。
+  syncAudioChain()
+  watch(() => [
+    // 推荐音效
+    appSetting['player.soundEffect.galaxy.enable'],
+    appSetting['player.soundEffect.galaxy.fxPresetId'],
+    appSetting['player.soundEffect.galaxy.eqPresetId'],
+    appSetting['player.soundEffect.galaxy.intensity'],
+    // 智能补偿是对预设的叠加层，改它同样要重算整条链
+    appSetting['player.soundEffect.galaxy.smart.enable'],
+    appSetting['player.soundEffect.galaxy.smart.overlay'],
+    // 音效制作
+    appSetting['player.soundEffect.galaxy.userChain.enable'],
+    appSetting['player.soundEffect.galaxy.userChain.data'],
+    // 均衡器页的 4 条 DSP 滑条
+    appSetting['player.soundEffect.enhance.bass'],
+    appSetting['player.soundEffect.enhance.hifi'],
+    appSetting['player.soundEffect.enhance.dynamic'],
+    appSetting['player.soundEffect.enhance.balance'],
+  ], () => {
+    syncAudioChain()
   })
 
 

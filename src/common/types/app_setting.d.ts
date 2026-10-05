@@ -275,6 +275,13 @@ declare global {
       'player.soundEffect.biquadFilter.hz16000': number
 
       /**
+       * 「均衡器」页的**自定义曲线**（JSON 字符串，10 段增益）。
+       * 手动拖过任意滑杆后自动保存，点宫格里的「自定义」可回填。
+       * 空字符串 = 还没手动调过，此时点「自定义」不做任何修改。
+       */
+      'player.soundEffect.biquadFilter.customEq': string
+
+      /**
        * 3D立体环绕速度
        */
       'player.soundEffect.panner.speed': number
@@ -294,64 +301,89 @@ declare global {
        */
       'player.soundEffect.pitchShifter.playbackRate': number
 
-      // ===== 增强链（旧版音效内核：按需插入，全中性时完全旁路）=====
+      // ===== 「均衡器」页底部 6 条增强滑条（按需插入，全中性时完全旁路）=====
+      //
+      //  量程统一 **0~100（百分比）**，声道平衡为 -100~+100。
+      //  所有满量程与「滑条值 → dB / 增益」的换算只定义在
+      //  `src/renderer/plugins/player/audioEffects.ts` 一处，UI 的 min/max 也取自那里。
+      //
+      //  历史坑：这里曾同时存在两套等价设置（enhance.* 与 soundEffect.hifi/bass/...），
+      //  文档写 0~100 而实现是 0~50，引擎又是第三套「x dB/点」——
+      //  三处互不相同，滑条拉满也听不出应有的效果。重复的那套已删除。
 
       /**
-       * 超重低音（低频架滤波器增益）
+       * 超重低音（0~100 → 低频架 90Hz 满量程 +7dB，并混入最多 0.4 的谐波）
+       * 谐波支路让耳机/小喇叭也能听出下潜，而不是靠把低频抬到轰头。
        */
       'player.soundEffect.enhance.bass': number
 
       /**
-       * 高保真度（高频架滤波器增益）
+       * 高保真度（0~100 → 高频架 10kHz 满量程 +7.5dB）
+       * 取 10kHz 而非 8kHz：避开齿音刺耳区，做「空气感」而不是「更亮更吵」。
        */
       'player.soundEffect.enhance.hifi': number
 
       /**
-       * 动态推进（压限器阈值）
+       * 动态推进（0~100 → −8~−22dB / 1:1~3.5:1 / 补偿 0~+2.5dB，0 时严格透明）
        */
       'player.soundEffect.enhance.dynamic': number
 
       /**
-       * 声道平衡（声像位置 -1~1）
+       * 声道平衡（-100 全左 ~ +100 全右，0 = 居中）
        */
       'player.soundEffect.enhance.balance': number
-
-      // ===== 面板底部的 6 个连续音效参数（均对应真实音频节点）=====
-
-      /**
-       * 高保真度（0~100 → highshelf 8kHz 0~+9dB）
-       */
-      'player.soundEffect.hifi': number
-
-      /**
-       * 混响强度（0~100 → 卷积混响湿声 0~0.8）
-       */
-      'player.soundEffect.reverb': number
-
-      /**
-       * 环绕强度（0~100 → 3D 环绕旋转半径，> 0 即启用）
-       */
-      'player.soundEffect.surroundStrength': number
-
-      /**
-       * 超重低音（0~100 → lowshelf 200Hz 0~+12dB）
-       */
-      'player.soundEffect.bass': number
-
-      /**
-       * 动态推进（0~100 → DynamicsCompressor 压缩强度）
-       */
-      'player.soundEffect.dynamic': number
-
-      /**
-       * 声道平衡（-50 全左 ~ 50 全右，0 = 居中）
-       */
-      'player.soundEffect.balance': number
 
       /**
        * 混响模式：off / small / medium / large（运行时生成 IR）
        */
       'player.soundEffect.reverbMode': string
+
+      /**
+       * 银河音效 2.0 总开关：关闭时银河链不参与音频路径
+       */
+      'player.soundEffect.galaxy.enable': boolean
+
+      /**
+       * 当前 FX 预设 id（galaxy/fxPresets 的 64 个预设之一；空字符串 = 未选）
+       */
+      'player.soundEffect.galaxy.fxPresetId': string
+
+      /**
+       * EQ 层来源：
+       * '' = 使用 FX 预设自带曲线 / 'off' = 全平 / 'custom' = 手动十段 / 其它 = EQ 预设 id
+       */
+      'player.soundEffect.galaxy.eqPresetId': string
+
+      /**
+       * 强度 0~100
+       */
+      'player.soundEffect.galaxy.intensity': number
+
+      /**
+       * 智能音效总开关：开启后把「智能音效」检测出的修正量叠加到当前预设之上。
+       * 叠加层与预设正交，且**不受强度缩放影响**（强度缩放的是预设染色，不是修正量）。
+       */
+      'player.soundEffect.galaxy.smart.enable': boolean
+
+      /**
+       * 智能音效的补偿叠加层，JSON 字符串：
+       * `{ eq: number[10], bassGainDb, compressorThresholdDb, stereoWidth, measuredAt, reasons }`
+       * 空字符串 = 尚无检测结果。解析失败一律退化为「无叠加」，不影响音频链。
+       */
+      'player.soundEffect.galaxy.smart.overlay': string
+
+      /**
+       * 「音效制作」通用音效链总开关。
+       * 优先级：用户链 > FX 预设 > 均衡器页 4 条增强滑条 > 中性（见 galaxy/bridge.ts）。
+       * 高优先级只**遮蔽**低优先级，不改动对方设置，因此关掉它之后原有的预设选择原样回来。
+       */
+      'player.soundEffect.galaxy.userChain.enable': boolean
+
+      /**
+       * 通用音效链数据，JSON 字符串：`{ name, items: [{ uid, fxId, params }] }`。
+       * 由 galaxy/userChain.ts 编译成 GalaxyDSPConfig；解析失败一律退化为「无链」。
+       */
+      'player.soundEffect.galaxy.userChain.data': string
 
       /**
        * 是否启用音频加载失败时自动切歌

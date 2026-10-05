@@ -18,17 +18,24 @@
       </div>
       <div :class="$style.item">
         <span :class="$style.label">{{ $t('player__sound_effect_panner_sound_r') }}</span>
-        <se-slider :value="appSetting['player.soundEffect.panner.soundR']" :min="1" :max="30" @change="handleUpdateSoundR" />
-        <span :class="[$style.value, { [$style.active]: appSetting['player.soundEffect.panner.soundR'] != 5 }]">{{ appSetting['player.soundEffect.panner.soundR'] }}</span>
+        <se-slider :value="appSetting['player.soundEffect.panner.soundR']" :min="1" :max="ENHANCE_MAX" @change="handleUpdateSoundR" />
+        <span :class="[$style.value, { [$style.active]: appSetting['player.soundEffect.panner.soundR'] != DEFAULT_SOUND_R }]">{{ appSetting['player.soundEffect.panner.soundR'] }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { setMediaDeviceId } from '@renderer/plugins/player'
+import { setMediaDeviceId, ENHANCE_MAX } from '@renderer/plugins/player'
 import { appSetting, saveMediaDeviceId, updateSetting } from '@renderer/store/setting'
 import SeSlider from './SeSlider.vue'
+
+/**
+ * 环绕强度的默认值（占满量程的百分比）。
+ * 与 common/defaultSetting.ts 的 'player.soundEffect.panner.soundR' 保持一致 ——
+ * 15% ≈ 旋转半径 0.45，是「有明显的空间移动但还不晕」的档位。
+ */
+const DEFAULT_SOUND_R = 15
 
 const updateEnabled = async(enabled) => {
   if (appSetting['player.mediaDeviceId'] != 'default') {
@@ -37,7 +44,7 @@ const updateEnabled = async(enabled) => {
   }
   // 半径为 0（可能由增强滑条或总开关关闭）时直接开启会静默无声，补一个可感知的默认半径
   if (enabled && !(appSetting['player.soundEffect.panner.soundR'] > 0)) {
-    updateSetting({ 'player.soundEffect.panner.enable': true, 'player.soundEffect.panner.soundR': 5 })
+    updateSetting({ 'player.soundEffect.panner.enable': true, 'player.soundEffect.panner.soundR': DEFAULT_SOUND_R })
     return
   }
   updateSetting({ 'player.soundEffect.panner.enable': enabled })
