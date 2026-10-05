@@ -13,7 +13,7 @@
 </template>
 
 <script>
-import { computed, ref } from '@common/utils/vueTools'
+import { computed, ref, watch } from '@common/utils/vueTools'
 import { getLeaderboardSetting, setLeaderboardSetting } from '@renderer/utils/data'
 import BoardList from './BoardList/index.vue'
 import MusicList from './MusicList/index.vue'
@@ -25,44 +25,57 @@ import { useRoute, useRouter } from '@common/utils/vueRouter'
 const source = ref('')
 const boardId = ref(null)
 
-const verifyQueryParams = async function(to, from, next) {
-  let _source = to.query.source
-  let _boardId = to.query.boardId
-
-  if (_source == null) {
-    const setting = await getLeaderboardSetting()
-    if (_source == null) {
-      _source = setting.source
-      _boardId = setting.boardId
-    }
-    next({
-      path: to.path,
-      query: { ...to.query, source: _source, boardId: _boardId },
-    })
-    return
-  }
-  next()
-  source.value = _source
-  boardId.value = _boardId
-  void setLeaderboardSetting({ source: _source, boardId: _boardId })
-}
-
 
 export default {
   components: {
     BoardList,
     MusicList,
   },
-  beforeRouteEnter: verifyQueryParams,
-  beforeRouteUpdate: verifyQueryParams,
   setup() {
     const musicListRef = ref(null)
     const boardListRef = ref(null)
+    const router = useRouter()
+    const route = useRoute()
+
+    /**
+     * 把路由 query 同步到 source / boardId。
+     *
+     * ⚠️ 不用 beforeRouteEnter / beforeRouteUpdate（原实现）：
+     *   · View.vue 的 <router-view> 是 v-slot 插槽写法，vue-router 拿不到渲染出来的
+     *     组件实例，record.instances 始终为空 → beforeRouteUpdate 永远不触发；
+     *   · View.vue 又给路由组件加了 `:key="routeKey + fullPath"`，query 变化时组件是
+     *     「重建」而非「复用」，记录对象没变也不在 enteringRecords 里 → beforeRouteEnter 同样不触发。
+     *   结果：切榜单 / 切音源只改了 URL，页面状态不动。改成 watch 路由 query 与渲染方式解耦。
+     */
+    const syncFromQuery = async(query) => {
+      let _source = query.source
+      let _boardId = query.boardId
+
+      if (_source == null) {
+        const setting = await getLeaderboardSetting()
+        if (_source == null) {
+          _source = setting.source
+          _boardId = setting.boardId
+        }
+        void router.replace({
+          path: route.path,
+          query: { ...query, source: _source, boardId: _boardId },
+        })
+      }
+      source.value = _source
+      boardId.value = _boardId
+      void setLeaderboardSetting({ source: _source, boardId: _boardId })
+    }
+
+    watch(
+      () => [route.query.source, route.query.boardId],
+      () => { void syncFromQuery(route.query) },
+      { immediate: true },
+    )
+
     const sourceList = computed(() => {
       return sources.map(s => ({ id: s, name: sourceNames.value[s] }))
     })
-    const router = useRouter()
-    const route = useRoute()
     const handleToggleSource = (id) => {
       void router.replace({
         path: route.path,

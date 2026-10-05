@@ -14,7 +14,7 @@
 </template>
 
 <script lang="ts">
-import { computed, ref } from '@common/utils/vueTools'
+import { computed, ref, watch } from '@common/utils/vueTools'
 import { getSongListSetting, setSongListSetting } from '@renderer/utils/data'
 import TagList from './components/TagList.vue'
 import SortTab from './components/SortTab.vue'
@@ -41,45 +41,6 @@ interface Query {
   page?: string
 }
 
-const verifyQueryParams = async function(this: any, to: { query: Query, path: string }, from: any, next: (route?: { path: string, query: Query }) => void) {
-  let _source = to.query.source
-  let _tagId = to.query.tagId
-  let _sortId = to.query.sortId
-  let _page: string | undefined = to.query.page
-
-  if (isVisibleListDetail.value) {
-    next({ path: '/songList/detail', query: {} })
-    return
-  } else if (_source == null) {
-    if (listInfo.key) {
-      _source = listInfo.source
-      _tagId = listInfo.tagId
-      _sortId = listInfo.sortId
-      _page = listInfo.page.toString()
-    } else {
-      const setting = await getSongListSetting()
-      _source = setting.source
-      // 站点默认（无记录）时落到该音源的活跃分类，避免一进来总是同一批老歌单
-      _tagId = setting.tagId || DEFAULT_TAG_BY_SOURCE[setting.source] || ''
-      _sortId = setting.sortId
-      _page = '1'
-    }
-
-    next({
-      path: to.path,
-      query: { ...to.query, source: _source, tagId: _tagId, sortId: _sortId, page: _page },
-    })
-    return
-  }
-  next()
-  source.value = _source as LX.OnlineSource
-  tagId.value = _tagId ?? ''
-  sortId.value = _sortId ?? ''
-  page.value = _page ? parseInt(_page) : 1
-  void setSongListSetting({ source: _source, tagId: _tagId, sortId: _sortId })
-}
-
-
 export default {
   components: {
     TagList,
@@ -87,8 +48,6 @@ export default {
     ListView,
     OpenListModal,
   },
-  beforeRouteEnter: verifyQueryParams,
-  beforeRouteUpdate: verifyQueryParams,
   setup() {
     const visibleOpenSongListModal = ref(false)
 
@@ -97,6 +56,58 @@ export default {
     })
     const router = useRouter()
     const route = useRoute()
+
+    /**
+     * 把路由 query 同步到 source / tagId / sortId / page。
+     *
+     * ⚠️ 不用 beforeRouteEnter / beforeRouteUpdate（原实现）：
+     *   View.vue 的 <router-view> 是 v-slot 插槽写法，vue-router 拿不到渲染出来的组件实例，
+     *   record.instances 始终为空 → beforeRouteUpdate 永不触发；而 View.vue 又给路由组件加了
+     *   `:key="routeKey + fullPath"`，query 变化时组件是「重建」而非「复用」，记录对象没变、
+     *   也不在 enteringRecords 里 → beforeRouteEnter 同样不触发。
+     *   结果：换分类 / 换排序 / 翻页只改了 URL，列表不动。改成 watch 路由 query 与渲染方式解耦。
+     */
+    const syncFromQuery = async(query: Query) => {
+      let _source = query.source
+      let _tagId = query.tagId
+      let _sortId = query.sortId
+      let _page = query.page
+
+      if (isVisibleListDetail.value) {
+        void router.replace({ path: '/songList/detail', query: {} })
+        return
+      }
+      if (_source == null) {
+        if (listInfo.key) {
+          _source = listInfo.source
+          _tagId = listInfo.tagId
+          _sortId = listInfo.sortId
+          _page = listInfo.page.toString()
+        } else {
+          const setting = await getSongListSetting()
+          _source = setting.source
+          // 站点默认（无记录）时落到该音源的活跃分类，避免一进来总是同一批老歌单
+          _tagId = setting.tagId || DEFAULT_TAG_BY_SOURCE[setting.source] || ''
+          _sortId = setting.sortId
+          _page = '1'
+        }
+        void router.replace({
+          path: route.path,
+          query: { ...query, source: _source, tagId: _tagId, sortId: _sortId, page: _page },
+        })
+      }
+      source.value = _source as LX.OnlineSource
+      tagId.value = _tagId ?? ''
+      sortId.value = _sortId ?? ''
+      page.value = _page ? parseInt(_page) : 1
+      void setSongListSetting({ source: _source, tagId: _tagId, sortId: _sortId })
+    }
+
+    watch(
+      () => [route.query.source, route.query.tagId, route.query.sortId, route.query.page],
+      () => { void syncFromQuery(route.query as unknown as Query) },
+      { immediate: true },
+    )
     const handleToggleSource = (id: LX.OnlineSource) => {
       if (id == source.value) return
       void router.replace({

@@ -580,14 +580,15 @@ const handleSquareSortChange = (id) => {
   // 强转 String：tx 的 sortList id 是 Number（5/2），emit 给父级之前
   // SortTab 已 String 化，但为防御性再兜底一次，避免 squareListInfo.key / 序列化等环节出错。
   const next = String(id ?? '')
+  if (next === squareSortId.value) return
   squareSortId.value = next
-  // QQ 音乐 SDK 上游限制：`get_category_content` 完全忽略 sortId，
-  // 且 `get_playlist_by_tag` (plaza) 当前在 u.y.qq.com 上已失效（全 0 条）。
-  // sortId 2/5 实际上是两个独立分类 ID（实测 cat=2 返回「小众特供…」、
-  // cat=5 返回「站内评论999+超热日语精选」），切到排序项时把它当 tagId 用，
-  // 才能让「最新 / 最热」两个 Tab 真正看到不同的歌单。
-  // 用户再去 TagList 选具体分类时会被 handleSquareTagChange 覆盖回去。
-  if (source.value === 'tx' && next) squareTagId.value = next
+  // ⚠️ 这里原本还有一句 `if (source.value === 'tx' && next) squareTagId.value = next`：
+  // 它的思路是「既然 get_category_content 忽略 sortId，那就把 sortId 当分类 id 用」，
+  // 于是点「最新」实际去拉 cat=2（港乐）、点「最热」去拉 cat=5（日语）—— 与排序毫无关系；
+  // 更糟的是它会覆盖用户在 TagList 里选的分类，两个 Tab 还可能落到同一批数据上
+  // （用户看到的就是「两个 Tab 内容一样 + 数据陈旧」）。
+  // 现在排序改由 tx SDK 在本地按字段排（最新→modify_time 倒序、最热→play_cnt 倒序），
+  // 分类只管分类，两者不再互相污染。
   void loadSquare(1)
 }
 

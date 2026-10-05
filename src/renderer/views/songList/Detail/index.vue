@@ -68,9 +68,8 @@
 
 <script lang="ts">
 import { ref, watch } from '@common/utils/vueTools'
-import { listDetailInfo } from '@renderer/store/songList/state'
 import { setVisibleListDetail } from '@renderer/store/songList/action'
-import { useRouter } from '@common/utils/vueRouter'
+import { useRouter, useRoute } from '@common/utils/vueRouter'
 import { addSongListDetail, playSongListDetail } from './action'
 import useList from './useList'
 import useKeyBack from './useKeyBack'
@@ -92,47 +91,54 @@ interface Query {
   fromName?: string
 }
 
-const verifyQueryParams = async function(this: any, to: { query: Query, path: string }, from: any, next: (route?: { path: string, query: Query }) => void) {
-  let _source = to.query.source
-  let _id = to.query.id
-  let _page: string | undefined = to.query.page
-  let _picUrl: string | undefined = to.query.picUrl
-  let _refresh: 'true' | undefined = to.query.refresh
-
-  if (_source == null || _id == null) {
-    if (listDetailInfo.key) {
-      _source = listDetailInfo.source
-      _id = listDetailInfo.id
-      _page = listDetailInfo.page.toString()
-      _picUrl = listDetailInfo.info.img
-    } else {
-      setVisibleListDetail(false)
-      next({ path: '/songList/list', query: {} })
-      return
-    }
-
-    next({
-      path: to.path,
-      query: { ...to.query, source: _source, id: _id, page: _page, picUrl: _picUrl, refresh: _refresh },
-    })
-    return
-  }
-  next()
-  setVisibleListDetail(true)
-  source.value = _source as LX.OnlineSource
-  id.value = _id
-  page.value = _page ? parseInt(_page) : 1
-  picUrl.value = _picUrl ?? ''
-  refresh.value = _refresh ? _refresh == 'true' : false
-  if (to.query.fromName) window.lx.songListInfo.fromName = to.query.fromName
-}
-
-
 export default {
-  beforeRouteEnter: verifyQueryParams,
-  beforeRouteUpdate: verifyQueryParams,
   setup() {
     const router = useRouter()
+    const route = useRoute()
+
+    /**
+     * 把路由 query 同步到 source / id / page / picUrl / refresh。
+     *
+     * ⚠️ 不用 beforeRouteEnter / beforeRouteUpdate（原实现）：
+     *   View.vue 的 <router-view> 是 v-slot 插槽写法，vue-router 拿不到渲染出来的组件实例，
+     *   record.instances 始终为空 → beforeRouteUpdate 永不触发；而 View.vue 又给路由组件加了
+     *   `:key="routeKey + fullPath"`，query 变化时组件是「重建」而非「复用」，记录对象没变、
+     *   也不在 enteringRecords 里 → beforeRouteEnter 同样不触发。
+     *   结果：在详情页里打开另一个歌单（同路由、不同 query）时页面不会重新加载。
+     */
+    const syncFromQuery = async(query: Query) => {
+      let _source = query.source
+      let _id = query.id
+      let _page = query.page
+      let _picUrl = query.picUrl
+      let _refresh = query.refresh
+
+      if (_source == null || _id == null) {
+        if (listDetailInfo.key) {
+          _source = listDetailInfo.source
+          _id = listDetailInfo.id
+          _page = listDetailInfo.page.toString()
+          _picUrl = listDetailInfo.info.img
+        } else {
+          setVisibleListDetail(false)
+          void router.replace({ path: '/songList/list', query: {} })
+          return
+        }
+
+        void router.replace({
+          path: route.path,
+          query: { ...query, source: _source, id: _id, page: _page, picUrl: _picUrl, refresh: _refresh },
+        })
+      }
+      setVisibleListDetail(true)
+      source.value = _source as LX.OnlineSource
+      id.value = _id
+      page.value = _page ? parseInt(_page) : 1
+      picUrl.value = _picUrl ?? ''
+      refresh.value = _refresh ? _refresh == 'true' : false
+      if (query.fromName) window.lx.songListInfo.fromName = query.fromName
+    }
+
     // 简介展开状态
     const showFullDesc = ref(false)
 
@@ -142,6 +148,15 @@ export default {
       getListData,
       handlePlayList,
     } = useList()
+
+    // ⚠️ 必须放在 useList() 之后：watch 的 immediate 回调是**同步执行**的，
+    // 而 syncFromQuery 里用到的 listDetailInfo 来自上面这行解构（同名遮蔽了模块级导入），
+    // 放在它之前会踩到 const 的暂时性死区（ReferenceError）。
+    watch(
+      () => [route.query.source, route.query.id, route.query.page, route.query.picUrl, route.query.refresh],
+      () => { void syncFromQuery(route.query as unknown as Query) },
+      { immediate: true },
+    )
 
 
     const togglePage = (page: number) => {

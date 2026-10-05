@@ -143,8 +143,12 @@ export default {
 
     const handleSearch = () => {
       visibleList.value &&= false
-      if (!searchText.value && route.path != '/search') {
-        setSearchText('')
+      // 空关键词不发起搜索：
+      //   · 不在搜索页 → 只把 store 里的关键词清掉（回到「未搜索」空态）
+      //   · 已在搜索页 → 什么都不做，**保留上一次的搜索结果**
+      //     （清空输入框不应该把整页结果清空；原来是 push 一个 text='' 把结果全清了）
+      if (!searchText.value) {
+        if (route.path != '/search') setSearchText('')
         return
       }
       setTimeout(() => {
@@ -154,7 +158,7 @@ export default {
             text: searchText.value,
           },
         }).catch(_ => _)
-      }, searchText.value ? 200 : 0)
+      }, 200)
     }
 
     const handleEvent = ({ action, data }) => {

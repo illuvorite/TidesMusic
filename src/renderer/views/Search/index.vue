@@ -39,52 +39,13 @@ import MusicList from './MusicList/index.vue'
 import SongListList from './SongListList/index.vue'
 import MediaList from './MediaList/index.vue'
 import BlankView from './components/BlankView.vue'
-import { computed, ref } from '@common/utils/vueTools'
+import { computed, ref, watch } from '@common/utils/vueTools'
 import { getSourceName } from '@renderer/utils/personalRecommend'
 import { getHistoryList } from '@renderer/store/search/action'
 
 const source = ref('kw')
 const searchType = ref(null)
 const page = ref(1)
-
-const verifyQueryParams = async(to, from, next) => {
-  let _source = to.query.source
-  let _type = to.query.type
-  let _page = to.query.page
-
-  if (_source == null || _type == null) {
-    let setting = { source: 'all', type: 'music' }
-    try {
-      setting = await Promise.race([
-        getSearchSetting(),
-        new Promise(resolve => {
-          setTimeout(() => { resolve(setting) }, 1200)
-        }),
-      ])
-    } catch (err) {
-      console.warn('getSearchSetting failed:', err)
-    }
-    _source ??= setting.source
-    _type ??= setting.type
-
-    next({
-      path: to.path,
-      query: { ...to.query, source: _source, type: _type, page: _page },
-    })
-    return
-  }
-  source.value = _source
-  searchType.value = _type
-
-  if (_page) page.value = parseInt(_page)
-
-  if (to.query.text != null) {
-    searchText.value = to.query.text
-    if (!_page) page.value = 1
-  }
-  next()
-  void setSearchSetting({ source: _source, type: _type })
-}
 
 export default {
   components: {
@@ -93,11 +54,75 @@ export default {
     MediaList,
     BlankView,
   },
-  beforeRouteEnter: verifyQueryParams,
-  beforeRouteUpdate: verifyQueryParams,
   setup() {
     const route = useRoute()
     const router = useRouter()
+
+    /**
+     * 把路由 query 同步到页面状态（音源 / 结果类型 / 页码 / 关键词）。
+     *
+     * ⚠️ 这里刻意**不用** beforeRouteEnter / beforeRouteUpdate（原实现就是那么写的，
+     * 也正是「只有第一次搜索能用」的根因）：
+     *   1. View.vue 的 <router-view> 用的是 v-slot 插槽写法，vue-router 拿不到
+     *      实际渲染出来的组件实例，不会写入 record.instances，于是
+     *      beforeRouteUpdate 永远进不了候选队列（vue-router 里那句
+     *      `if (guardType !== 'beforeRouteEnter' && !record.instances[name]) continue`）；
+     *   2. View.vue 又给路由组件加了 `:key="routeKey + fullPath"`，query 变化时组件是
+     *      「重建」而不是「复用」，而记录对象本身没变 → 也不在 enteringRecords 里，
+     *      所以 beforeRouteEnter 同样不会触发。
+     *   结果：只有「从别的页面第一次进入 /search」时守卫才会跑（那次是真正的进入），
+     *   之后在搜索页里换关键词 / 换音源 / 翻页，query 变了却没有任何人同步 ——
+     *   搜索框、音源、页码全部停在第一次的值，表现为「搜第二次就没反应」「切平台无效」。
+     *
+     * 改成在 setup 里 watch 路由 query：与渲染方式完全解耦，且组件重建后依然生效。
+     */
+    const applyQuery = async(query) => {
+      let _source = query.source
+      let _type = query.type
+      const _page = query.page
+
+      if (_source == null || _type == null) {
+        let setting = { source: 'all', type: 'music' }
+        try {
+          setting = await Promise.race([
+            getSearchSetting(),
+            new Promise(resolve => {
+              setTimeout(() => { resolve(setting) }, 1200)
+            }),
+          ])
+        } catch (err) {
+          console.warn('getSearchSetting failed:', err)
+        }
+        _source ??= setting.source
+        _type ??= setting.type
+
+        // 把补出来的参数写回 URL（replace 不留历史），watch 会带着完整参数再进来一次
+        void router.replace({
+          path: route.path,
+          query: { ...query, source: _source, type: _type, page: _page },
+        })
+      }
+
+      source.value = _source
+      searchType.value = _type
+
+      if (_page) page.value = parseInt(_page)
+
+      if (query.text != null) {
+        searchText.value = query.text
+        if (!_page) page.value = 1
+      }
+      void setSearchSetting({ source: _source, type: _type })
+    }
+
+    // 依赖只取真正影响搜索的四个 query 参数：任何一个变化才重新同步，
+    // 避免路由对象其它字段变动（如 hash/state）造成多余的设置写回。
+    watch(
+      () => [route.query.source, route.query.type, route.query.page, route.query.text],
+      () => { void applyQuery(route.query) },
+      { immediate: true },
+    )
+
     // 进入搜索页即拉取搜索历史（供空态与搜索框下拉展示）
     void getHistoryList()
 

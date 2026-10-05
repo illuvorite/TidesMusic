@@ -43,7 +43,7 @@
             <span>{{ $t('search__hot_search') }}</span>
           </header>
           <ul :class="$style.panelList" @mouseleave="selectIndex = -1">
-            <li v-for="(item, index) in hotList" :key="`hot-${index}`" @click="handlePanelSearch(item.name)">
+            <li v-for="(item, index) in hotList" :key="`hot-${index}`" @mousedown.prevent @click="handlePanelSearch(item.name)">
               <span :class="$style.panelName" :title="item.name">{{ item.name }}</span>
               <span v-if="item.hot" :class="$style.panelHot">{{ formatHot(item.hot) }}</span>
             </li>
@@ -54,11 +54,11 @@
             <span>{{ $t('search__history_title') }}</span>
             <button
               v-if="historyList.length" type="button" :class="$style.panelClear"
-              :aria-label="$t('history_clear')" @click="handleClearHistory"
+              :aria-label="$t('history_clear')" @mousedown.prevent @click="handleClearHistory"
             >{{ $t('search__clear') }}</button>
           </header>
           <ul :class="$style.panelList">
-            <li v-for="(item, index) in historyList" :key="`his-${index}`" @click="handlePanelSearch(item)">
+            <li v-for="(item, index) in historyList" :key="`his-${index}`" @mousedown.prevent @click="handlePanelSearch(item)">
               <span :class="$style.panelName" :title="item">{{ item }}</span>
             </li>
           </ul>
@@ -192,6 +192,10 @@ export default {
       listStyle: {
         height: 0,
       },
+      // 失焦后延迟收起下拉的定时器。
+      // 点下拉项时 mousedown 会先让输入框失焦（blur 先于 click），
+      // 若不取消这个定时器，80ms 后面板被移除，click 就落不到 <li> 上 —— 表现为「点了没用」。
+      blurTimer: null,
     }
   },
   computed: {
@@ -222,8 +226,14 @@ export default {
         this.listStyle.height = this.$refs.dom_list.scrollHeight + 'px'
       })
     },
-    modelValue(n) {
-      this.text = n
+    // immediate：组件挂载时就把外部关键词回填到输入框。
+    // 少了它，应用启动后（或从其它页面回到搜索页时）输入框是空的、
+    // 而 store 里其实还有上一次的关键词 —— 面板也会因此误弹出来。
+    modelValue: {
+      handler(n) {
+        this.text = n
+      },
+      immediate: true,
     },
     visibleList(n) {
       n ? this.showList() : this.hideList()
@@ -257,11 +267,18 @@ export default {
       this.sendEvent('listClick', index)
     },
     handleFocus() {
+      // 重新聚焦（含「点了清空按钮后把焦点还回来」）时取消待执行的收起，面板保持展开
+      if (this.blurTimer) {
+        clearTimeout(this.blurTimer)
+        this.blurTimer = null
+      }
       this.focus = true
       this.sendEvent('focus')
     },
     handleBlur() {
-      setTimeout(() => {
+      if (this.blurTimer) clearTimeout(this.blurTimer)
+      this.blurTimer = setTimeout(() => {
+        this.blurTimer = null
         this.focus = false
         this.sendEvent('blur')
       }, 80)
@@ -316,8 +333,15 @@ export default {
     },
     handleClearList() {
       this.text = ''
-      this.$emit('update:modelValue', this.text)
-      this.sendEvent('submit')
+      this.$emit('update:modelValue', '')
+      // 只清空输入框，**不再** sendEvent('submit')。
+      // 原来清空会走一次提交 → 路由变成 /search?text=（空关键词）→ 搜索页把关键词同步成空
+      // → 结果整页清空（用户要的是「清掉输入框，但保留上一次的搜索结果」）。
+      // 清空后把焦点还回输入框，让「热门搜索 / 搜索历史」面板继续显示。
+      this.focus = true
+      this.$nextTick(() => {
+        this.$refs.dom_input?.focus()
+      })
     },
     handlePanelSearch(text) {
       if (!text) return

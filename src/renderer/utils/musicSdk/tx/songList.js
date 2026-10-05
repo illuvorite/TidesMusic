@@ -9,6 +9,17 @@ export default {
   limit_list: 36,
   limit_song: 100000,
   successCode: 0,
+  /**
+   * 默认分类 id（tagId 为空时使用）。
+   *
+   * 为什么不再落到「全部」广场：`playlist.PlayListPlazaServer` 的 get_playlist_by_tag
+   * 匿名返回的是**陈旧的固定池**（实测 order=2 池子 28551 条、最新一条 2025-10-10；
+   * order=5 池子 2473 条、最新 2026-06-08，且顺序既不是按时间也不是按热度），
+   * 用户看到的就是「数据明显过时」。而 PlayListCategoryServer 的 get_category_content
+   * 按更新时间返回、实测有当天/前几天更新的歌单（2026-09 的条目），所以统一走分类。
+   * 3152 = 流行，是 QQ 音乐分类里内容量最大、更新最勤的一个。
+   */
+  defaultTagId: '3152',
   sortList: [
     {
       name: '最热',
@@ -31,6 +42,8 @@ export default {
   tagsUrl: 'https://u.y.qq.com/cgi-bin/musicu.fcg?loginUin=0&hostUin=0&format=json&inCharset=utf-8&outCharset=utf-8&notice=0&platform=wk_v15.json&needNewCode=0&data=%7B%22tags%22%3A%7B%22method%22%3A%22get_all_categories%22%2C%22param%22%3A%7B%22qq%22%3A%22%22%7D%2C%22module%22%3A%22playlist.PlaylistAllCategoriesServer%22%7D%7D',
   hotTagUrl: 'https://c.y.qq.com/node/pc/wk_v15/category_playlist.html',
   getListUrl(sortId, id, page) {
+    // tagId 为空（TagList 的「默认」）时用默认分类，避免落到返回陈旧数据的广场接口
+    if (!id) id = this.defaultTagId
     if (id) {
       id = parseInt(id)
       return `https://u.y.qq.com/cgi-bin/musicu.fcg?loginUin=0&hostUin=0&format=json&inCharset=utf-8&outCharset=utf-8&notice=0&platform=wk_v15.json&needNewCode=0&data=${encodeURIComponent(JSON.stringify({
@@ -114,21 +127,32 @@ export default {
 
   // 获取列表数据
   getList(sortId, tagId, page, tryNum = 0) {
-    if (this._requestObj_list) this._requestObj_list.cancelHttp()
+    // ⚠️ 这里**不再**用共享的 `this._requestObj_list.cancelHttp()`。
+    // 乐馆的「精选」区块（3 个分区 × 2 页）与「分类歌单」会并发调用 getList，
+    // 共享一个请求对象时后发的请求会把先发的直接取消（实测首个请求必报
+    // 「取消http请求」，表现为分区内容为空、多个分区内容重复、分类歌单偶发“获取失败”）。
+    // 过期响应的丢弃交给调用方：MusicHall 有 requestId / featuredSeq 世代号。
     if (tryNum > 2) return Promise.reject(new Error('try max num'))
-    this._requestObj_list = httpFetch(
-      this.getListUrl(sortId, tagId, page),
-    )
+    // 用「实际生效的分类 id」同时决定 URL 与响应解析分支，避免
+    // 「URL 走了分类接口、解析却按广场结构读」导致列表为空。
+    const categoryId = tagId || this.defaultTagId
+    const requestObj = httpFetch(this.getListUrl(sortId, categoryId, page))
+    this._requestObj_list = requestObj
     // console.log(this.getListUrl(sortId, tagId, page))
-    return this._requestObj_list.promise.then(({ body }) => {
+    return requestObj.promise.then(({ body }) => {
       if (body.code !== this.successCode) return this.getList(sortId, tagId, page, ++tryNum)
-      return tagId ? this.filterList2(body.playlist.data, page) : this.filterList(body.playlist.data, page)
+      return categoryId ? this.filterList2(body.playlist.data, page, sortId) : this.filterList(body.playlist.data, page, sortId)
     })
   },
 
-  filterList(data, page) {
+  filterList(data, page, sortId) {
+    const items = [...data.v_playlist]
+    // 见 filterList2 的说明：排序只能在本地做
+    const sortKey = String(sortId ?? '')
+    if (sortKey === '2') items.sort((a, b) => (Number(b.modify_time) || 0) - (Number(a.modify_time) || 0))
+    else if (sortKey === '5') items.sort((a, b) => (Number(b.access_num) || 0) - (Number(a.access_num) || 0))
     return {
-      list: data.v_playlist.map(item => ({
+      list: items.map(item => ({
         play_count: formatPlayCount(item.access_num),
         id: String(item.tid),
         author: item.creator_info.nick,
@@ -146,15 +170,28 @@ export default {
       source: 'tx',
     }
   },
-  filterList2({ content }, page) {
-    // console.log(content.v_item)
+  filterList2({ content }, page, sortId) {
+    const items = [...content.v_item]
+    /**
+     * 「最新 / 最热」的本地排序。
+     *
+     * 服务端给不了这两个排序：
+     *   · get_category_content **完全忽略** sort / order / sort_type（实测三种写法返回完全一致）；
+     *   · 唯一认 order 的广场接口返回的是 2018~2020 的陈旧池子（见 defaultTagId 注释）。
+     * 所以按字段在本地排：sortId '2'（最新）→ modify_time 倒序；'5'（最热）→ play_cnt 倒序。
+     * 排序范围是「当前这一页」（服务端分页 + 本地排序无法做到全局有序）。
+     */
+    const sortKey = String(sortId ?? '')
+    if (sortKey === '2') items.sort((a, b) => (Number(b.basic.modify_time) || 0) - (Number(a.basic.modify_time) || 0))
+    else if (sortKey === '5') items.sort((a, b) => (Number(b.basic.play_cnt) || 0) - (Number(a.basic.play_cnt) || 0))
     return {
-      list: content.v_item.map(({ basic }) => ({
+      list: items.map(({ basic }) => ({
         play_count: formatPlayCount(basic.play_cnt),
         id: String(basic.tid),
         author: basic.creator.nick,
         name: basic.title,
-        // time: basic.publish_time,
+        // 更新时间：让「最新」这个排序在界面上可核对（服务端 modify_time 是秒级时间戳）
+        time: basic.modify_time ? dateFormat(basic.modify_time * 1000, 'Y-M-D') : '',
         img: basic.cover.medium_url || basic.cover.default_url,
         // grade: basic.favorcnt / 10,
         desc: decodeName(basic.desc).replace(/<br>/g, '\n'),
