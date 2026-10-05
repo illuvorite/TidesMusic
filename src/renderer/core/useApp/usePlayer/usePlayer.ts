@@ -5,6 +5,7 @@ import { setTitle } from '@renderer/utils'
 import {
   getCurrentTime,
   getDuration,
+  setLoopPlay,
   setPause, setStop,
 } from '@renderer/plugins/player'
 
@@ -124,13 +125,20 @@ export default () => {
     removePowerSaveBlocker()
   }
 
+  // 单曲循环：交给 <audio> 的原生 loop 实现。
+  //
+  // 为什么不用「播完 → ended → playNext(true) → 重播同一首」那条路：
+  //   playNext 的索引是 worker 的 filterMusicList 算出来的，而当**当前歌曲被标记为
+  //   「不喜欢」**时，它会先把当前歌曲从 filteredList 里 splice 掉、再把 playerIndex
+  //   前移一位（这是为了让 listLoop/list 的「下一首」仍然正确）。singleLoop 分支只是
+  //   `break`，于是 nextIndex 直接落到「上一首」—— 表现为「选了单曲循环却跳到别的歌」。
+  //   原生 loop 根本不触发 ended，也就完全不依赖列表索引，天然没有这个问题，
+  //   而且循环处没有重新取 URL 的空档。
   watch(() => appSetting['player.togglePlayMethod'], newValue => {
-    // setLoopPlay(newValue == 'singleLoop')
+    setLoopPlay(newValue == 'singleLoop')
     if (playedList.length) clearPlayedList()
     if (newValue == 'random' && playMusicInfo.musicInfo && !playMusicInfo.isTempPlay) addPlayedList({ ...(playMusicInfo as LX.Player.PlayMusicInfo) })
-  })
-
-  // setLoopPlay(appSetting['player.togglePlayMethod'] == 'singleLoop')
+  }, { immediate: true })
 
 
   window.key_event.on(HOTKEY_PLAYER.next.action, handlePlayNext)

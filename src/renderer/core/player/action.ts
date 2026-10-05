@@ -407,6 +407,22 @@ export const playNext = async(isAutoToggle = false): Promise<void> => {
     return
   }
 
+  // 单曲循环兜底：正常路径由 <audio> 的原生 loop 处理（不会触发 ended，也就走不到这里）。
+  // 但 loop 万一没生效（元素被重建等），自动切歌也必须重播**当前这首**，
+  // 绝不能落到下面的列表索引推导 —— 当前歌曲被标记为「不喜欢」时，
+  // filterMusicList 会把当前歌曲从 filteredList 里移除并把 playerIndex 前移一位，
+  // 而 singleLoop 分支只 `break`，于是 nextIndex 会指到「上一首」。
+  const singleLoopMusicInfo = playMusicInfo.musicInfo
+  if (isAutoToggle && singleLoopMusicInfo && appSetting['player.togglePlayMethod'] == 'singleLoop') {
+    handlePlayNext({
+      musicInfo: singleLoopMusicInfo,
+      listId: playMusicInfo.listId,
+      isTempPlay: playMusicInfo.isTempPlay,
+    })
+    console.log('single loop replay')
+    return
+  }
+
   // console.log(playInfo.playerListId)
   const currentListId = playInfo.playerListId
   if (!currentListId) {
