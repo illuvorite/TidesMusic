@@ -149,7 +149,7 @@
 <script>
 import { clipboardWriteText } from '@common/utils/electron'
 import { assertApiSupport } from '@renderer/store/utils'
-import { ref, watch } from '@common/utils/vueTools'
+import { ref, watch, computed } from '@common/utils/vueTools'
 import useList from './useList'
 import useMenu from './useMenu'
 import usePlay from './usePlay'
@@ -213,6 +213,7 @@ export default {
       listItemHeight,
       handleSelectData,
       removeAllSelect,
+      selectAll,
     } = useList({ props, listRef })
 
     const {
@@ -417,6 +418,12 @@ export default {
       listItemHeight,
       handleListItemClick,
       selectedList,
+      // 供父组件（如歌单详情页顶部的「批量」按钮）驱动全选/清空。
+      // 注意：父组件通过 template ref 访问时拿到的是**未解包的 Ref**，
+      // 不能直接读 listRef.selectedList.length，故一并暴露选中数量与操作方法。
+      selectedCount: computed(() => selectedList.value.length),
+      handleSelectData,
+      selectAll,
       handleListItemRightClick,
       removeAllSelect,
       handleListBtnClick,

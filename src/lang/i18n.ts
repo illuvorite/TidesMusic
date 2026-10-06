@@ -37,15 +37,32 @@ const i18nPlugin = {
       //   if (o) return o[i]
       // }, options)
       trackReactivityValues()
-      return i18n.getMessage(key, val)
+      return getMessage(key, val)
     }
   },
+}
+
+/**
+ * 语言包尚未包含的键的中文兜底文案。
+ *
+ * 背景：messages 是模块加载时**静态导入**的，新增语言包条目后，
+ * 已在运行的实例不会自动获得该键，getMessage 会回退返回 key 本身
+ * （界面上就会漏出 `list__name_recent` 这种原始键名）。
+ * 下列键在语言包更新生效前用兜底文案顶上，重启应用后自动失效。
+ */
+const FALLBACK_MESSAGES: Partial<Record<string, string>> = {
+  list__name_recent: '最近播放',
+}
+
+const getMessage = (key: keyof Message, val?: TranslateValues): string => {
+  let targetMessage = i18n.message[key] ?? i18n.messages[i18n.fallbackLocale][key] ?? FALLBACK_MESSAGES[key] ?? key
+  return val ? i18n.fillMessage(targetMessage, val) : targetMessage
 }
 
 const useI18n = () => {
   return (key: keyof Message, val?: TranslateValues): string => {
     trackReactivityValues()
-    return i18n.getMessage(key, val)
+    return getMessage(key, val)
   }
 }
 
@@ -71,13 +88,10 @@ const createI18n = (): I18n => {
       }
       return message
     },
-    getMessage(key: keyof Message, val?: TranslateValues): string {
-      let targetMessage = this.message[key] ?? this.messages[this.fallbackLocale][key] ?? key
-      return val ? this.fillMessage(targetMessage, val) : targetMessage
-    },
+    getMessage,
     t(key: keyof Message, val?: TranslateValues): string {
       trackReactivityValues()
-      return this.getMessage(key, val)
+      return getMessage(key, val)
     },
   }
 }

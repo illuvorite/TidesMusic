@@ -121,14 +121,6 @@ const router = createRouter({
       },
     },
     {
-      path: '/list/default',
-      name: 'ListDefault',
-      component: require('./views/List/Default.vue').default,
-      meta: {
-        name: 'List',
-      },
-    },
-    {
       path: '/download',
       name: 'Download',
       component: require('./views/Download/index.vue').default,
@@ -152,6 +144,15 @@ const router = createRouter({
       component: require('./views/Theme/index.vue').default,
       meta: {
         name: 'ThemeCenter',
+      },
+    },
+    {
+      path: '/batch-download',
+      name: 'BatchDownload',
+      // 批量下载页：在列表页点「下载」后进入的独立页面（对齐 QQ 音乐）
+      component: require('./views/BatchDownload/index.vue').default,
+      meta: {
+        name: 'BatchDownload',
       },
     },
     {

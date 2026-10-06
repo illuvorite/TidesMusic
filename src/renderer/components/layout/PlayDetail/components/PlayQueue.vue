@@ -107,7 +107,7 @@ export default {
     const sortMode = ref('default')
     const isShowSortMenu = ref(false)
 
-    const listId = computed(() => playMusicInfo.listId ?? LIST_IDS.DEFAULT)
+    const listId = computed(() => playMusicInfo.listId ?? LIST_IDS.TEMP)
 
     // allMusicList 是 markRaw 的 Map（非响应式），因此在打开抽屉时主动取一次
     const refresh = () => {

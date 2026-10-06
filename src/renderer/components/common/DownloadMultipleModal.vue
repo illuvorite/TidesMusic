@@ -1,11 +1,15 @@
 <template>
   <material-modal :show="show" :bg-close="bgClose" :teleport="teleport" @close="handleClose">
     <main :class="$style.main">
-      <h2>{{ $t('download__multiple_tip', { len: list.length }) }}<br>{{ $t('download__multiple_tip2') }}</h2>
-      <base-btn :class="$style.btn" @click="handleClick('128k')">{{ $t('download__normal') }} - 128K</base-btn>
-      <base-btn :class="$style.btn" @click="handleClick('320k')">{{ $t('download__high_quality') }} - 320K</base-btn>
-      <base-btn :class="$style.btn" @click="handleClick('flac')">{{ $t('download__lossless') }} - FLAC</base-btn>
-      <base-btn :class="$style.btn" @click="handleClick('flac24bit')">{{ $t('download__lossless') }} - FLAC Hires</base-btn>
+      <h2 :class="$style.title">{{ $t('download__multiple_tip', { len: list.length }) }}<br>{{ $t('download__multiple_tip2') }}</h2>
+      <!-- 音质选项：与单曲下载弹窗同一套轻量列表样式 -->
+      <ul :class="$style.list">
+        <li v-for="q in QUALITYS" :key="q">
+          <button type="button" :class="$style.item" @click="handleClick(q)">
+            <span :class="$style.itemLabel">{{ getTypeName(q) }}</span>
+          </button>
+        </li>
+      </ul>
     </main>
   </material-modal>
 </template>
@@ -39,7 +43,22 @@ export default {
     },
   },
   emits: ['update:show', 'confirm'],
+  setup() {
+    return { QUALITYS: ['128k', '320k', 'flac', 'flac24bit'] }
+  },
   methods: {
+    getTypeName(quality) {
+      switch (quality) {
+        case 'flac24bit':
+          return this.$t('download__lossless') + ' FLAC Hires'
+        case 'flac':
+          return this.$t('download__lossless') + ' FLAC'
+        case '320k':
+          return this.$t('download__high_quality') + ' 320K'
+        default:
+          return this.$t('download__normal') + ' 128K'
+      }
+    },
     handleClick(quality) {
       void createDownloadTasks(this.list.filter(item => item.source != 'local'), quality, this.listId)
       this.handleClose()
@@ -57,27 +76,52 @@ export default {
 @import '@renderer/assets/styles/layout.less';
 
 .main {
-  padding: var(--qm-sp-6, 15px);
-  max-width: 400px;
-  min-width: 200px;
-  display: flex;
-  flex-flow: column nowrap;
-  justify-content: center;
-  h2 {
-    font-size: var(--qm-fs-sm, 13px);
-    color: var(--qm-text-2);
-    line-height: 1.3;
-    text-align: center;
-    margin-bottom: var(--qm-sp-6, 15px);
-  }
+  width: 280px;
+  max-width: calc(100vw - 48px);
+  padding: 16px 14px 14px;
 }
 
-.btn {
-  display: block;
-  margin-bottom: var(--qm-sp-6, 15px);
-  &:last-child {
-    margin-bottom: 0;
+.title {
+  margin: 0 0 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--qm-line-1, rgba(0, 0, 0, .06));
+  font-size: var(--qm-fs-sm, 13px);
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--qm-text-1);
+  text-align: left;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--qm-radius-sm, 8px);
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color var(--qm-t-fast, .15s), color var(--qm-t-fast, .15s);
+
+  &:hover {
+    background-color: var(--qm-hover, rgba(0, 0, 0, .05));
+    .itemLabel { color: var(--qm-primary, #31c27c); }
   }
+  &:active { background-color: var(--qm-hover-strong, rgba(0, 0, 0, .08)); }
+}
+
+.itemLabel {
+  font-size: var(--qm-fs-sm, 13px);
+  color: var(--qm-text-1);
+  transition: color var(--qm-t-fast, .15s);
 }
 
 </style>

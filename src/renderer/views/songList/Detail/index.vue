@@ -1,6 +1,6 @@
 <template>
   <div :class="$style.container">
-    <!-- 歌单头部：封面 + 信息 + 操作条 -->
+    <!-- 歌单头部：封面（含播放量角标）+ 信息 + 操作条 -->
     <div :class="$style.header">
       <div :class="$style.headerCover">
         <img
@@ -10,14 +10,23 @@
         <div v-else :class="$style.headerCoverPlaceholder">
           <svg-icon name="music" />
         </div>
+        <!-- 播放量角标（QQ 版式：封面右下角 + 耳机图标） -->
+        <span v-if="listDetailInfo.info.play_count" :class="$style.headerCoverCount">
+          <svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true">
+            <path d="M4 13v-1a8 8 0 0 1 16 0v1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <rect x="2.5" y="12.5" width="4" height="6.5" rx="1.6" fill="currentColor" />
+            <rect x="17.5" y="12.5" width="4" height="6.5" rx="1.6" fill="currentColor" />
+          </svg>
+          {{ listDetailInfo.info.play_count }}
+        </span>
       </div>
 
       <div :class="$style.headerInfo">
         <h1 :class="$style.headerTitle" :title="listDetailInfo.info.name">{{ listDetailInfo.info.name || '歌单' }}</h1>
-        <p :class="$style.headerMeta">
-          <span v-if="listDetailInfo.info.author">{{ listDetailInfo.info.author }}</span>
+        <!-- 作者行：QQ 版式为「作者 + 标签」，当前 SDK 未提供标签，仅显示作者与歌曲数 -->
+        <p v-if="listDetailInfo.info.author || listDetailInfo.total" :class="$style.headerMeta">
+          <span v-if="listDetailInfo.info.author" :class="$style.headerAuthor">{{ listDetailInfo.info.author }}</span>
           <span v-if="listDetailInfo.total">共 {{ listDetailInfo.total }} 首</span>
-          <span v-if="listDetailInfo.info.play_count">播放量 {{ listDetailInfo.info.play_count }}</span>
         </p>
         <p v-if="listDetailInfo.info.desc" :class="[$style.headerDesc, showFullDesc && $style.headerDescOpen]" :title="listDetailInfo.info.desc">
           {{ listDetailInfo.info.desc }}
@@ -32,25 +41,42 @@
             <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
               <path d="M8 5.4v13.2l11-6.6z" fill="currentColor" />
             </svg>
-            播放全部
+            播放
           </button>
           <button
             type="button" :class="$style.btnGhost"
             :disabled="!!listDetailInfo.noItemLabel"
-            @click="addSongListDetail(listDetailInfo.id, listDetailInfo.source, listDetailInfo.info.name)"
+            @click="handleDownload"
           >
             <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-              <path d="M12 20.5s-7.2-4.4-9.6-9.1A5.4 5.4 0 0 1 12 5.6a5.4 5.4 0 0 1 9.6 5.8c-2.4 4.7-9.6 9.1-9.6 9.1z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+              <path d="M12 4v11m0 0l-4-4m4 4l4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M5 19h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
             </svg>
-            收藏歌单
+            下载
+          </button>
+          <button type="button" :class="$style.btnGhost" @click="toggleSelectAll">
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+              <path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+            {{ selectedCount ? `已选${selectedCount}` : '批量' }}
+          </button>
+          <button type="button" :class="$style.btnGhost" @click="handleShare">
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+              <path d="M12 15V4m0 0L8.4 7.6M12 4l3.6 3.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M5 13v5.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+            分享
           </button>
           <button v-if="listDetailInfo.info.desc" type="button" :class="$style.btnText" @click="showFullDesc = !showFullDesc">
-            {{ showFullDesc ? '收起简介' : '展开简介' }}
+            {{ showFullDesc ? '收起' : '详情' }}
           </button>
           <button type="button" :class="$style.btnText" @click="handleBack">{{ $t('back') }}</button>
         </div>
       </div>
     </div>
+
+    <!-- 歌曲列表（原先的「最近收藏 / 评论」页签与列表内搜索按钮已移除：
+         musicSdk 无对应数据源，属于只有位置没有数据的入口） -->
     <div :class="$style.list">
       <material-online-list
         ref="listRef"
@@ -63,11 +89,26 @@
         @toggle-page="togglePage"
       />
     </div>
+
+    <!-- 批量下载弹窗：QQ 的「下载」按钮在有选中项时下载选中，否则下载当前页首曲 -->
+    <common-download-modal
+      v-model:show="isShowDownload" :music-info="downloadMusicInfo" teleport="#view"
+    />
+    <common-download-multiple-modal
+      v-model:show="isShowDownloadMultiple" :list="selectedList"
+      teleport="#view" @confirm="removeAllSelect"
+    />
+
+    <!-- 分享歌单：生成官方歌单链接，可复制或直接打开原页面 -->
+    <common-song-list-share-modal
+      v-model:visible="isShowShare" :name="listDetailInfo.info.name"
+      :list-id="listDetailInfo.id" :source="listDetailInfo.source"
+    />
   </div>
 </template>
 
 <script lang="ts">
-import { ref, watch } from '@common/utils/vueTools'
+import { ref, watch, computed } from '@common/utils/vueTools'
 import { setVisibleListDetail } from '@renderer/store/songList/action'
 import { useRouter, useRoute } from '@common/utils/vueRouter'
 import { addSongListDetail, playSongListDetail } from './action'
@@ -142,6 +183,39 @@ export default {
     // 简介展开状态
     const showFullDesc = ref(false)
 
+    // ====== 批量 / 下载 / 分享 ======
+    // 选中态由 material-online-list 内部维护。注意：它用 <script setup>，
+    // 通过 template ref 访问拿到的是**未解包的 Ref**，不能直接读 .length，
+    // 所以这里统一调用组件暴露出来的方法 / 计数。
+    const selectedCount = computed(() => listRef.value?.selectedCount ?? 0)
+    const removeAllSelect = () => { listRef.value?.removeAllSelect?.() }
+    const toggleSelectAll = () => {
+      if (selectedCount.value) removeAllSelect()
+      else listRef.value?.selectAll?.()
+    }
+    // 多选下载需要歌曲数组；由列表组件内部持有，这里通过其暴露的选中列表取
+    const selectedList = computed<LX.Music.MusicInfoOnline[]>(() => {
+      const raw = listRef.value?.selectedList
+      return Array.isArray(raw) ? raw : (raw?.value ?? [])
+    })
+
+    const isShowDownload = ref(false)
+    const isShowDownloadMultiple = ref(false)
+    const downloadMusicInfo = ref<LX.Music.MusicInfoOnline | null>(null)
+    const handleDownload = () => {
+      if (!listDetailInfo.list.length) return
+      // 与列表页一致：有选中项时下载选中项，否则下载当前页第一首
+      if (selectedCount.value) {
+        isShowDownloadMultiple.value = true
+      } else {
+        downloadMusicInfo.value = listDetailInfo.list[0]
+        isShowDownload.value = true
+      }
+    }
+
+    const isShowShare = ref(false)
+    const handleShare = () => { isShowShare.value = true }
+
     const {
       listRef,
       listDetailInfo,
@@ -196,6 +270,16 @@ export default {
       handlePlayList,
       handleBack,
       showFullDesc,
+      selectedList,
+      selectedCount,
+      removeAllSelect,
+      toggleSelectAll,
+      isShowDownload,
+      isShowDownloadMultiple,
+      downloadMusicInfo,
+      handleDownload,
+      isShowShare,
+      handleShare,
     }
   },
 }
@@ -241,6 +325,26 @@ export default {
   :global(.svg-icon) { width: 30px; height: 30px; fill: currentColor; }
 }
 
+// 封面右下角播放量角标（QQ 版式）
+.headerCoverCount {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: calc(100% - 12px);
+  padding: 2px 6px;
+  border-radius: 10px;
+  background-color: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  .mixin-ellipsis-1();
+}
+
 .headerInfo {
   flex: auto;
   min-width: 0;
@@ -264,10 +368,17 @@ export default {
   margin: 0;
   display: flex;
   flex-flow: row nowrap;
+  align-items: center;
   gap: var(--qm-s4);
   font-size: var(--qm-font-meta);
   line-height: 18px;
   color: var(--qm-text-3);
+}
+
+.headerAuthor {
+  color: var(--qm-text-2);
+  max-width: 60%;
+  .mixin-ellipsis-1();
 }
 
 .headerDesc {

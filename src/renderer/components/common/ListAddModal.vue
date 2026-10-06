@@ -17,7 +17,7 @@
 <script>
 // import { mapMutations } from 'vuex'
 import { watch, ref, onBeforeUnmount } from '@common/utils/vueTools'
-import { defaultList, loveList, userLists } from '@renderer/store/list/state'
+import { recentList, loveList, userLists } from '@renderer/store/list/state'
 import { addListMusics, moveListMusics, createUserList, getMusicExistListIds } from '@renderer/store/list/action'
 import useKeyDown from '@renderer/utils/compositions/useKeyDown'
 import { useI18n } from '@root/lang'
@@ -82,7 +82,7 @@ export default {
 
     const getList = () => {
       lists.value = [
-        { ...defaultList, name: t(defaultList.name) },
+        { ...recentList, name: t(recentList.name) },
         { ...loveList, name: t(loveList.name) },
         ...userLists,
       ].filter(l => !props.excludeListId.includes(l.id)).map(l => ({ ...l, isExist: false }))

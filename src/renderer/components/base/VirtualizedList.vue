@@ -261,6 +261,10 @@ export default {
     const handleResize = () => {
       window.setTimeout(updateView)
     }
+    // 容器高度变化（如上方页签/头部收起展开）也要重算可视窗口，
+    // 否则渲染行数仍按旧高度算，容器底部会露出一片空白。
+    // window.resize 只在窗口尺寸变化时触发，覆盖不到这类内部布局变化。
+    let resizeObserver = null
 
     const contentStyle = computed(() => {
       const style = {
@@ -310,10 +314,15 @@ export default {
         })
       }
       window.addEventListener('resize', handleResize)
+      if (typeof ResizeObserver != 'undefined' && dom_scrollContainer.value) {
+        resizeObserver = new ResizeObserver(() => { window.setTimeout(updateView) })
+        resizeObserver.observe(dom_scrollContainer.value)
+      }
     })
     onBeforeUnmount(() => {
       dom_scrollContainer.value.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', handleResize)
+      resizeObserver?.disconnect()
       if (cancelScroll) cancelScroll()
     })
 

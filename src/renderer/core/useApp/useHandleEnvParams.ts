@@ -1,6 +1,6 @@
 import { useRouter } from '@common/utils/vueRouter'
 import { parseUrlParams } from '@common/utils/common'
-import { defaultList, loveList, userLists } from '@renderer/store/list/state'
+import { recentList, loveList, userLists } from '@renderer/store/list/state'
 import { getListMusics } from '@renderer/store/list/action'
 import usePlaySonglist from './compositions/usePlaySonglist'
 import { playList } from '@renderer/core/player'
@@ -52,7 +52,7 @@ const useInitEnvParamPlay = () => {
       case 'myList':
         if (params.name != null) {
           let targetList
-          const lists = [defaultList, loveList, ...userLists]
+          const lists = [recentList, loveList, ...userLists]
           for (const list of lists) {
             if (list.name === params.name) {
               targetList = list

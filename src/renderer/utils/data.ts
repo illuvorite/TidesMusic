@@ -77,9 +77,11 @@ const saveListPrevSelectIdThrottle = throttle(() => {
   saveListPrevSelectIdFromData(listPrevSelectId)
 }, 200)
 export const getListPrevSelectId = async() => {
-  // eslint-disable-next-line require-atomic-updates
-  listPrevSelectId ??= await getListPrevSelectIdFromData() ?? LIST_IDS.DEFAULT
-  return listPrevSelectId ?? LIST_IDS.DEFAULT
+  // 老版本可能存的是已下线的 default（试听列表），回落到「我喜欢」
+  const saved = await getListPrevSelectIdFromData()
+  listPrevSelectId ??= (saved === LIST_IDS.DEFAULT ? LIST_IDS.LOVE : saved) ?? LIST_IDS.LOVE
+  if (listPrevSelectId === LIST_IDS.DEFAULT) listPrevSelectId = LIST_IDS.LOVE
+  return listPrevSelectId ?? LIST_IDS.LOVE
 }
 export const saveListPrevSelectId = (id: string) => {
   listPrevSelectId = id

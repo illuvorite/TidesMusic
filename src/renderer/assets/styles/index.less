@@ -659,6 +659,39 @@ body {
 //  所有歌曲展示页共用：歌单详情 / 搜索 / 榜单 / 我的列表 / 推荐页
 //  取值依据：参考图实测（封面 x16 起、40×40、行高 58、操作列整行居中）
 // ============================================================
+// 批量模式：行首复选框列（QQ 音乐版式，78px 宽，与表头「○全选」对齐）
+.list-item-cell.check {
+  flex: none !important;
+  width: 78px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px 0 9px !important;
+}
+
+.row-check {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 50%;
+  // 参考图：未选中是**空心灰圈**，选中才是实心绿 —— 不要用黑底白勾
+  border: 1.5px solid var(--color-600, #999);
+  background: none;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  transition: background-color var(--qm-t-fast, .15s), border-color var(--qm-t-fast, .15s);
+
+  &:hover { border-color: var(--qm-primary, #31c27c); }
+
+  &.checked {
+    background-color: var(--qm-primary, #31c27c);
+    border-color: var(--qm-primary, #31c27c);
+  }
+}
+
 .list-item-cell.cover {
   flex: none !important;
   width: 50px;
@@ -1071,6 +1104,11 @@ table {
         border-radius: 0 3px 3px 0;
         background-color: var(--qm-primary);
       }
+    }
+    // 批量模式选中行：与「正在播放」是两回事，视觉要克制得多。
+    // 参考图实测为浅灰底（约 3% 墨色），无指示条、文字不变色。
+    &.checked {
+      background-color: color-mix(in srgb, var(--color-1000) 3%, transparent);
     }
     &.selected {
       background-color: var(--qm-hover-strong);

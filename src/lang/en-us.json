@@ -137,6 +137,7 @@
   "list__moveup": "Move up",
   "list__name_default": "Default",
   "list__name_love": "Loved",
+  "list__name_recent": "Recently played",
   "list__name_temp": "Temp list",
   "list__new_list_btn": "New List",
   "list__new_list_input": "New list...",

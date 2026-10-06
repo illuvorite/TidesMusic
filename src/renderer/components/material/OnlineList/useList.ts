@@ -69,6 +69,8 @@ export default ({ props, listRef }: {
     removeAllSelect()
     selectedList.value = [...props.list]
   }
+  // 对外暴露的全选：供父组件（歌单详情页顶部「批量」按钮）调用
+  const selectAll = () => { handleSelectAllData() }
   const keyEvent = useKeyEvent({ handleSelectAllData, listRef })
 
   const handleSelectData = (clickIndex: number) => {
@@ -112,5 +114,6 @@ export default ({ props, listRef }: {
     listItemHeight,
     removeAllSelect,
     handleSelectData,
+    selectAll,
   }
 }

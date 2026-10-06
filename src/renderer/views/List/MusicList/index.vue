@@ -1,5 +1,39 @@
 <template>
   <div :class="$style.list">
+    <!--
+      歌单头部信息（QQ 音乐版式）：封面 + 标题 + 统计。
+      注意：本地歌单没有作者/简介/播放量数据（用户歌单在 db 里只存了 name/source），
+      因此这里只渲染真实可得的字段，不伪造。
+      与下方页签分开控制：头部只在列表滚到最顶部时出现（isListHeaderVisible），
+      页签则沿用原有的方向跟随收起（isHeadCollapsed）。
+
+      ⚠️ 本组件被「喜欢」「最近播放」和「我的歌单」三处共用，头部只对用户自建/收藏歌单
+      有意义（喜欢/最近播放是固定列表，原本没有这块）。故默认不显示，由调用方按需开启。
+    -->
+    <div v-if="showHeader" v-show="isListHeaderVisible" :class="$style.listHeader">
+      <div :class="$style.headerCover">
+        <!-- 4 图拼接封面；不足 4 张时按数量补位 -->
+        <template v-if="coverImages.length">
+          <img
+            v-for="(img, i) in headerCoverSlots" :key="i"
+            :class="$style.headerCoverCell" :src="img"
+          >
+        </template>
+        <span v-else :class="$style.headerCoverPlaceholder">
+          <svg-icon name="music" />
+        </span>
+      </div>
+
+      <div :class="$style.headerInfo">
+        <h1 :class="$style.headerTitle" :title="listTitle">{{ listTitle }}</h1>
+        <p :class="$style.headerMeta">
+          <span v-if="list.length">{{ list.length }} 首</span>
+          <span v-if="albumCount">{{ albumCount }} 张专辑</span>
+          <span v-if="singerCount">{{ singerCount }} 位歌手</span>
+        </p>
+      </div>
+    </div>
+
     <!-- QQ 版式页头（两段式）：页签 → 操作行；下滑列表时整体收起，上滑/回顶恢复 -->
     <header :class="[$style.head, { [$style.headCollapsed]: isHeadCollapsed }]">
       <nav :class="$style.tabs">
@@ -14,20 +48,36 @@
           <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M8 5.4v13.2l11-6.6z" fill="currentColor" /></svg>
           播放
         </button>
-        <button type="button" :class="$style.btnGhost" :disabled="!list.length" @click="downloadSelected">
+        <button type="button" :class="$style.btnGhost" :disabled="!list.length" @click="openBatchDownload">
           <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
             <path d="M12 4v11m0 0l-4-4m4 4l4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
             <path d="M5 19h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
           </svg>
           下载
         </button>
-        <button type="button" :class="$style.btnGhost" :disabled="!list.length" @click="toggleSelectAll">
+        <!--
+          批量：点按进入「批量模式」——此时每行左侧变为复选框、行内「+」变为下载，
+          操作行右侧显示「退出批量操作」（对齐 QQ 音乐版式）。
+        -->
+        <button type="button" :class="$style.btnGhost" :disabled="!list.length" @click="isBatchMode = true">
+          批量
+        </button>
+        <!--
+          分享：只有「收藏歌单」有官方在线地址（source + sourceListId），
+          自建歌单是纯本地列表、无法生成链接，故不显示该按钮。
+        -->
+        <button v-if="shareInfo" type="button" :class="$style.btnGhost" @click="handleShare">
           <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-            <path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            <path d="M12 15V4m0 0L8.4 7.6M12 4l3.6 3.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M5 13v5.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
           </svg>
-          {{ selectedList.length ? `已选${selectedList.length}` : '批量' }}
+          分享
         </button>
         <span :class="$style.spacer" />
+        <!-- 批量模式下，右侧显示「退出批量操作」（对齐 QQ 音乐版式） -->
+        <button v-if="isBatchMode" type="button" :class="$style.btnGhost" @click="exitBatchMode">
+          退出批量操作
+        </button>
         <button type="button" :class="$style.iconBtn" aria-label="搜索" title="在列表中搜索" @click="isShowSearchBar = true">
           <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
             <circle cx="10.6" cy="10.6" r="5.7" fill="none" stroke="currentColor" stroke-width="1.8" />
@@ -44,8 +94,26 @@
     <div class="thead">
       <table>
         <thead>
+          <!-- 批量模式表头：全选勾选 + 已选数量（QQ 音乐版式） -->
+          <tr v-if="isBatchMode">
+            <th class="nobreak batchCheckCell">
+              <button
+                type="button" class="row-check" :class="{ checked: isAllSelected }"
+                :aria-label="isAllSelected ? '取消全选' : '全选'" :aria-pressed="isAllSelected"
+                @click="toggleSelectAll"
+              >
+                <svg v-if="isAllSelected" viewBox="0 0 24 24" width="11" height="11" aria-hidden="true">
+                  <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+              <span :class="$style.batchAllLabel">全选</span>
+            </th>
+            <th class="nobreak" :class="$style.batchCount">已选中{{ selectedList.length }}首</th>
+            <th class="nobreak" style="width: 27%;">{{ $t('music_album') }}</th>
+            <th class="nobreak" style="width: 10%;">{{ $t('music_time') }}</th>
+          </tr>
           <!-- 参考图列头：歌曲/歌手（含排序指示）· 专辑 · 时长；无序号列 -->
-          <tr>
+          <tr v-else>
             <th class="nobreak">
               <span>{{ $t('music_name') }} / {{ $t('music_singer') }}</span>
               <svg class="thead-sort" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
@@ -66,9 +134,22 @@
         @scroll="onListScroll" @contextmenu.capture="handleListRightClick"
       >
         <div
-          class="list-item" :class="[{ [$style.active]: playerInfo.isPlayList && playerInfo.playIndex === index }, { selected: selectedIndex == index || rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { disabled: !assertApiSupport(item.source) }, { 'row-alt': index % 2 === 1 }]"
+          class="list-item" :class="[{ [$style.active]: playerInfo.isPlayList && playerInfo.playIndex === index }, { selected: selectedIndex == index || rightClickSelectedIndex == index }, { checked: isBatchMode && selectedList.includes(item) }, { disabled: !assertApiSupport(item.source) }, { 'row-alt': index % 2 === 1 }]"
           @click="handleListItemClick($event, index)" @contextmenu="handleListItemRightClick($event, index)"
         >
+          <!-- 批量模式：逐行复选框（QQ 音乐版式） -->
+          <div v-if="isBatchMode" class="list-item-cell check">
+            <button
+              type="button" class="row-check" :class="{ checked: selectedList.includes(item) }"
+              :aria-label="selectedList.includes(item) ? '取消选择' : '选择'"
+              :aria-pressed="selectedList.includes(item)"
+              @click.stop="toggleSelectItem(item)"
+            >
+              <svg v-if="selectedList.includes(item)" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
+                <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
           <div class="list-item-cell cover">
             <div class="row-cover">
               <img v-if="getCoverUrl(item)" :src="getCoverUrl(item)" alt="" loading="lazy">
@@ -101,6 +182,7 @@
           <div class="list-item-cell actions">
             <material-list-buttons
               :index="index" :play-btn="false" :liked="isLoved(item)"
+              :list-add-btn="!isBatchMode"
               :download-btn="assertApiSupport(item.source) && item.source != 'local'" @btn-click="handleListBtnClick"
             />
           </div>
@@ -115,9 +197,22 @@
       >
         <div
           class="list-item"
-          :class="[{ [$style.active]: playerInfo.isPlayList && playerInfo.playIndex === index }, { selected: selectedIndex == index || rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { disabled: !assertApiSupport(item.source) }, { 'row-alt': index % 2 === 1 }]"
+          :class="[{ [$style.active]: playerInfo.isPlayList && playerInfo.playIndex === index }, { selected: selectedIndex == index || rightClickSelectedIndex == index }, { checked: isBatchMode && selectedList.includes(item) }, { disabled: !assertApiSupport(item.source) }, { 'row-alt': index % 2 === 1 }]"
           @click="handleListItemClick($event, index)" @contextmenu="handleListItemRightClick($event, index)"
         >
+          <!-- 批量模式：逐行复选框（QQ 音乐版式） -->
+          <div v-if="isBatchMode" class="list-item-cell check">
+            <button
+              type="button" class="row-check" :class="{ checked: selectedList.includes(item) }"
+              :aria-label="selectedList.includes(item) ? '取消选择' : '选择'"
+              :aria-pressed="selectedList.includes(item)"
+              @click.stop="toggleSelectItem(item)"
+            >
+              <svg v-if="selectedList.includes(item)" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
+                <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
           <div class="list-item-cell cover">
             <div class="row-cover">
               <img v-if="getCoverUrl(item)" :src="getCoverUrl(item)" alt="" loading="lazy">
@@ -150,6 +245,7 @@
           <div class="list-item-cell actions">
             <material-list-buttons
               :index="index" :play-btn="false" :liked="isLoved(item)"
+              :list-add-btn="!isBatchMode"
               :download-btn="assertApiSupport(item.source) && item.source != 'local'" @btn-click="handleListBtnClick"
             />
           </div>
@@ -170,10 +266,13 @@
       :is-move="isMoveMultiple" :music-list="selectedList" :exclude-list-id="excludeListIds" teleport="#view" @confirm="removeAllSelect"
     />
     <common-download-modal v-model:show="isShowDownload" :music-info="selectedDownloadMusicInfo" teleport="#view" :list-id="listId" />
-    <common-download-multiple-modal v-model:show="isShowDownloadMultiple" :list="selectedList" teleport="#view" :list-id="listId" @confirm="removeAllSelect" />
     <search-list :list="list" :visible="isShowSearchBar" @action="handleMusicSearchAction" />
     <music-sort-modal v-model:show="isShowMusicSortModal" :music-info="selectedSortMusicInfo" :selected-num="selectedNum" @confirm="sortMusic" />
     <music-toggle-modal v-model:show="isShowMusicToggleModal" :music-info="selectedToggleMusicInfo" @toggle="toggleSource" />
+    <common-song-list-share-modal
+      v-model:visible="isShowShare" :name="shareInfo?.name ?? ''"
+      :list-id="shareInfo?.sourceListId ?? ''" :source="shareInfo?.source ?? ''"
+    />
     <base-menu v-model="isShowItemMenu" :menus="menus" :xy="menuLocation" item-name="name" @menu-click="handleMenuClick" />
     <base-menu v-model="isShowAddMenu" :menus="addMenuItems" :xy="addMenuLocation" :anchor-rect="addMenuAnchorRect" item-name="name" @menu-click="handleAddMenuClick" />
     <!-- 行内「+」按钮的「添加到」菜单（QQ 版式，替代旧弹窗） -->
@@ -182,9 +281,11 @@
 
 <script>
 import { clipboardWriteText } from '@common/utils/electron'
-import { computed, watch } from '@common/utils/vueTools'
+import { computed, ref, watch } from '@common/utils/vueTools'
+import { useRouter } from '@common/utils/vueRouter'
 import { playList } from '@renderer/core/player/action'
-import { userLists } from '@renderer/store/list/state'
+import { userLists, loveList, recentList } from '@renderer/store/list/state'
+import { setBatchDownloadList } from '@renderer/store/batchDownload'
 import { assertApiSupport } from '@renderer/store/utils'
 import SearchList from './components/SearchList.vue'
 import MusicSortModal from './components/MusicSortModal.vue'
@@ -217,9 +318,16 @@ export default {
       type: String,
       required: true,
     },
+    /** 是否显示歌单头部信息（封面 + 标题 + 统计）。默认关闭：
+     *  「喜欢」「最近播放」是固定列表，不需要这块；只有用户自建/收藏歌单才开启。 */
+    showHeader: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['show-menu'],
   setup(props, { emit }) {
+    const router = useRouter()
     const actionButtonsVisible = appSetting['list.actionButtonsVisible']
 
     let scrollIndex = null
@@ -252,6 +360,7 @@ export default {
       listItemHeight,
       handleSelectData,
       removeAllSelect,
+      selectAll,
     } = useList({ listRef, list })
 
     const {
@@ -378,6 +487,7 @@ export default {
     const handleListBtnClick = ({ action, index, event }) => {
       switch (action) {
         case 'download':
+          // 行内下载 = 当前这首的音质弹窗（两种模式都一样）
           handleShowDownloadModal(index, true)
           break
         case 'play':
@@ -387,6 +497,7 @@ export default {
           handleSearch(index)
           break
         case 'listAdd':
+          // 批量模式下行内「+」已隐藏（此时只剩下载）；非批量模式维持原有「添加到」菜单
           addMenu.openMenu(event?.currentTarget, list.value[index])
           break
         case 'like':
@@ -412,11 +523,18 @@ export default {
 
     // ====== QQ 版式页头 ======
     // 页头滚动收起：下滑列表自动收起，上滑 / 回到顶部恢复；切换歌单时复位
+    // 歌单头部信息（封面/标题/统计）另有一套规则：只有滚到最顶部才显示，
+    // 见下isListHeaderVisible —— 它比页签更「粘」，避免上滑一点就闪现大块头部。
     const { isHeadCollapsed, handleHeadScroll, resetHeadCollapse } = useHeadCollapse()
     const onListScroll = (event) => {
       saveListPosition()
       handleHeadScroll(event)
+      const el = event?.target
+      if (el) isListHeaderVisible.value = el.scrollTop <= 4
     }
+    // 歌单头部只在列表滚到最顶部时显示
+    const isListHeaderVisible = ref(true)
+    watch(() => props.listId, () => { isListHeaderVisible.value = true })
     watch(() => props.listId, resetHeadCollapse)
     const albumCount = computed(() => {
       const set = new Set()
@@ -430,18 +548,84 @@ export default {
       if (!list.value.length) return
       playList(props.listId, 0)
     }
-    const downloadSelected = () => {
-      if (!list.value.length) return
-      const first = selectedList.value[0]
-      const index = first ? list.value.indexOf(first) : 0
-      handleShowDownloadModal(index < 0 ? 0 : index, true)
+
+    // ====== 歌单头部信息（封面 / 标题 / 统计）======
+    // 本页展示的是**本地**歌单，用户歌单在 db 里只存了
+    // name / source / sourceListId / locationUpdateTime，没有封面、作者、简介、播放量，
+    // 因此这里只用真实可得的数据：歌单名 + 歌曲数/专辑数 + 「我喜欢的音乐 / 最近播放」特例。
+    const isLoveList = computed(() => props.listId === loveList.id)
+    const isRecentList = computed(() => props.listId === recentList.id)
+    const listTitle = computed(() => {
+      if (isLoveList.value) return window.i18n.t(loveList.name)
+      if (isRecentList.value) return window.i18n.t(recentList.name)
+      return userLists.find(l => l.id == props.listId)?.name ?? ''
+    })
+    // 封面：取前 4 首的封面拼成 2×2 网格（QQ 音乐歌单封面同款做法）
+    const coverImages = computed(() => {
+      const imgs = []
+      for (const item of list.value) {
+        const url = item.meta?.picUrl
+        if (url && !imgs.includes(url)) imgs.push(url)
+        if (imgs.length >= 4) break
+      }
+      return imgs
+    })
+    const singerCount = computed(() => {
+      const set = new Set()
+      for (const item of list.value) if (item.singer) set.add(item.singer)
+      return set.size
+    })
+    // 4 图拼接：只有 1~3 张时用首图重复补满 4 格，避免网格出现空位
+    const headerCoverSlots = computed(() => {
+      const imgs = coverImages.value
+      if (!imgs.length) return []
+      const slots = [...imgs]
+      while (slots.length < 4) slots.push(imgs[0])
+      return slots.slice(0, 4)
+    })
+
+    // ====== 分享 =====
+    // 本页展示的是**本地**歌单（自建 / 收藏），只有「收藏歌单」带有在线来源
+    // （source + sourceListId）才能生成官方链接；自建歌单为 null，按钮不显示。
+    const shareInfo = computed(() => {
+      const target = userLists.find(l => l.id == props.listId)
+      if (!target?.source || !target.sourceListId) return null
+      return {
+        name: target.name,
+        source: target.source,
+        sourceListId: target.sourceListId,
+      }
+    })
+    const isShowShare = ref(false)
+    const handleShare = () => { isShowShare.value = true }
+    // 工具栏「下载」→ 进入批量下载页（对齐 QQ 音乐）。
+    // 批量模式下优先取已勾选的歌曲，未勾选则默认全选。
+    const openBatchDownload = () => {
+      const picked = list.value.filter(i => selectedList.value.includes(i))
+      setBatchDownloadList(picked.length ? picked : [...list.value])
+      router.push({ name: 'BatchDownload' }).catch(() => {})
+    }
+    // 批量模式：进入后逐行复选，不进入时维持原来的行为
+    const isBatchMode = ref(false)
+    const isAllSelected = computed(() => list.value.length > 0 && selectedList.value.length === list.value.length)
+    // 单行勾选/取消
+    const toggleSelectItem = (item) => {
+      const idx = selectedList.value.indexOf(item)
+      if (idx < 0) selectedList.value.push(item)
+      else selectedList.value.splice(idx, 1)
     }
     const toggleSelectAll = () => {
+      // 已全选 → 退出批量并清空；未全选 → 全选
       if (selectedList.value.length) {
         removeAllSelect()
+        isBatchMode.value = false
         return
       }
-      list.value.forEach((item, index) => { handleSelectData(index) })
+      selectAll()
+    }
+    const exitBatchMode = () => {
+      isBatchMode.value = false
+      removeAllSelect()
     }
 
     // 音质角标：_qualitys 可能整体缺失（本地导入歌曲、换源缓存、旧版本歌单的脏数据），
@@ -460,7 +644,7 @@ export default {
       onListScroll,
       albumCount,
       playAllMusics,
-      downloadSelected,
+      openBatchDownload,
       toggleSelectAll,
       userLists,
       isLoved,
@@ -524,6 +708,20 @@ export default {
       isShowMusicToggleModal,
       selectedToggleMusicInfo,
       toggleSource,
+
+      shareInfo,
+      isShowShare,
+      handleShare,
+
+      listTitle,
+      coverImages,
+      headerCoverSlots,
+      singerCount,
+      isListHeaderVisible,
+      isBatchMode,
+      isAllSelected,
+      toggleSelectItem,
+      exitBatchMode,
     }
   },
 }
@@ -533,6 +731,72 @@ export default {
 <style lang="less" module>
 @import '@renderer/assets/styles/layout.less';
 @import '@renderer/assets/styles/qq.less';
+
+// ------- 歌单头部信息（封面 + 标题 + 统计）-------
+.listHeader {
+  flex: none;
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: var(--qm-s5);
+  padding: var(--qm-s6) var(--qm-content-pad-right) var(--qm-s4) var(--qm-content-pad-left);
+  background-color: var(--qm-surface);
+}
+
+.headerCover {
+  flex: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  width: 108px;
+  height: 108px;
+  border-radius: var(--qm-radius-card, 8px);
+  overflow: hidden;
+  background-color: rgba(0, 0, 0, 0.04);
+  box-shadow: var(--qm-shadow-2, 0 2px 8px rgba(0, 0, 0, 0.08));
+}
+
+.headerCoverCell {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.headerCoverPlaceholder {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  .qm-cover-placeholder();
+  :global(.svg-icon) { width: 28px; height: 28px; fill: currentColor; }
+}
+
+.headerInfo {
+  flex: auto;
+  min-width: 0;
+  display: flex;
+  flex-flow: column nowrap;
+  gap: var(--qm-sp-2, 6px);
+}
+
+.headerTitle {
+  margin: 0;
+  max-width: 100%;
+  font-size: var(--qm-font-title-xl, 22px);
+  font-weight: var(--qm-fw-bold, 700);
+  line-height: 30px;
+  color: var(--qm-text-1);
+  .mixin-ellipsis-1();
+}
+
+.headerMeta {
+  margin: 0;
+  display: flex;
+  flex-flow: row nowrap;
+  gap: var(--qm-s4);
+  font-size: var(--qm-font-meta);
+  line-height: 18px;
+  color: var(--qm-text-3);
+}
 
 // ------- QQ 版式页头（两段式，取值依据参考图实测）-------
 // 竖排：页签(13，选中带 3px 主色下划线) → 20px → 工具栏(32) → 24px → 表头
@@ -705,6 +969,28 @@ export default {
   color: var(--qm-text-3);
   opacity: .7;
 }
+// 批量模式表头：「○全选 | 已选中N首」
+.batchCheckCell {
+  width: 78px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: var(--qm-fw-medium, 500);
+  color: var(--qm-text-3);
+  cursor: pointer;
+}
+
+.batchAllLabel {
+  font-size: var(--qm-fs-sm, 13px);
+  color: var(--qm-text-3);
+}
+
+.batchCount {
+  font-size: var(--qm-fs-sm, 13px);
+  color: var(--qm-text-3);
+  font-variant-numeric: tabular-nums;
+}
+
 .content {
   min-height: 0;
   font-size: var(--qm-fs-md, 14px);
@@ -713,6 +999,9 @@ export default {
   flex: auto;
   // 行背景左右内缩（参考图实测：行列距内容区左右各 34px）
   padding: 0 34px;
+  // 收起页头后必须让虚拟列表重新接管剩余高度，
+  // 否则内容区高度不随页头收缩而变化，底部会留出一大片空白。
+  overflow: hidden;
 }
 
 .noItem {

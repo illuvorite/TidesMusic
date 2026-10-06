@@ -1,5 +1,4 @@
 // import { useCommit } from '@common/utils/vueTools'
-import { defaultList } from '@renderer/store/list/state'
 import { getListMusics, addListMusics } from '@renderer/store/list/action'
 import { addTempPlayList } from '@renderer/store/player/action'
 import { appSetting } from '@renderer/store/setting'
@@ -19,17 +18,21 @@ export default ({ selectedList, props, removeAllSelect, emit }: {
   let clickIndex = -1
 
   const handlePlayMusic = async(index: number, single: boolean) => {
-    let targetSong = props.list[index]
-    const defaultListMusics = await getListMusics(defaultList.id)
+    const targetSong = props.list[index]
+    if (!targetSong) return
+    // 在线歌单是一次性浏览内容，播放队列走 TEMP 列表。
+    // （原先写入 defaultList「试听列表」，该列表已下线。）
     if (selectedList.value.length && !single) {
-      await addListMusics(defaultList.id, [...selectedList.value])
+      await addListMusics(LIST_IDS.TEMP, [...selectedList.value])
       removeAllSelect()
     } else {
-      await addListMusics(defaultList.id, [targetSong])
+      await addListMusics(LIST_IDS.TEMP, [targetSong])
     }
-    let targetIndex = defaultListMusics.findIndex(s => s.id === targetSong.id)
+    // 追加后再取列表算下标：原实现先取旧列表再追加，用旧数组找 index 会偏
+    const tempListMusics = await getListMusics(LIST_IDS.TEMP)
+    const targetIndex = tempListMusics.findIndex(s => s.id === targetSong.id)
     if (targetIndex > -1) {
-      playList(defaultList.id, targetIndex)
+      playList(LIST_IDS.TEMP, targetIndex)
     }
   }
 

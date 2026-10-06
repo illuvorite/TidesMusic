@@ -24,6 +24,13 @@ declare namespace LX {
       // list: LX.Music.MusicInfo[]
     }
 
+    /** 最近播放列表（替代已下线的「试听列表」defaultList） */
+    interface MyRecentListInfo {
+      id: 'recent'
+      name: 'list__name_recent'
+      // list: LX.Music.MusicInfo[]
+    }
+
     interface MyTempListInfo {
       id: 'temp'
       // 与 defaultList / loveList 一致：存 i18n 键，渲染处统一翻译
@@ -35,11 +42,12 @@ declare namespace LX {
       }
     }
 
-    type MyListInfo = MyDefaultListInfo | MyLoveListInfo | UserListInfo
+    type MyListInfo = MyDefaultListInfo | MyLoveListInfo | MyRecentListInfo | UserListInfo
 
     interface MyAllList {
       defaultList: MyDefaultListInfo
       loveList: MyLoveListInfo
+      recentList: MyRecentListInfo
       userList: UserListInfo[]
       tempList: MyTempListInfo
     }
@@ -62,7 +70,7 @@ declare namespace LX {
     }
 
 
-    type ListActionDataOverwrite = MakeOptional<LX.List.ListDataFull, 'tempList'>
+    type ListActionDataOverwrite = MakeOptional<LX.List.ListDataFull, 'tempList' | 'recentList' | 'defaultList'>
     interface ListActionAdd {
       position: number
       listInfos: UserListInfo[]
@@ -127,6 +135,9 @@ declare namespace LX {
     interface MyLoveListInfoFull extends MyLoveListInfo {
       list: LX.Music.MusicInfo[]
     }
+    interface MyRecentListInfoFull extends MyRecentListInfo {
+      list: LX.Music.MusicInfo[]
+    }
     interface UserListInfoFull extends UserListInfo {
       list: LX.Music.MusicInfo[]
     }
@@ -135,8 +146,10 @@ declare namespace LX {
     }
 
     interface ListDataFull {
+      /** 历史遗留：老版本的「试听列表」。仅作兼容读取，新代码不应写入。 */
       defaultList: LX.Music.MusicInfo[]
       loveList: LX.Music.MusicInfo[]
+      recentList: LX.Music.MusicInfo[]
       userList: UserListInfoFull[]
       tempList: LX.Music.MusicInfo[]
     }

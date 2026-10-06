@@ -1,5 +1,5 @@
 import { useI18n } from '@renderer/plugins/i18n'
-import { allMusicList, defaultList, loveList, userLists } from '@renderer/store/list/state'
+import { allMusicList, recentList, loveList, userLists } from '@renderer/store/list/state'
 import { addListMusics, createUserList, moveListMusics } from '@renderer/store/list/action'
 
 /**
@@ -36,7 +36,7 @@ export default () => {
       })
     }
 
-    pushList(defaultList.id, t(defaultList.name))
+    pushList(recentList.id, t(recentList.name))
     pushList(loveList.id, t(loveList.name))
 
     if (!isMove) {

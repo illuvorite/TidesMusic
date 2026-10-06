@@ -262,7 +262,7 @@ import { isFullscreen, isShowChangeLog } from '@renderer/store'
 
 import {
   loveList,
-  defaultList,
+  recentList,
   userLists,
   allMusicList,
   fetchingListStatus,
@@ -305,7 +305,7 @@ const openChangeLog = () => { isShowChangeLog.value = true }
 // 因此这里用一个响应式对象承接计数，数据到位后再写回。
 const listCounts = reactive({})
 
-const allListIds = () => [loveList.id, defaultList.id, ...userLists.map(l => l.id)]
+const allListIds = () => [loveList.id, recentList.id, ...userLists.map(l => l.id)]
 
 // 把已在缓存里的列表数量同步到响应式计数
 const syncCountsFromCache = () => {
@@ -372,8 +372,8 @@ const playlists = computed(() => {
 })
 
 const loveListCount = computed(() => listCounts[loveList.id] ?? 0)
-// 最近播放：与「最近播放」页一致（该页展示试听列表 default 的内容）
-const recentListCount = computed(() => listCounts[defaultList.id] ?? 0)
+// 最近播放：与「最近播放」页一致（该页展示 recentList 的内容）
+const recentListCount = computed(() => listCounts[recentList.id] ?? 0)
 
 // 首页 + 乐馆，并列排放
 const mainQuickNav = computed(() => [
@@ -391,7 +391,6 @@ const isActive = (item) => {
   if (item.name === 'MusicHall') return route.path === '/home/music-hall'
   if (item.name === 'ListLove') return route.path === '/list/love'
   if (item.name === 'ListRecent') return route.path === '/list/recent'
-  if (item.name === 'ListDefault') return route.path === '/list/default'
   if (item.name === 'Download') return route.path === '/download'
   if (item.name === 'SongList') return route.path.startsWith('/songList')
   if (item.name === 'List') {

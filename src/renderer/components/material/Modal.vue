@@ -6,8 +6,11 @@
           <transition :enter-active-class="inClass" :leave-active-class="outClass" @after-enter="$emit('after-enter', $event)" @after-leave="handleAfterLeave">
             <div v-show="showContent" :class="$style.content" :style="contentStyle" @click.stop>
               <header :class="$style.header">
-                <button v-if="closeBtn" type="button" @click="close">
-                  <svg-icon name="delete" />
+                <!-- 关闭图标：X（原为 delete 垃圾桶图标，不换 svg 资源以免影响其他引用处） -->
+                <button v-if="closeBtn" type="button" :aria-label="$t('close')" @click="close">
+                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                  </svg>
                 </button>
               </header>
               <slot />
@@ -305,8 +308,9 @@ export default {
     transition: background-color var(--qm-t-fast), color var(--qm-t-fast), transform var(--qm-t-fast);
 
     svg {
-      height: .55em;
-      fill: currentColor;
+      width: 15px;
+      height: 15px;
+      stroke: currentColor;
     }
 
     &:hover {

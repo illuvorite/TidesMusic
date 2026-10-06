@@ -40,12 +40,13 @@ export default () => {
 
     if (!assertApiSupport(targetSong.source)) return
 
-    const defaultListMusics = await getListMusics(LIST_IDS.DEFAULT)
+    // 搜索结果播放走 TEMP 列表（原先写入已下线的 defaultList「试听列表」）
+    await addListMusics(LIST_IDS.TEMP, [targetSong])
 
-    await addListMusics(LIST_IDS.DEFAULT, [targetSong])
-
-    let targetIndex = defaultListMusics.findIndex(s => s.id === targetSong.id)
-    if (targetIndex > -1) playList(LIST_IDS.DEFAULT, targetIndex)
+    // 追加后再取列表算下标，避免用旧数组找 index
+    const targetListMusics = await getListMusics(LIST_IDS.TEMP)
+    const targetIndex = targetListMusics.findIndex(s => s.id === targetSong.id)
+    if (targetIndex > -1) playList(LIST_IDS.TEMP, targetIndex)
   }
 
   return {

@@ -12,8 +12,10 @@ export const ENV_PARAMS = [
 
 
 export const LIST_IDS = {
+  // 与 constants.ts 保持一致；DEFAULT 仅作历史数据兼容读取
   DEFAULT: 'default',
   LOVE: 'love',
+  RECENT: 'recent',
   TEMP: 'temp',
   DOWNLOAD: 'download',
   PLAY_LATER: null,

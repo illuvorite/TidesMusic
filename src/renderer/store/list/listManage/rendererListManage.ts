@@ -134,8 +134,10 @@ export const clearListMusics = async(ids: LX.List.ListActionMusicClear) => {
  * @param data
  */
 export const overwriteListFull = async(data: LX.List.ListActionDataOverwrite) => {
-  data.defaultList = toRaw(data.defaultList)
   data.loveList = toRaw(data.loveList)
+  if (data.recentList) {
+    data.recentList = toRaw(data.recentList)
+  }
   if (data.tempList) {
     data.tempList = toRaw(data.tempList)
   }

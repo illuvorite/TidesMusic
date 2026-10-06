@@ -363,7 +363,7 @@ export default {
         }))
         return
       }
-      const listId = playMusicInfo.listId ?? LIST_IDS.DEFAULT
+      const listId = playMusicInfo.listId ?? LIST_IDS.TEMP
       const list = allMusicList.get(listId) ?? []
       playQueue.value = list.map(m => ({ listId, musicInfo: m, isTempPlay: false }))
     }

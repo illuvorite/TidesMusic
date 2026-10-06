@@ -24,8 +24,12 @@ export const APP_EVENT_NAMES = {
 } as const
 
 export const LIST_IDS = {
+  // ⚠️ DEFAULT 仅用于**读取**历史遗留数据（老版本把「试听列表」存成了 default），
+  // 以及个别播放队列兜底；界面上已无任何入口，勿再把它当作功能列表使用。
   DEFAULT: 'default',
   LOVE: 'love',
+  // 最近播放：独立列表，替代已下线的「试听列表」
+  RECENT: 'recent',
   TEMP: 'temp',
   DOWNLOAD: 'download',
   PLAY_LATER: null,

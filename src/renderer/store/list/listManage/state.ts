@@ -14,6 +14,12 @@ export const loveList = markRaw<LX.List.MyLoveListInfo>({
   name: 'list__name_love',
   // name: '我的收藏',
 })
+
+// 最近播放：独立于「试听列表」的播放记录列表，界面入口在侧栏「最近播放」
+export const recentList = markRaw<LX.List.MyRecentListInfo>({
+  id: LIST_IDS.RECENT,
+  name: 'list__name_recent',
+})
 export const tempList = markRaw<LX.List.MyTempListInfo>({
   id: LIST_IDS.TEMP,
   name: 'list__name_temp',

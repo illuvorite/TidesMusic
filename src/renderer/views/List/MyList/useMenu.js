@@ -1,6 +1,6 @@
 import { computed, ref, reactive, nextTick } from '@common/utils/vueTools'
 import { useI18n } from '@renderer/plugins/i18n'
-import { userLists, defaultList, loveList } from '@renderer/store/list/state'
+import { userLists, recentList, loveList } from '@renderer/store/list/state'
 import musicSdk from '@renderer/utils/musicSdk'
 import { addLocalFile } from './actions'
 
@@ -137,7 +137,7 @@ export default ({
     let list
     switch (index) {
       case -2:
-        list = defaultList
+        list = recentList
         break
       case -1:
         list = loveList

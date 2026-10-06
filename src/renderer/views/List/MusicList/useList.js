@@ -104,5 +104,6 @@ export default ({ listRef, list }) => {
     listItemHeight,
     removeAllSelect,
     handleSelectData,
+    selectAll: handleSelectAllData,
   }
 }

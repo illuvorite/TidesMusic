@@ -213,7 +213,7 @@ export default {
         confirmButtonText: t('setting__other_resource_cache_confirm'),
       })) return
       void overwriteListFull({
-        defaultList: [],
+        recentList: [],
         loveList: [],
         userList: [],
         tempList: [],

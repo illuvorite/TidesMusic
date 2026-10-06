@@ -1,7 +1,7 @@
 import { markRaw, markRawList, toRaw } from '@common/utils/vueTools'
 import {
   allMusicList,
-  defaultList,
+  recentList,
   loveList,
   tempList,
   userLists,
@@ -73,7 +73,7 @@ const updateList = ({
 }: LX.List.UserListInfo & { meta?: { id?: string } }) => {
   let targetList
   switch (id) {
-    case defaultList.id:
+    case recentList.id:
     case loveList.id:
       break
     case tempList.id:
@@ -107,7 +107,7 @@ const overwriteUserList = (lists: LX.List.UserListInfo[]) => {
 // }
 
 
-export const listDataOverwrite = ({ defaultList, loveList, userList, tempList }: MakeOptional<LX.List.ListDataFull, 'tempList'>): string[] => {
+export const listDataOverwrite = ({ defaultList, loveList, recentList, userList, tempList }: MakeOptional<LX.List.ListDataFull, 'tempList' | 'recentList' | 'defaultList'>): string[] => {
   const updatedListIds: string[] = []
   const newUserIds: string[] = []
   const newUserListInfos = userList.map(({ list, ...listInfo }) => {
@@ -125,19 +125,20 @@ export const listDataOverwrite = ({ defaultList, loveList, userList, tempList }:
   }
   overwriteUserList(newUserListInfos)
 
-  if (allMusicList.has(LIST_IDS.DEFAULT)) {
-    overwriteMusicList(LIST_IDS.DEFAULT, defaultList)
-    updatedListIds.push(LIST_IDS.DEFAULT)
-  }
-
   overwriteMusicList(LIST_IDS.LOVE, loveList)
   updatedListIds.push(LIST_IDS.LOVE)
+
+  if (recentList) {
+    overwriteMusicList(LIST_IDS.RECENT, recentList)
+    updatedListIds.push(LIST_IDS.RECENT)
+  }
 
   if (tempList && allMusicList.has(LIST_IDS.TEMP)) {
     overwriteMusicList(LIST_IDS.TEMP, tempList)
     updatedListIds.push(LIST_IDS.TEMP)
   }
-  const newIds = [LIST_IDS.DEFAULT, LIST_IDS.LOVE, ...userList.map(l => l.id)]
+  const newIds = [LIST_IDS.LOVE, ...userList.map(l => l.id)]
+  if (recentList) newIds.push(LIST_IDS.RECENT)
   if (tempList) newIds.push(LIST_IDS.TEMP)
   void overwriteListPosition(newIds)
   void overwriteListUpdateInfo(newIds)

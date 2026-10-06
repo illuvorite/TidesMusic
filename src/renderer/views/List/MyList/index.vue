@@ -53,7 +53,7 @@ import DuplicateMusicModal from './components/DuplicateMusicModal.vue'
 import ListSortModal from './components/ListSortModal.vue'
 import ListUpdateModal from './components/ListUpdateModal.vue'
 
-import { defaultList, loveList, userLists, fetchingListStatus } from '@renderer/store/list/state'
+import { recentList, loveList, userLists, fetchingListStatus } from '@renderer/store/list/state'
 import { removeUserList } from '@renderer/store/list/action'
 
 import { ref, watch } from '@common/utils/vueTools'
@@ -237,14 +237,14 @@ export default {
       void router.replace({
         path: '/list',
         query: {
-          id: defaultList.id,
+          id: recentList.id,
         },
       })
     })
 
     return {
       rightClickItemIndex,
-      defaultList,
+      recentList,
       loveList,
       userLists,
       fetchingListStatus,

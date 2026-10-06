@@ -43,7 +43,7 @@ import useImportTip from '@renderer/utils/compositions/useImportTip'
 import { useI18n } from '@renderer/plugins/i18n'
 import { getListMusics, overwriteListFull, overwriteListMusics } from '@renderer/store/list/action'
 import { LIST_IDS } from '@common/constants'
-import { defaultList, loveList, userLists } from '@renderer/store/list/state'
+import { recentList, loveList, userLists } from '@renderer/store/list/state'
 import { appSetting, updateSetting } from '@renderer/store/setting'
 import { loadPlayHistory } from '@renderer/store/playHistory'
 import migrateSetting from '@common/utils/migrateSetting'
@@ -59,9 +59,11 @@ export default {
     // const setList = useCommit('list', 'setList')
     const showImportTip = useImportTip()
 
+    // ⚠️ 备份文件的列表顺序是与旧版本对齐的（第一个槽位=default/试听列表），
+    // 改动会导致老备份导入时数据错位，勿调整这里的顺序。
     const getAllLists = async() => {
       const lists = []
-      lists.push(await getListMusics(defaultList.id).then(musics => ({ ...defaultList, list: toRaw(musics) })))
+      lists.push(await getListMusics(recentList.id).then(musics => ({ ...recentList, list: toRaw(musics) })))
       lists.push(await getListMusics(loveList.id).then(musics => ({ ...loveList, list: toRaw(musics) })))
 
       for await (const list of userLists) {
@@ -92,9 +94,9 @@ export default {
           console.log(err)
         }
       }
-      const defaultList = allLists.shift().list
-      const loveList = allLists.shift().list
-      await overwriteListFull({ defaultList, loveList, userList: allLists })
+      const recentListData = allLists.shift().list
+      const loveListData = allLists.shift().list
+      await overwriteListFull({ recentList: recentListData, loveList: loveListData, userList: allLists })
     }
     const importNewListData = async(lists) => {
       const allLists = await getAllLists()
@@ -117,9 +119,9 @@ export default {
           console.log(err)
         }
       }
-      const defaultList = allLists.shift().list
-      const loveList = allLists.shift().list
-      await overwriteListFull({ defaultList, loveList, userList: allLists })
+      const recentListData = allLists.shift().list
+      const loveListData = allLists.shift().list
+      await overwriteListFull({ recentList: recentListData, loveList: loveListData, userList: allLists })
     }
     const importOldSettingData = (setting) => {
       console.log(setting)
@@ -156,7 +158,9 @@ export default {
       switch (allData.type) {
         case 'allData':
           // 兼容0.6.2及以前版本的列表数据
-          if (allData.defaultList) await overwriteListMusics({ listId: LIST_IDS.DEFAULT, musicInfos: filterMusicList(allData.defaultList.list.map(m => toNewMusicInfo(m))) })
+          // 老版本的这个槽位是「试听列表」，本项目已下线该列表，
+          // 导入到「最近播放」以免用户数据丢失
+          if (allData.defaultList) await overwriteListMusics({ listId: LIST_IDS.RECENT, musicInfos: filterMusicList(allData.defaultList.list.map(m => toNewMusicInfo(m))) })
           else await importOldListData(allData.playList)
           importOldSettingData(allData.setting)
           break

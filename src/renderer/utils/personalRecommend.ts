@@ -74,7 +74,7 @@ export const getRecommendSource = (fallback: LX.OnlineSource = 'tx'): LX.OnlineS
 let isStyleDataLoading: Promise<void> | null = null
 
 const doLoadStyleData = async(): Promise<void> => {
-  const ids = [LIST_IDS.LOVE, LIST_IDS.DEFAULT, ...userLists.slice(0, 10).map(l => l.id)]
+  const ids = [LIST_IDS.LOVE, LIST_IDS.RECENT, ...userLists.slice(0, 10).map(l => l.id)]
   await Promise.all(ids.map(id => getListMusics(id).catch(() => [] as LX.Music.MusicInfo[])))
 }
 
@@ -98,9 +98,9 @@ export const getListenStyle = (): ListenStyle => {
     }
   }
 
-  // 收藏 > 试听列表 / 自建歌单 > 播放历史（越近权重越高）
+  // 收藏 > 最近播放 / 自建歌单 > 播放历史（越近权重越高）
   for (const m of allMusicList.get(LIST_IDS.LOVE) ?? []) add(m, 6)
-  for (const m of allMusicList.get(LIST_IDS.DEFAULT) ?? []) add(m, 2)
+  for (const m of allMusicList.get(LIST_IDS.RECENT) ?? []) add(m, 2)
   for (const list of userLists) {
     for (const m of allMusicList.get(list.id) ?? []) add(m, 2)
   }
