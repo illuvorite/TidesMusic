@@ -33,84 +33,38 @@
       </div>
     </header>
 
-    <!-- 歌曲列表：序号 + 缩略图 + 歌名 / 歌手 / 专辑 / 时长 -->
-    <div :class="$style.body" class="qm-scroll" @scroll="handleHeadScroll">
-      <div v-if="loading && !list.length" :class="$style.tip">正在加载榜单…</div>
-      <div v-else-if="!list.length" :class="$style.tip">
-        <p>暂时没有取到榜单歌曲，检查音源设置后再试试</p>
-        <button type="button" :class="$style.btnGhost" @click="handleBack">返回乐馆</button>
-      </div>
-      <template v-else>
-        <div class="thead">
-          <table>
-            <thead>
-              <!-- 参考图列头：曲序 · 歌曲 · 歌手 · 专辑 · 时长 -->
-              <tr>
-                <th class="nobreak" :class="$style.colNum">曲序</th>
-                <th :class="$style.colCover" />
-                <th class="nobreak">
-                  <span>歌曲</span>
-                </th>
-                <th class="nobreak" :class="$style.colSinger">歌手</th>
-                <th class="nobreak" :class="$style.colAlbum">专辑</th>
-                <th class="nobreak" :class="$style.colTime">时长</th>
-              </tr>
-            </thead>
-          </table>
+    <!--
+      歌曲列表：与在线歌单详情 / 歌手主页 / 搜索共用 material-online-list，
+      一次性获得 封面 · 歌名/歌手两行 · 音质角标 · 下载/更多 · 右键菜单 · 批量选择 · 虚拟列表，
+      不再各页面各写一份行模板。排行榜额外通过 show-index 保留「曲序」列。
+    -->
+    <div :class="$style.body">
+      <!-- 取数失败单独成态：统一列表组件只接受纯文案空态，承载不了「重试」按钮 -->
+      <div v-if="loadError" :class="$style.tip">
+        <p>榜单加载失败，检查音源设置后重试</p>
+        <div :class="$style.tipActions">
+          <button type="button" :class="$style.btnGhost" @click="handleRetry">重试</button>
+          <button type="button" :class="$style.btnGhost" @click="handleBack">返回乐馆</button>
         </div>
-        <ul class="list" :class="$style.list">
-          <li
-            v-for="(item, index) in list" :key="item.id"
-            class="list-item" :class="{ active: isPlayingItem(item), 'row-alt': index % 2 === 1 }"
-            @dblclick="playFrom(index)"
-          >
-            <div class="list-item-cell" :class="$style.colNum">{{ String(index + 1).padStart(2, '0') }}</div>
-            <div class="list-item-cell cover">
-              <div class="row-cover">
-                <img v-if="getCover(item)" :src="getCover(item)" alt="" loading="lazy">
-                <span v-else class="row-cover-empty"><svg-icon name="music" /></span>
-                <span class="row-cover-play" @click.stop="playFrom(index)">
-                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M8 5.4v13.2l11-6.6z" fill="currentColor" /></svg>
-                </span>
-              </div>
-            </div>
-            <div class="list-item-cell auto name">
-              <div class="name-wrap">
-                <div class="name-main">
-                  <span class="select name" :title="item.name">{{ item.name }}</span>
-                  <em v-if="qualityTag(item)" class="no-select badge badge-theme-primary">{{ qualityTag(item) }}</em>
-                  <button type="button" class="row-play" aria-label="播放" title="播放" @click.stop="playFrom(index)">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.4v13.2l11-6.6z" fill="currentColor" /></svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div class="list-item-cell actions">
-              <material-list-buttons
-                :index="index" :play-btn="false" :download-btn="false" :more-btn="false"
-                :liked="isLoved(item)" @btn-click="handleRowBtn"
-              />
-            </div>
-            <div class="list-item-cell" :class="$style.colSinger"><span class="select" :title="item.singer">{{ item.singer || '—' }}</span></div>
-            <div class="list-item-cell" :class="$style.colAlbum"><span class="select" :title="item.meta?.albumName">{{ item.meta?.albumName || '—' }}</span></div>
-            <div class="list-item-cell" :class="$style.colTime"><span class="no-select">{{ item.interval || '--:--' }}</span></div>
-          </li>
-        </ul>
-
-        <!-- 增量渲染footer：接口一次最多返回 300 首，全量渲染会明显卡顿，
-             改为滚动到底部再追加一屏（对标主流平台的榜单滚动加载） -->
-        <p v-if="visibleList.length < list.length" :class="$style.moreTip">向下滚动加载更多…</p>
-        <p v-else :class="$style.moreTip">没有更多了</p>
-      </template>
+      </div>
+      <material-online-list
+        v-else
+        show-index
+        :page="1"
+        :limit="limit"
+        :total="list.length"
+        :list="list"
+        :no-item="noItemLabel"
+        :active-index="activeIndex"
+        @play-list="playFrom"
+        @scroll="handleHeadScroll"
+      />
     </div>
-
-    <!-- 「添加到」锚定菜单（QQ 版式，替代旧弹窗） -->
-    <base-menu v-model="isShowAddMenu" :menus="addMenuItems" :xy="addMenuLocation" :anchor-rect="addMenuAnchorRect" item-name="name" @menu-click="handleAddMenuClick" />
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, markRawList } from '@common/utils/vueTools'
+import { computed, onMounted, ref, markRawList, watch } from '@common/utils/vueTools'
 import { useI18n } from '@renderer/plugins/i18n'
 import { useRoute, useRouter } from '@common/utils/vueRouter'
 import { LIST_IDS } from '@common/constants'
@@ -121,45 +75,9 @@ import { setTempList } from '@renderer/store/list/action'
 import { playMusicInfo, isPlay } from '@renderer/store/player/state'
 import { getInitialSource, getSourceName } from '@renderer/utils/personalRecommend'
 import useLovedList from '@renderer/utils/compositions/useLovedList'
-import useListAddMenu from '@renderer/utils/compositions/useListAddMenu'
 import useHeadCollapse from '@renderer/utils/compositions/useHeadCollapse'
 
 const t = useI18n()
-
-
-const { isLoved, loadLoved, toggleLove } = useLovedList()
-// 页头滚动收起：下滑自动收起，上滑 / 回到顶部恢复
-const { isHeadCollapsed, handleHeadScroll } = useHeadCollapse()
-void loadLoved()
-
-// 行内操作按钮（喜欢 / 添加到歌单）
-const handleRowBtn = ({ action, index, event }) => {
-  const item = list.value[index]
-  if (!item) return
-  if (action === 'like') void toggleLove(item)
-  else if (action === 'listAdd') showAdd(event, item)
-}
-
-// 「全部收藏」：跳过已收藏的，避免重复 IPC
-const loveAll = () => {
-  if (!list.value.length) return
-  for (const item of list.value) {
-    if (!isLoved(item)) void toggleLove(item)
-  }
-}
-
-// 「添加到」锚定菜单（与右键菜单同款卡片）
-const {
-  isShow: isShowAddMenu,
-  location: addMenuLocation,
-  anchorRect: addMenuAnchorRect,
-  menus: addMenuItems,
-  openMenu: openAddMenu,
-  handleMenuClick: handleAddMenuClick,
-} = useListAddMenu()
-const showAdd = (event, item) => {
-  openAddMenu(event?.currentTarget, item)
-}
 
 const route = useRoute()
 const router = useRouter()
@@ -174,28 +92,59 @@ const cover = ref(typeof route.query.img === 'string' ? route.query.img : '')
 
 const list = ref([])
 const loading = ref(false)
-// 榜单接口一次返回全部歌曲（tx 最多 300 首），不是服务端分页；
-// 全量塞进普通 <ul> 会明显卡顿，因此做客户端增量渲染。
-const PAGE_STEP = 60
+// 取数失败标记：区分「加载失败（可重试）」与「接口正常但确实没数据」
+const loadError = ref(false)
+
+// 乐馆榜单接口一次返回全部歌曲（tx 最多 300 首），没有服务端分页，
+// 因此把 limit 设成总数让分页控件不渲染（Pagination 仅在 maxPage > 1 时出现）。
+// max(…, 1) 是必要的兜底：空列表时 limit 为 0 会让 maxPage 变成 Infinity，反而露出版分页。
+const limit = computed(() => Math.max(list.value.length, 1))
+
+// 列表内的空态文案（加载中 / 取不到数据）。有数据时传空串关闭空态。
+const noItemLabel = computed(() => {
+  if (loading.value) return '正在加载榜单…'
+  if (!list.value.length) return '暂时没有取到榜单歌曲'
+  return ''
+})
+
+// 当前播放行高亮：只要正在播放的歌出现在本榜单里就高亮（与首页其它列表一致）
+const activeIndex = computed(() => {
+  if (!isPlay.value) return -1
+  const id = playMusicInfo.musicInfo?.id
+  if (!id) return -1
+  return list.value.findIndex(item => item.id === id)
+})
+
+const { isLoved, loadLoved, toggleLove } = useLovedList()
+void loadLoved()
+
+// 页头滚动收起，滚动信号由 material-online-list 转发（它自带滚动容器，scroll 不冒泡）
+const { isHeadCollapsed, handleHeadScroll } = useHeadCollapse()
+
+// 「全部收藏」：跳过已收藏的，避免重复 IPC
+const loveAll = () => {
+  if (!list.value.length) return
+  for (const item of list.value) {
+    if (!isLoved(item)) void toggleLove(item)
+  }
+}
+
 const today = computed(() => {
   const date = new Date()
   const pad = (num) => String(num).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 })
 
-const getCover = (item) => item.meta?.picUrl || ''
-
 async function load(isRetry = false) {
   if (!boardId.value) return
   if (loading.value && !isRetry) return
   loading.value = true
-  // 重试时重置失败标记与分页位置，避免旧的错误态残留
-  loadError.value = false
-  if (isRetry) {
-    list.value = []
-    visibleCount.value = PAGE_STEP
-  }
+  // 注意：loading 的复位必须落在 finally 内。历史上这里是 try 外的裸语句，
+  // 一旦前面抛异常就会让 loading 永远停在 true，页面卡死在「正在加载榜单…」。
   try {
+    loadError.value = false
+    // 重试时先清空，避免旧的错误态与数据残留
+    if (isRetry) list.value = []
     const sdk = musicSdk[source.value]
     if (!sdk?.leaderboard?.getList) {
       loadError.value = true
@@ -209,7 +158,6 @@ async function load(isRetry = false) {
     // 接口返回的是扁平结构（img/albumName），统一转成标准 MusicInfoOnline（meta.picUrl 等）
     const songs = (res?.list ?? []).map(item => toNewMusicInfo(item)).filter(item => item.source !== 'local')
     list.value = markRawList(songs)
-    visibleCount.value = PAGE_STEP
     // 卡片没传封面时用榜首歌曲封面兜底
     if (!cover.value) cover.value = songs[0]?.meta?.picUrl || ''
   } catch {
@@ -219,25 +167,29 @@ async function load(isRetry = false) {
   }
 }
 
+const handleRetry = () => { void load(true) }
+
+// 榜单是一次性浏览内容，播放队列走 TEMP 列表（与在线歌单详情同一套做法）
 async function playFrom(index) {
   if (!list.value.length) return
   await setTempList('home_board', [...list.value])
   playList(LIST_IDS.TEMP, index)
 }
 
-const isPlayingItem = (item) => isPlay.value && playMusicInfo.musicInfo?.id === item.id
-
-const qualityTag = (item) => {
-  const qualitys = item.meta?._qualitys ?? {}
-  if (qualitys.flac24bit) return 'Hi-Res'
-  if (qualitys.flac || qualitys.ape || qualitys.wav) return '无损'
-  if (qualitys['320k']) return '320K'
-  return ''
-}
-
 const handleBack = () => {
   void router.push('/home').catch(() => {})
 }
+
+// 页面的全部状态都派生自 query，而同一路由仅 query 变化时组件会被复用
+// （onMounted 不再触发），因此这里跟随 query 变化重新取数
+watch(() => [route.query.source, route.query.boardId], () => {
+  const query = route.query
+  source.value = typeof query.source === 'string' && query.source ? query.source : getInitialSource()
+  boardId.value = typeof query.boardId === 'string' ? query.boardId : ''
+  boardName.value = typeof query.name === 'string' && query.name ? query.name : t('common__board_default_name')
+  cover.value = typeof query.img === 'string' ? query.img : ''
+  void load(true)
+})
 
 onMounted(() => { void load() })
 </script>
@@ -352,12 +304,14 @@ onMounted(() => { void load() })
   .qm-btn-ghost();
 }
 
-// ------- 列表 -------
+// ------- 列表容器 -------
+// 不给本层加 padding / overflow：material-online-list 内部是绝对定位铺满的虚拟列表，
+// 滚动由它自己负责（与在线歌单详情页的 .list 容器一致）。
 .body {
   flex: auto;
   min-height: 0;
-  overflow: auto;
-  padding: 0 var(--qm-content-pad-right) var(--qm-s6) var(--qm-content-pad-left);
+  height: 100%;
+  position: relative;
 }
 
 .tip {
@@ -372,223 +326,10 @@ onMounted(() => { void load() })
   p { margin: 0; }
 }
 
-// 增量渲染的底部提示（加载更多 / 没有更多了）
-.moreTip {
-  margin: 0;
-  padding: 18px 0 26px;
-  text-align: center;
-  font-size: var(--qm-font-aux, 12px);
-  color: var(--qm-text-5);
-}
-
-.thead {
+.tipActions {
   display: flex;
   flex-flow: row nowrap;
   align-items: center;
-  height: 34px;
-  padding: 0 var(--qm-s3);
-  font-size: var(--qm-font-meta);
-  color: var(--qm-text-5);
-}
-
-.theadNum {
-  flex: none;
-  width: calc(40px + 44px + 8px + 24px + 8px); // 序号 + 缩略图 + 心形 + 间距
-  padding-left: var(--qm-sp-2, 6px);
-}
-
-.theadCol {
-  flex: none;
-  padding-right: var(--qm-s3);
-}
-
-.list {
-  display: flex;
-  flex-flow: column nowrap;
-
-  // 列宽（参考图实测：曲序 2.7% / 歌曲 7% / 歌手 51.8% / 专辑 72.8% / 时长 93.9%）
-  // 行内是 div，需压过全局 `.list .list-item .list-item-cell { flex: none }`，故写到 4 级
-  :global(.list-item) {
-    :global(.list-item-cell).colNum {
-      flex: 0 0 44px;
-      padding: 0;
-      text-align: center;
-      font-variant-numeric: tabular-nums;
-      color: var(--qm-text-4);
-    }
-    :global(.list-item-cell).colSinger { flex: 0 0 22%; }
-    :global(.list-item-cell).colAlbum { flex: 0 0 22%; }
-    :global(.list-item-cell).colTime {
-      flex: 0 0 10%;
-      font-variant-numeric: tabular-nums;
-      color: var(--qm-text-4);
-    }
-  }
-}
-
-// 表头同名列（th 是 table-cell，按 width 生效；padding 归零以便与行内序号列同心）
-.colNum { width: 44px; padding: 0; text-align: center; }
-// 缩略图占位列：让表头「歌曲」与行内歌名（封面右侧）对齐
-.colCover { width: 50px; padding: 0; }
-.colSinger { width: 22%; }
-.colAlbum { width: 22%; }
-.colTime { width: 10%; }
-
-.row {
-  display: flex;
-  flex-flow: row nowrap;
-  align-items: center;
-  height: var(--qm-row-h);
-  padding: 0 var(--qm-s3);
-  border-radius: var(--qm-radius-btn);
-  font-size: var(--qm-font-meta);
-  color: var(--qm-text-2);
-  cursor: default;
-  transition: background-color var(--qm-t-fast);
-
-  &:hover {
-    background-color: var(--qm-hover);
-
-    .rowBtns { opacity: 1; }
-    .time { display: none; }
-  }
-
-  &.rowActive .name { color: var(--qm-primary); }
-}
-
-.num {
-  flex: none;
-  width: 40px;
-  text-align: center;
-  color: var(--qm-text-4);
-  font-variant-numeric: tabular-nums;
-}
-
-.thumb {
-  flex: none;
-  width: 44px;
-  height: 44px;
-  margin-right: var(--qm-sp-3, 8px);
-  border-radius: var(--qm-radius-xs, 6px);
-  overflow: hidden;
-  background-color: rgba(0, 0, 0, .05);
-
-  img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-}
-
-.thumbEmpty {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--qm-text-5);
-
-  :global(.svg-icon) { width: var(--qm-icon-xs); height: var(--qm-icon-xs); fill: currentColor; }
-}
-
-// 行内收藏心形（常显，仿 QQ）
-.love {
-  flex: none;
-  width: 24px;
-  height: 32px;
-  margin-right: var(--qm-sp-3, 8px);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--qm-text-5);
-  cursor: pointer;
-  transition: color var(--qm-t-fast), transform var(--qm-t-fast);
-
-  &:hover { color: #ec4141; transform: scale(1.1); }
-  &.loveActive { color: #ec4141; }
-}
-
-.nameCell {
-  flex: auto;
-  min-width: 0;
-  display: flex;
-  flex-flow: row nowrap;
-  align-items: center;
-  gap: var(--qm-s2);
-}
-
-.name {
-  min-width: 0;
-  color: var(--qm-text-1);
-  .mixin-ellipsis-1();
-}
-
-.tag {
-  flex: none;
-  padding: 1px 5px;
-  border-radius: var(--qm-radius-2xs, 4px);
-  font-size: var(--qm-font-badge);
-  font-style: normal;
-  line-height: 14px;
-  background-color: var(--qm-primary-soft);
-  color: var(--qm-primary);
-}
-
-.singer,
-.album {
-  flex: none;
-  width: 20%;
-  min-width: 0;
-  padding-right: var(--qm-s3);
-  color: var(--qm-text-3);
-  .mixin-ellipsis-1();
-}
-
-.album { width: 24%; color: var(--qm-text-4); }
-
-.time {
-  flex: none;
-  width: 56px;
-  text-align: right;
-  color: var(--qm-text-4);
-  font-variant-numeric: tabular-nums;
-}
-
-.rowBtns {
-  flex: none;
-  width: 64px;
-  display: flex;
-  flex-flow: row nowrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--qm-sp-0, 2px);
-  opacity: 0;
-  transition: opacity var(--qm-t-fast);
-
-  button {
-    width: 26px;
-    height: 26px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    border: 0;
-    border-radius: 50%;
-    background: transparent;
-    color: var(--qm-text-3);
-    cursor: pointer;
-    transition: color var(--qm-t-fast), background-color var(--qm-t-fast);
-
-    svg { fill: currentColor; }
-
-    &:hover {
-      background-color: var(--qm-primary-soft);
-      color: var(--qm-primary);
-    }
-  }
+  gap: var(--qm-s3);
 }
 </style>

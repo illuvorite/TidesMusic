@@ -7,6 +7,8 @@
           <thead>
             <!-- 参考图列头：歌曲/歌手（含排序指示）· 专辑 · 时长；无序号列 -->
             <tr>
+              <!-- 序号列：由 showIndex 控制（榜单详情传入），宽度与行内序号列一致 -->
+              <th v-if="showIndex" class="nobreak num" style="width: 44px; padding: 0;">{{ $t('music_serial') }}</th>
               <th class="nobreak">
                 <span>{{ $t('music_name') }} / {{ $t('music_singer') }}</span>
                 <svg class="thead-sort" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
@@ -22,12 +24,13 @@
       </div>
       <div :class="$style.content">
         <div v-show="!noItem" ref="dom_listContent" :class="$style.content" tabindex="0" @keydown="handleListKeydown" @blur="keyboardIndex = -1">
-          <base-virtualized-list v-if="actionButtonsVisible" ref="listRef" :list="list" key-name="id" :item-height="listItemHeight" container-class="scroll" content-class="list" @contextmenu.capture="handleListRightClick">
+          <base-virtualized-list v-if="actionButtonsVisible" ref="listRef" :list="list" key-name="id" :item-height="listItemHeight" container-class="scroll" content-class="list" @contextmenu.capture="handleListRightClick" @scroll="$emit('scroll', $event)">
             <template #default="{ item, index }">
               <div
                 class="list-item" :class="[{ selected: rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { playing: activeIndex === index }, { keyboard: keyboardIndex === index }, { 'row-alt': index % 2 === 1 }]"
                 @click="handleListItemClick($event, index)" @contextmenu="handleListItemRightClick($event, index)"
               >
+                <div v-if="showIndex" class="list-item-cell num" style="flex: 0 0 44px;">{{ String(index + 1).padStart(2, '0') }}</div>
                 <div class="list-item-cell cover">
                   <div class="row-cover">
                     <img v-if="getCoverUrl(item)" :src="getCoverUrl(item)" alt="" loading="lazy">
@@ -73,12 +76,13 @@
               </div>
             </template>
           </base-virtualized-list>
-          <base-virtualized-list v-else ref="listRef" :list="list" key-name="id" :item-height="listItemHeight" container-class="scroll" content-class="list" @contextmenu.capture="handleListRightClick">
+          <base-virtualized-list v-else ref="listRef" :list="list" key-name="id" :item-height="listItemHeight" container-class="scroll" content-class="list" @contextmenu.capture="handleListRightClick" @scroll="$emit('scroll', $event)">
             <template #default="{ item, index }">
               <div
                 class="list-item" :class="[{ selected: rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { playing: activeIndex === index }, { keyboard: keyboardIndex === index }, { 'row-alt': index % 2 === 1 }]"
                 @click="handleListItemClick($event, index)" @contextmenu="handleListItemRightClick($event, index)"
               >
+                <div v-if="showIndex" class="list-item-cell num" style="flex: 0 0 44px;">{{ String(index + 1).padStart(2, '0') }}</div>
                 <div class="list-item-cell cover">
                   <div class="row-cover">
                     <img v-if="getCoverUrl(item)" :src="getCoverUrl(item)" alt="" loading="lazy">
@@ -200,8 +204,16 @@ export default {
       type: Number,
       default: -1,
     },
+    // 是否显示序号列。排行榜这类天然有序的榜单需要，普通歌单 / 搜索结果不需要，
+    // 因此默认关闭，保证既有页面渲染结果完全不变。
+    showIndex: {
+      type: Boolean,
+      default: false,
+    },
   },
-  emits: ['show-menu', 'play-list', 'togglePage'],
+  // scroll：本组件自带滚动容器，外层页面（如榜单详情的「页头下滑收起」）
+  // 需要滚动信号，故向上转发 VirtualizedList 的 scroll 事件。
+  emits: ['show-menu', 'play-list', 'togglePage', 'scroll'],
   setup(props, { emit }) {
     const actionButtonsVisible = appSetting['list.actionButtonsVisible']
     const rightClickSelectedIndex = ref(-1)

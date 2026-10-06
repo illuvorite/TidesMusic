@@ -261,6 +261,7 @@
   "music_album": "專輯",
   "music_duplicate": "重複歌曲",
   "music_name": "歌名",
+  "music_serial": "曲序",
   "music_singer": "歌手",
   "music_sort__input_tip": "請輸入要調整到第幾個位置",
   "music_sort__title": "將「{name}」的位置調整到：",
