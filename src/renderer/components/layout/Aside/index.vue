@@ -272,6 +272,7 @@ import {
   removeUserList,
 } from '@renderer/store/list/action'
 import { getListMusics } from '@renderer/store/list/listManage'
+import { playHistoryList } from '@renderer/store/playHistory'
 import syncSourceList from '@renderer/store/list/syncSourceList'
 import musicSdk from '@renderer/utils/musicSdk'
 import { getListUpdateInfo, setListAutoUpdate } from '@renderer/utils/data'
@@ -372,8 +373,9 @@ const playlists = computed(() => {
 })
 
 const loveListCount = computed(() => listCounts[loveList.id] ?? 0)
-// 最近播放：与「最近播放」页一致（该页展示 recentList 的内容）
-const recentListCount = computed(() => listCounts[recentList.id] ?? 0)
+// 最近播放：与「最近播放」页保持同一数据源（播放历史 playHistoryList）。
+// 列表库里的 recentList 没有任何写入方、恒为空，读它会让侧栏永远显示 0 首。
+const recentListCount = computed(() => playHistoryList.length)
 
 // 首页 + 乐馆，并列排放
 const mainQuickNav = computed(() => [

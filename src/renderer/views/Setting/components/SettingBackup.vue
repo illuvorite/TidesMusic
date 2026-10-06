@@ -158,10 +158,19 @@ export default {
       switch (allData.type) {
         case 'allData':
           // 兼容0.6.2及以前版本的列表数据
-          // 老版本的这个槽位是「试听列表」，本项目已下线该列表，
-          // 导入到「最近播放」以免用户数据丢失
-          if (allData.defaultList) await overwriteListMusics({ listId: LIST_IDS.RECENT, musicInfos: filterMusicList(allData.defaultList.list.map(m => toNewMusicInfo(m))) })
-          else await importOldListData(allData.playList)
+          // 老版本的这个槽位是「试听列表」，本项目已下线该列表；它的语义正是「最近听过的歌」，
+          // 所以导入到**播放历史**（「最近播放」页的真实数据源，见 store/playHistory.ts）。
+          // ⚠️ 不要写进列表库的 recent 槽位 —— 那个列表全项目无写入方、也无人读，写进去等于丢数据。
+          if (allData.defaultList) {
+            const list = filterMusicList(allData.defaultList.list.map(m => toNewMusicInfo(m)))
+            // 老列表没有时间信息，按原顺序递减时间戳落库 → 读出来（playedAt 倒序）与原列表同序
+            await importPlayHistory(list.map((m, index) => ({
+              id: m.id,
+              musicInfo: JSON.stringify(toRaw(m)),
+              playedAt: Date.now() - index,
+              playCount: 1,
+            })))
+          } else await importOldListData(allData.playList)
           importOldSettingData(allData.setting)
           break
         case 'allData_v2':

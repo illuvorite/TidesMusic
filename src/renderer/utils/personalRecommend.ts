@@ -100,6 +100,8 @@ export const getListenStyle = (): ListenStyle => {
 
   // 收藏 > 最近播放 / 自建歌单 > 播放历史（越近权重越高）
   for (const m of allMusicList.get(LIST_IDS.LOVE) ?? []) add(m, 6)
+  // 注意：列表库里的 recentList 没有任何写入方、恒为空（「最近播放」页与侧栏计数都改读
+  // playHistoryList 了），所以这行目前不贡献权重；保留是为了将来 recentList 真被填充时可用。
   for (const m of allMusicList.get(LIST_IDS.RECENT) ?? []) add(m, 2)
   for (const list of userLists) {
     for (const m of allMusicList.get(list.id) ?? []) add(m, 2)

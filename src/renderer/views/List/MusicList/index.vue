@@ -546,6 +546,12 @@ export default {
     })
     const playAllMusics = () => {
       if (!list.value.length) return
+      // 「最近播放」不在列表库里，交给 handlePlayMusic 走临时列表那条路，
+      // 否则 playList('recent', 0) 会从空列表里取歌
+      if (isRecentList.value) {
+        handlePlayMusic(0)
+        return
+      }
       playList(props.listId, 0)
     }
 

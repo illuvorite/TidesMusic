@@ -89,6 +89,7 @@ import { dialog } from '@renderer/plugins/Dialog'
 import { useI18n } from '@renderer/plugins/i18n'
 import { appSetting, updateSetting } from '@renderer/store/setting'
 import { overwriteListFull } from '@renderer/store/list/listManage'
+import { clearPlayHistoryAction } from '@renderer/store/playHistory'
 import { dislikeRuleCount } from '@renderer/store/dislikeList'
 import DislikeListModal from './DislikeListModal.vue'
 import { TRAY_AUTO_ID } from '@common/constants'
@@ -218,6 +219,9 @@ export default {
         userList: [],
         tempList: [],
       })
+      // 「最近播放」的真实数据源是播放历史（不在列表库里，清上面那个 recentList 槽位
+      // 对它不起作用），必须一并清掉，否则这个按钮对「最近播放」看起来就是失效的
+      void clearPlayHistoryAction()
     }
 
     return {

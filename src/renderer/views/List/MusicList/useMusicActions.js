@@ -4,6 +4,8 @@ import { openUrl, clipboardWriteText } from '@common/utils/electron'
 import { dialog } from '@renderer/plugins/Dialog'
 import { useI18n } from '@renderer/plugins/i18n'
 import { removeListMusics } from '@renderer/store/list/action'
+import { recentList } from '@renderer/store/list/state'
+import { removePlayHistoryAction } from '@renderer/store/playHistory'
 import { appSetting } from '@renderer/store/setting'
 import { formatMusicName, toOldMusicInfo } from '@renderer/utils/index'
 import { addDislikeInfo, hasDislike } from '@renderer/core/dislikeList'
@@ -51,6 +53,20 @@ export default ({ props, list, selectedList, removeAllSelect }) => {
     }
   }
 
+  /**
+   * 从列表移除歌曲。
+   * 「最近播放」的数据源是播放历史，不是列表库：写 removeListMusics 只会去动那个恒为空的
+   * 列表（界面无变化，且下次启动 loadPlayHistory 会把歌原样拉回来），
+   * 所以这里必须改走历史删除，才能同时清掉界面与库里那条记录。
+   */
+  const removeMusics = (ids) => {
+    if (props.listId === recentList.id) {
+      removePlayHistoryAction(ids)
+      return
+    }
+    removeListMusics({ listId: props.listId, ids })
+  }
+
   const handleRemoveMusic = async(index, single) => {
     if (selectedList.value.length && !single) {
       const confirm = await (selectedList.value.length > 1
@@ -61,10 +77,10 @@ export default ({ props, list, selectedList, removeAllSelect }) => {
         : Promise.resolve(true)
       )
       if (!confirm) return
-      removeListMusics({ listId: props.listId, ids: selectedList.value.map(m => m.id) })
+      removeMusics(selectedList.value.map(m => m.id))
       removeAllSelect()
     } else {
-      removeListMusics({ listId: props.listId, ids: [list.value[index].id] })
+      removeMusics([list.value[index].id])
     }
   }
 
