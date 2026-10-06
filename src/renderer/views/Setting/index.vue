@@ -210,7 +210,8 @@ export default {
   top: 0;
   left: 0;
   right: 0;
-  bottom: calc(@height-player + var(--qm-shell-gap));
+  // 播放栏已紧贴窗口底部（壳缝隙已去掉），这里只需让出播放栏本身的高度
+  bottom: @height-player;
   // 层级契约：高于工具栏(40)；低于播放详情页(65)、teleport 弹层(70)、全局弹窗(99)
   // （在设置页打开播放详情时由详情页整页接管，关闭后回到设置页）
   z-index: 60;

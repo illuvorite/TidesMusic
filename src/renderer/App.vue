@@ -125,9 +125,10 @@ body {
 }
 
 // ============================================================
-//  外壳骨架（按设计稿复刻）
-//  窗口底 #F0F0F0 → 左侧 214px 侧栏（通高）+ 右侧主面板
-//  主面板与播放栏是两块独立的圆角面板，之间留 11px 缝隙
+//  外壳骨架（满铺版）
+//  窗口底 #F0F0F0 → 左侧侧栏（通高）+ 右侧主面板；播放栏通栏占据整个底部。
+//  主面板 / 播放栏与窗口边缘之间不留任何缝隙（原先按设计稿留的 11px 壳缝隙已去掉），
+//  因此圆角也一并取消——铺满时圆角只会在四角露出壳底色，看起来仍是"没铺满"。
 // ============================================================
 #container {
   position: relative;
@@ -135,8 +136,7 @@ body {
   flex-flow: column nowrap;
   height: 100%;
   box-sizing: border-box;
-  // 只留顶部内边距；右侧边距交给主面板自己，播放栏通栏到底
-  padding: var(--qm-shell-gap) 0 0 0;
+  padding: 0;
   background-color: var(--qm-shell);
 }
 
@@ -155,7 +155,7 @@ body {
   top: 0;
   left: 0;
   // 侧栏到播放栏上方为止（播放栏通栏占据整个底部）
-  height: calc(100% - @height-player - var(--qm-shell-gap));
+  height: calc(100% - @height-player);
   width: @width-home-sidebar;
   flex: none;
   // 注意：不要在这里写 background-color——ID 选择器会压过 Aside 组件内
@@ -167,10 +167,11 @@ body {
   flex-flow: column nowrap;
   transition: background-color @transition-normal;
   background-color: var(--qm-surface);
-  border-radius: var(--qm-radius-panel);
+  // 满铺：不留圆角与右侧缝隙，直接与侧栏 / 播放栏相接
+  border-radius: 0;
   overflow: hidden;
   min-width: 0;
-  margin-right: var(--qm-shell-gap);
+  margin-right: 0;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.015);
 }
 #toolbar, #player {
@@ -179,11 +180,16 @@ body {
 #player {
   position: relative;
   z-index: 2;
-  // 播放栏通栏占据整个底部（与主面板之间留 11px 缝隙）
-  margin-top: var(--qm-shell-gap);
+  // 满铺：紧贴主面板，不再留 11px 缝隙
+  margin-top: 0;
   border-radius: 0;
   background-color: var(--qm-surface);
   overflow: hidden;
+  // 必须显式取消自身的毛玻璃：播放栏根元素（组件根）自带 backdrop-filter，
+  // 而下面的 `> *` 只覆盖子元素、漏掉了元素自身，导致播放栏呈「磨砂实心」，
+  // 与主面板的半透明材质对不上，表现为「调皮肤透明度时播放栏不跟着变」。
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 
   // 播放栏内部实现保持不变，仅让它的底与主面板同一材质
   > * {

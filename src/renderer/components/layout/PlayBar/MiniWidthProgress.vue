@@ -468,9 +468,12 @@ export default {
   align-items: center;
   gap: var(--qm-sp-7, 16px);
   padding: 0 18px;
-  background-color: var(--color-main-background);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  // 跟随「皮肤透明度」：--qm-surface 由 applySkinSurface() 写入（见 store/utils.ts），
+  // 与主面板同一材质。这里**必须写在本组件内**：原先只靠外层 #player 的 ID 选择器覆盖，
+  // 一旦该覆盖失效就会退回不透明底色，表现为「调透明度时播放栏不跟着变」。
+  background-color: var(--qm-surface, var(--color-main-background));
+  // 不要毛玻璃：玻璃会把背后的内容糊成实色块，与主面板的半透明材质对不上，
+  // 调透明度时看不出变化（App.vue 的 #player 也会再显式关一次，见那里的注释）
   border-top: 1px solid var(--color-border-subtle);
   user-select: none;
   contain: layout style;
