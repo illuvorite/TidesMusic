@@ -24,7 +24,7 @@
             <p v-for="(song, index) in board.songs" :key="index" :class="$style.boardSong">
               <i>{{ index + 1 }}</i>
               <span :title="`${song.name} - ${song.singer}`">
-                {{ song.name }}<template v-if="song.singer"> - {{ song.singer }}</template>
+                {{ song.name }}<template v-if="song.singer"> - <common-singer-link :singer="song.singer" :source="song.source" /></template>
               </span>
             </p>
           </div>

@@ -8,7 +8,7 @@
           <img v-if="musicInfo.pic" :class="$style.infoImg" :src="musicInfo.pic" />
           <div :class="$style.infoText">
             <div :class="$style.infoName">{{ musicInfo.name }}</div>
-            <div :class="$style.infoSinger">{{ musicInfo.singer }}</div>
+            <div :class="$style.infoSinger"><common-singer-link :singer="musicInfo.singer" :source="musicInfo.source" /></div>
           </div>
         </div>
         <div :class="$style.leftActions">

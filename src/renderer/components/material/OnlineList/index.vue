@@ -56,7 +56,7 @@
                       </button>
                     </div>
                     <div class="name-sub">
-                      <span class="select name-sub-text" :aria-label="item.singer">{{ item.singer }}</span>
+                      <common-singer-link class="select name-sub-text" :singer="item.singer" :source="item.source" />
                     </div>
                   </div>
                 </div>
@@ -108,7 +108,7 @@
                       </button>
                     </div>
                     <div class="name-sub">
-                      <span class="select name-sub-text" :aria-label="item.singer">{{ item.singer }}</span>
+                      <common-singer-link class="select name-sub-text" :singer="item.singer" :source="item.source" />
                     </div>
                   </div>
                 </div>

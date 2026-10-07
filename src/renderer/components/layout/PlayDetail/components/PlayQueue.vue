@@ -65,7 +65,7 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.4v13.2l11-6.6z" fill="currentColor" /></svg>
               </span>
             </div>
-            <div :class="$style.singer">{{ row.item.singer }}</div>
+            <common-singer-link :class="$style.singer" :singer="row.item.singer" :source="row.item.source" />
           </div>
         </div>
         <div v-if="!queue.length" :class="$style.empty">{{ $t('player__queue_empty') }}</div>
@@ -419,6 +419,8 @@ export default {
   svg { width: var(--qm-icon-xs); height: var(--qm-icon-xs); fill: currentColor; }
 }
 .singer {
+  // 这里是 SingerLink（渲染为 span），显式保持块级：省略号截断依赖它
+  display: block;
   overflow: hidden;
   font-size: var(--qm-fs-xs, 12px);
   color: #A9A9AA;

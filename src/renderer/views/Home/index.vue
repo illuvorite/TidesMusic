@@ -130,7 +130,7 @@
                   <path d="M8 5.4v13.2l11-6.6z" fill="currentColor" />
                 </svg>
               </button>
-              <span :class="$style.songSingerText" :title="item.singer">{{ item.singer }}</span>
+              <common-singer-link :class="$style.songSingerText" :singer="item.singer" :source="item.source" />
             </p>
           </div>
         </div>

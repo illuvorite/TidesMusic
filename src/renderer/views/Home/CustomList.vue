@@ -84,7 +84,7 @@
                   </button>
                 </div>
                 <div class="name-sub">
-                  <span class="select name-sub-text" :title="item.singer">{{ item.singer }}</span>
+                  <common-singer-link class="select name-sub-text" :singer="item.singer" :source="item.source" />
                 </div>
               </div>
             </div>

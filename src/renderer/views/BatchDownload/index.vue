@@ -81,7 +81,7 @@
             <span :class="$style.name" :title="item.name">{{ item.name }}</span>
             <span v-if="item.meta?._qualitys" :class="$style.badge">付费</span>
           </span>
-          <span :class="$style.nameSub" :title="item.singer">{{ item.singer }}</span>
+          <span :class="$style.nameSub"><common-singer-link :singer="item.singer" :source="item.source" /></span>
         </span>
         <span :class="$style.cellAlbum" :title="item.meta?.albumName">{{ item.meta?.albumName || '—' }}</span>
         <span :class="$style.cellSize">{{ formatSize(itemSize(item)) }}/标准</span>

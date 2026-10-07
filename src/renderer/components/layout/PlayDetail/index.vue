@@ -18,7 +18,9 @@ transition(enter-active-class="animated slideInUp" leave-active-class="animated 
               svg-icon(name="music" :class="$style.coverEmptyIcon")
           div.description(:class="$style.description")
             p {{ $t('player__music_name') }}{{ musicInfo.name }}
-            p {{ $t('player__music_singer') }}{{ musicInfo.singer }}
+            p
+              | {{ $t('player__music_singer') }}
+              common-singer-link(:singer="musicInfo.singer" :source="musicInfo.source")
             p(v-if="musicInfo.album") {{ $t('player__music_album') }}{{ musicInfo.album }}
 
       transition(enter-active-class="animated fadeIn" leave-active-class="animated fadeOut")

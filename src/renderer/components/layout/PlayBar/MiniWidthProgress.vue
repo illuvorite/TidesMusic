@@ -10,7 +10,11 @@
       </div>
       <div :class="$style.info">
         <div :class="$style.title" :title="title">{{ title || '未在播放' }}</div>
-        <div :class="$style.artist" :title="musicInfo.singer">{{ musicInfo.singer || '—' }}</div>
+        <div :class="$style.artist">
+          <!-- 无歌手信息时保留占位符，但不要把它做成可点击的歌手链接 -->
+          <common-singer-link v-if="musicInfo.singer" :singer="musicInfo.singer" :source="musicInfo.source" />
+          <template v-else>—</template>
+        </div>
       </div>
       <!-- 快捷操作：去掉原生 title 气泡（与弹窗重叠，QQ 播放栏也没有原生提示） -->
       <button :class="[$style.iconBtn, { [$style.liked]: isLiked }]" :aria-label="isLiked ? '取消喜欢' : '喜欢'" @click="toggleLove">
@@ -122,7 +126,7 @@
                     <em v-else-if="item.musicInfo.meta._qualitys.ape || item.musicInfo.meta._qualitys.flac || item.musicInfo.meta._qualitys.wav" class="badge badge-theme-primary">SQ</em>
                     <em v-else-if="item.musicInfo.meta._qualitys['320k']" class="badge badge-theme-secondary">HQ</em>
                   </span>
-                  <span :class="$style.playlistPopupSinger" :title="item.musicInfo.singer">{{ item.musicInfo.singer }}</span>
+                  <span :class="$style.playlistPopupSinger"><common-singer-link :singer="item.musicInfo.singer" :source="item.musicInfo.source" /></span>
                 </span>
                 <span :class="$style.playlistPopupActions">
                   <button
