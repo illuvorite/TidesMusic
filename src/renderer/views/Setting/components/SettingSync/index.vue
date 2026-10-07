@@ -2,7 +2,7 @@
 dt#sync
   | {{ $t('setting__sync') }}
   button(class="help-btn" :aria-label="$t('setting__sync_tip')" @click="openUrl('https://github.com/illuvorite/TidesMusic#readme')")
-    svg-icon(name="help-circle-outline")
+    svg-icon(name="lucide-circle-help")
 dd
   base-checkbox(id="setting_sync_enable" :model-value="appSetting['sync.enable']" :label="$t('setting__sync_enable')" @update:model-value="updateSetting({ 'sync.enable': $event })")
 

@@ -49,7 +49,7 @@
       </div>
       <ul :class="$style.dirList">
         <li v-for="dir in localLibraryDirs" :key="dir" :class="$style.dirItem">
-          <svg-icon name="list-ordered" :class="$style.dirIcon" />
+          <svg-icon name="lucide-list-ordered" :class="$style.dirIcon" />
           <span :class="$style.dirPath" :title="dir">{{ dir }}</span>
           <button
             type="button"

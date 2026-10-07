@@ -6,7 +6,7 @@ material-modal(:show="modelValue" bg-close teleport="#root" @close="$emit('updat
       li(v-for="(device, index) in historyDeviceList" :key="device.id" :class="$style.listItem")
         div(:class="$style.listLeft")
           span(:class="$style.name")
-            svg-icon(v-if="device.isMobile" name="phone" style="margin-right: 0.2rem; vertical-align: -0.2em;")
+            svg-icon(v-if="device.isMobile" name="tabler-phone" style="margin-right: 0.2rem; vertical-align: -0.2em;")
             | {{ device.name }}
           span(:class="$style.desc") {{ $t('setting__sync_server_device_list_time', { time: device.lastConnectDate }) }}
         base-btn(:class="$style.listBtn" outline :aria-label="$t('setting__sync_server_device_list_btn_remove')" @click.stop="handleRemove(index)")

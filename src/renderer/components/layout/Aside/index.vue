@@ -232,24 +232,25 @@
       @menu-click="handleMenuClick"
     />
 
-    <!-- 底部：收起 / 设置 / 装扮 / 游戏中心 -->
+    <!-- 底部：折叠 / 设置 / 装扮 / 更新日志 -->
     <footer :class="$style.footer">
+      <!-- 图标跟随折叠状态切换方向：展开时显示「收起面板」，收起时显示「展开面板」 -->
       <button
         :class="$style.footerBtn"
         :aria-label="collapsed ? '展开侧边栏' : '折叠侧边栏'"
         :title="collapsed ? '展开侧边栏' : '折叠侧边栏'"
         @click="toggleCollapsed"
       >
-        <svg-icon name="arrow-left-circle-outline" />
+        <svg-icon :name="collapsed ? 'lucide-panel-left-open' : 'lucide-panel-left-close'" />
       </button>
       <button :class="$style.footerBtn" aria-label="设置" title="设置" @click="goSetting">
-        <svg-icon name="hexagon-outline" />
+        <svg-icon name="lucide-settings" />
       </button>
       <button :class="$style.footerBtn" aria-label="主题装扮" title="主题装扮" @click="goTheme">
-        <svg-icon name="tshirt" />
+        <svg-icon name="lucide-palette" />
       </button>
       <button :class="$style.footerBtn" aria-label="更新日志" title="更新日志" @click="openChangeLog">
-        <svg-icon name="gamepad" />
+        <svg-icon name="lucide-file-text" />
       </button>
     </footer>
   </aside>

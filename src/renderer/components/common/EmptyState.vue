@@ -49,7 +49,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const loading = computed(() => props.variant === 'loading')
 
-const iconName = computed(() => props.icon || (props.variant === 'error' ? 'help-circle-outline' : 'music'))
+const iconName = computed(() => props.icon || (props.variant === 'error' ? 'lucide-circle-help' : 'music'))
 
 const title = computed(() => {
   if (props.title) return props.title

@@ -46,7 +46,7 @@ export default {
         {
           to: '/leaderboard',
           tips: t('leaderboard'),
-          iconName: 'plex',
+          iconName: 'lucide-trophy',
           size,
           name: 'Leaderboard',
           enable: true,
@@ -54,7 +54,7 @@ export default {
         {
           to: '/list',
           tips: t('my_list'),
-          iconName: 'phone',
+          iconName: 'tabler-phone',
           size,
           name: 'List',
           enable: true,
@@ -62,7 +62,7 @@ export default {
         {
           to: '/search',
           tips: t('search'),
-          iconName: 'help-circle-outline',
+          iconName: 'lucide-circle-help',
           size,
           name: 'Search',
           enable: true,

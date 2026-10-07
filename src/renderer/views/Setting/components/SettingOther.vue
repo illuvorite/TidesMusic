@@ -4,12 +4,12 @@ dd
   div
     .gap-top
       base-checkbox(id="setting_transparent_window" :model-value="appSetting['common.transparentWindow']" :label="$t('setting__other_transparent_window')" @update:model-value="updateSetting({'common.transparentWindow': $event})")
-      svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__other_transparent_window_tip')")
+      svg-icon(class="help-icon" name="lucide-circle-help" :aria-label="$t('setting__other_transparent_window_tip')")
 
 dd
   h3#other_local_library
     | {{ $t('setting__other_local_library') }}
-    svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__other_local_library_watch_tip')")
+    svg-icon(class="help-icon" name="lucide-circle-help" :aria-label="$t('setting__other_local_library_watch_tip')")
   div
     .gap-top
       base-checkbox(id="setting_other_local_library_watch" :model-value="appSetting['local.libraryWatch']" :label="$t('setting__other_local_library_watch')" @update:model-value="updateSetting({'local.libraryWatch': $event})")
@@ -23,7 +23,7 @@ dd
 dd
   h3#other_resource_cache
     | {{ $t('setting__other_resource_cache') }}
-    svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__other_resource_cache_tip')")
+    svg-icon(class="help-icon" name="lucide-circle-help" :aria-label="$t('setting__other_resource_cache_tip')")
   div
     .p
       | {{ $t('setting__other_resource_cache_label') }}
