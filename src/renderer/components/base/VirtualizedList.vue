@@ -156,6 +156,19 @@ export default {
       return list
     }
 
+    /**
+     * 页面不可见（窗口最小化 / 被其它窗口完全遮挡）时，Chromium 会冻结
+     * requestAnimationFrame，回调永远不会执行 —— 而本组件的可见行是在 rAF 里算出来的。
+     * 后果：在后台状态下挂载（或被 HMR 整页刷新）的列表永远算不出可见行，
+     * 界面表现为「列表区域一片空白」，且切回前台也不会自愈（没有任何东西再触发重算）。
+     * 因此不可见时退回 setTimeout，并在重新可见时主动重算一次。
+     */
+    const nextFrame = (fn) => {
+      // 包一层箭头函数：直接把 fn 交给 setTimeout 会触发 no-implied-eval
+      if (document.hidden) window.setTimeout(() => { fn() }, 0)
+      else window.requestAnimationFrame(fn)
+    }
+
     const updateView = (currentScrollTop) => {
       // 不要把 `dom_scrollContainer.value.scrollTop` 放进默认参数：默认参数在调用时求值，
       // 组件卸载后 ref 为 null，迟到的 setTimeout / resize 回调会抛
@@ -189,11 +202,11 @@ export default {
         //   views.value = createList(currentStartRenderIndex, currentEndRenderIndex)
         // } else return
         if (currentScrollTop == scrollTop && endIndex >= currentEndIndex) return
-        requestAnimationFrame(() => {
+        nextFrame(() => {
           views.value = createList(currentStartRenderIndex, currentEndRenderIndex)
         })
       } else {
-        requestAnimationFrame(() => {
+        nextFrame(() => {
           views.value = createList(currentStartRenderIndex, currentEndRenderIndex)
         })
       }
@@ -281,7 +294,7 @@ export default {
       endIndex = -1
       if (cachedList.length) {
         void nextTick(() => {
-          requestAnimationFrame(() => {
+          nextFrame(() => {
             updateView()
           })
         })
@@ -296,6 +309,13 @@ export default {
       handleReset(list)
     })
 
+    // 从后台切回前台时重算一次可见行：在隐藏状态下挂载的列表此前算不出任何行，
+    // 不打这一枪它就会一直是空白（rAF 解冻不会自动补跑已丢失的回调）。
+    const handleVisibilityChange = () => {
+      if (document.hidden) return
+      handleReset(props.list)
+    }
+
     onMounted(() => {
       dom_scrollContainer.value.addEventListener('scroll', onScroll, {
         capture: false,
@@ -307,21 +327,22 @@ export default {
 
       if (props.list.length) {
         void nextTick(() => {
-          requestAnimationFrame(() => {
-            console.log('updateView')
+          nextFrame(() => {
             updateView()
           })
         })
       }
       window.addEventListener('resize', handleResize)
+      document.addEventListener('visibilitychange', handleVisibilityChange)
       if (typeof ResizeObserver != 'undefined' && dom_scrollContainer.value) {
         resizeObserver = new ResizeObserver(() => { window.setTimeout(updateView) })
         resizeObserver.observe(dom_scrollContainer.value)
       }
     })
     onBeforeUnmount(() => {
-      dom_scrollContainer.value.removeEventListener('scroll', onScroll)
+      dom_scrollContainer.value?.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', handleResize)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
       resizeObserver?.disconnect()
       if (cancelScroll) cancelScroll()
     })
