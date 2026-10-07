@@ -134,6 +134,7 @@ import { useI18n } from '@renderer/plugins/i18n'
 import { useRoute, useRouter } from '@common/utils/vueRouter'
 import musicSdk from '@renderer/utils/musicSdk'
 import { getSourceName } from '@renderer/utils/personalRecommend'
+import { toNewMusicInfo } from '@common/utils/tools'
 import { setTempList } from '@renderer/store/list/action'
 import { playList } from '@renderer/core/player/action'
 import { LIST_IDS } from '@common/constants'
@@ -251,8 +252,11 @@ async function loadFeatured() {
       return
     }
     songTotal.value = result.total ?? 0
+    // 歌手模块返回的是 SDK 旧结构（albumName / songmid / types，没有 meta），
+    // 必须先归一化成 MusicInfoOnline 再交给 material-online-list ——
+    // 否则行模板读 item.meta.albumName 会抛 TypeError，整棵视图渲染失败（表现为整页空白）。
     // markRaw：避免列表被转成响应式代理，播放/收藏等流程会把歌曲对象传给 IPC，代理对象无法序列化
-    hotSongs.value = markRaw([...(result.list ?? [])])
+    hotSongs.value = markRaw((result.list ?? []).map(toNewMusicInfo))
   } finally {
     if (requestId === featuredSeq) loading.value = false
   }
@@ -276,7 +280,7 @@ async function loadSongs(page = 1, append = false) {
       failed.value = true
       return
     }
-    const list = markRaw([...(result.list ?? [])])
+    const list = markRaw((result.list ?? []).map(toNewMusicInfo))
     const total = result.total ?? 0
     songTotal.value = total
     songs.value = append ? markRaw([...songs.value, ...list]) : list
