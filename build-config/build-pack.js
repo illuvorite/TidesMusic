@@ -9,10 +9,21 @@ const afterPack = require('./build-after-pack')
 * @see https://www.electron.build/configuration/configuration
 */
 const options = {
+  // 应用唯一标识：决定 Windows 卸载项 / 快捷方式 AppUserModelID。
+  // 保留原 id 以便从旧版本原地升级；若要与产品名完全一致可改为 'cn.illuvorite.tidesmusic'
+  // （改动后旧安装不会被识别为同一应用，会并存安装）。
   appId: 'cn.toside.music.desktop',
   productName: 'TidesMusic',
   beforePack,
   afterPack,
+  // 代码签名：默认不签名（不设 CSC_LINK 即产出未签名产物）。
+  // 需要签名时设置环境变量即可，无需改本文件：
+  //   WIN_CSC_LINK / CSC_LINK                 = 证书 .pfx 路径或 base64（Windows）
+  //   WIN_CSC_KEY_PASSWORD / CSC_KEY_PASSWORD = 证书密码
+  //   CSC_IDENTITY_AUTO_DISCOVERY=false       = macOS 关闭自动查找钥匙串身份
+  // 置为 true 则缺少证书时直接报错退出，避免误发未签名包。
+  // 未签名产物在 Windows 上会触发 SmartScreen 提示，属预期行为。
+  forceCodeSigning: false,
   protocols: {
     name: 'lx-music-protocol',
     schemes: [
@@ -29,9 +40,6 @@ const options = {
     'node_modules/better-sqlite3/lib',
     'node_modules/better-sqlite3/package.json',
     'node_modules/better-sqlite3/build/Release/better_sqlite3.node',
-    'node_modules/electron-font-manager/index.js',
-    'node_modules/electron-font-manager/package.json',
-    'node_modules/electron-font-manager/build/Release/font_manager.node',
     'node_modules/node-gyp-build',
     'node_modules/undici',
     'node_modules/bufferutil',
@@ -73,11 +81,16 @@ const winOptions = {
   },
   nsis: {
     oneClick: false,
+    // 安装到当前用户目录（%LOCALAPPDATA%），不需要管理员权限、不触发 UAC；
+    // 如需全机安装改为 true（会要求提权）。
+    perMachine: false,
     language: '2052',
     allowToChangeInstallationDirectory: true,
     // differentialPackage: true,
     license: './licenses/license.rtf',
     shortcutName: '潮汐音乐',
+    // 卸载时保留用户数据（歌单/配置在 %APPDATA%\TidesMusic），避免升级丢数据。
+    deleteAppDataOnUninstall: false,
   },
 }
 /**

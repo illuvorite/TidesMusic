@@ -66,6 +66,9 @@ build
 
 dist
 
+# 打包发行产物（应用目录 / 安装包）
+release/
+
 publish/assets
 
 publish/utils/githubToken.js
