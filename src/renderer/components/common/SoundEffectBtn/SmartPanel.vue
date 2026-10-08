@@ -62,7 +62,7 @@
       </div>
 
       <ul :class="$style.reasons">
-        <li v-for="(reason, index) in displayOverlay.reasons" :key="index">{{ reason }}</li>
+        <li v-for="(reason, index) in displayOverlay?.reasons" :key="index">{{ reason }}</li>
       </ul>
 
       <div v-if="chips.length" :class="$style.chips">

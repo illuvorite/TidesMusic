@@ -147,9 +147,10 @@ declare namespace LX {
 
     interface ListDataFull {
       /** 历史遗留：老版本的「试听列表」。仅作兼容读取，新代码不应写入。 */
-      defaultList: LX.Music.MusicInfo[]
+      defaultList?: LX.Music.MusicInfo[]
       loveList: LX.Music.MusicInfo[]
-      recentList: LX.Music.MusicInfo[]
+      /** 历史遗留：已下线的「最近播放」列表（现由播放历史 playHistoryList 承载）。仅作兼容读取。 */
+      recentList?: LX.Music.MusicInfo[]
       userList: UserListInfoFull[]
       tempList: LX.Music.MusicInfo[]
     }

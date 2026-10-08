@@ -3,8 +3,8 @@
     <!-- 读数条：固定高度，避免出现/消失时布局跳动 -->
     <div :class="$style.readout">
       <template v-if="activeNode">
-        <b :class="$style.readoutFreq">{{ activeNode.freqText }}</b>
-        <span :class="$style.readoutGain">{{ activeNode.gainText }}</span>
+        <b :class="$style.readoutFreq">{{ activeNode?.freqText }}</b>
+        <span :class="$style.readoutGain">{{ activeNode?.gainText }}</span>
       </template>
       <span v-else-if="hint" :class="$style.readoutHint">{{ hint }}</span>
       <span v-else-if="!isReadonly" :class="$style.readoutHint">拖动控制点，或使用下方滑杆</span>

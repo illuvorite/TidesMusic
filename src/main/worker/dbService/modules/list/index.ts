@@ -344,19 +344,22 @@ export const musicsPositionUpdate = (listId: string, position: number, ids: stri
  */
 export const listDataOverwrite = (myListData: MakeOptional<LX.List.ListDataFull, 'tempList' | 'recentList' | 'defaultList'>) => {
   const dbLists: LX.DBService.UserListInfo[] = []
+  const tempList = myListData.tempList ?? getListMusics(LIST_IDS.TEMP)
+  // 老数据没有 recentList（新功能），首次同步/覆盖时按空列表处理
+  const recentList = myListData.recentList ?? getListMusics(LIST_IDS.RECENT)
+  // 老数据的「试听列表」仍保留原样落库，避免升级过程中丢用户数据
+  const defaultList = myListData.defaultList ?? getListMusics(LIST_IDS.DEFAULT)
   const listData: LX.List.ListDataFull = {
     ...myListData,
-    tempList: myListData.tempList ?? getListMusics(LIST_IDS.TEMP),
-    // 老数据没有 recentList（新功能），首次同步/覆盖时按空列表处理
-    recentList: myListData.recentList ?? getListMusics(LIST_IDS.RECENT),
-    // 老数据的「试听列表」仍保留原样落库，避免升级过程中丢用户数据
-    defaultList: myListData.defaultList ?? getListMusics(LIST_IDS.DEFAULT),
+    tempList,
+    recentList,
+    defaultList,
   }
 
   const dbMusicInfos: LX.DBService.MusicInfo[] = [
     ...toDBMusicInfo(listData.loveList, LIST_IDS.LOVE),
-    ...toDBMusicInfo(listData.recentList, LIST_IDS.RECENT),
-    ...toDBMusicInfo(listData.tempList, LIST_IDS.TEMP),
+    ...toDBMusicInfo(recentList, LIST_IDS.RECENT),
+    ...toDBMusicInfo(tempList, LIST_IDS.TEMP),
   ]
   listData.userList.forEach(({ list, ...listInfo }, index) => {
     dbLists.push({ ...listInfo, position: index })
@@ -369,8 +372,8 @@ export const listDataOverwrite = (myListData: MakeOptional<LX.List.ListDataFull,
 
   musicLists.clear()
   musicLists.set(LIST_IDS.LOVE, listData.loveList)
-  musicLists.set(LIST_IDS.RECENT, listData.recentList)
-  musicLists.set(LIST_IDS.TEMP, listData.tempList)
+  musicLists.set(LIST_IDS.RECENT, recentList)
+  musicLists.set(LIST_IDS.TEMP, tempList)
   for (const list of listData.userList) musicLists.set(list.id, list.list)
 }
 

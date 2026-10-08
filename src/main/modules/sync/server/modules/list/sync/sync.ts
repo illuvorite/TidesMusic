@@ -140,7 +140,7 @@ const mergeList = (socket: LX.Sync.Server.Socket, sourceListData: LX.Sync.List.L
     loveList: [],
     userList: [],
   }
-  newListData.defaultList = handleMergeList(sourceListData.defaultList, targetListData.defaultList, addMusicLocationType)
+  newListData.defaultList = handleMergeList(sourceListData.defaultList ?? [], targetListData.defaultList ?? [], addMusicLocationType)
   newListData.loveList = handleMergeList(sourceListData.loveList, targetListData.loveList, addMusicLocationType)
 
   const userListDataObj = createUserListDataObj(sourceListData)
@@ -175,7 +175,7 @@ const overwriteList = (sourceListData: LX.Sync.List.ListData, targetListData: LX
     loveList: [],
     userList: [],
   }
-  newListData.defaultList = sourceListData.defaultList
+  newListData.defaultList = sourceListData.defaultList ?? []
   newListData.loveList = sourceListData.loveList
 
   const userListDataObj = createUserListDataObj(sourceListData)
@@ -233,12 +233,12 @@ const handleMergeListData = async(socket: LX.Sync.Server.Socket): Promise<[LX.Sy
 const handleSyncList = async(socket: LX.Sync.Server.Socket) => {
   const [remoteListData, localListData] = await Promise.all([getRemoteListData(socket), getLocalListData()])
   console.log('handleSyncList', 'remoteListData, localListData')
-  console.log('localListData', localListData.defaultList.length || localListData.loveList.length || localListData.userList.length)
-  console.log('remoteListData', remoteListData.defaultList.length || remoteListData.loveList.length || remoteListData.userList.length)
+  console.log('localListData', localListData.defaultList?.length || localListData.loveList.length || localListData.userList.length)
+  console.log('remoteListData', remoteListData.defaultList?.length || remoteListData.loveList.length || remoteListData.userList.length)
   const userSpace = getUserSpace(socket.userInfo.name)
   const clientId = socket.keyInfo.clientId
-  if (localListData.defaultList.length || localListData.loveList.length || localListData.userList.length) {
-    if (remoteListData.defaultList.length || remoteListData.loveList.length || remoteListData.userList.length) {
+  if (localListData.defaultList?.length || localListData.loveList.length || localListData.userList.length) {
+    if (remoteListData.defaultList?.length || remoteListData.loveList.length || remoteListData.userList.length) {
       const [mergedList, requiredUpdateLocalListData, requiredUpdateRemoteListData] = await handleMergeListData(socket)
       console.log('handleMergeListData', 'mergedList', requiredUpdateLocalListData, requiredUpdateRemoteListData)
       let key
@@ -256,7 +256,7 @@ const handleSyncList = async(socket: LX.Sync.Server.Socket) => {
     }
   } else {
     let key: string
-    if (remoteListData.defaultList.length || remoteListData.loveList.length || remoteListData.userList.length) {
+    if (remoteListData.defaultList?.length || remoteListData.loveList.length || remoteListData.userList.length) {
       key = await setLocalList(socket, remoteListData)
       await overwriteRemoteListData(socket, remoteListData, key, [clientId])
     }
@@ -332,7 +332,7 @@ const handleMergeListDataFromSnapshot = async(socket: LX.Sync.Server.Socket, sna
     loveList: [],
     userList: [],
   }
-  newListData.defaultList = mergeListDataFromSnapshot(localListData.defaultList, remoteListData.defaultList, snapshot.defaultList, addMusicLocationType)
+  newListData.defaultList = mergeListDataFromSnapshot(localListData.defaultList ?? [], remoteListData.defaultList ?? [], snapshot.defaultList ?? [], addMusicLocationType)
   newListData.loveList = mergeListDataFromSnapshot(localListData.loveList, remoteListData.loveList, snapshot.loveList, addMusicLocationType)
   const localUserListData = createUserListDataObj(localListData)
   const remoteUserListData = createUserListDataObj(remoteListData)
