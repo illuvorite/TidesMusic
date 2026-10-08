@@ -24,7 +24,6 @@ module.exports = {
     'electron-is-dev': 'electron-is-dev',
     'font-list': 'font-list',
     'better-sqlite3': 'better-sqlite3',
-    'electron-font-manager': 'electron-font-manager',
     bufferutil: 'bufferutil',
     'utf-8-validate': 'utf-8-validate',
     // Electron 主进程入口必须把 electron 模块外部化（Electron runtime 注入），
