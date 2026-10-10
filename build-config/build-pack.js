@@ -69,6 +69,19 @@ const options = {
 if (process.env.LX_ELECTRON_DIST) {
   options.electronDist = process.env.LX_ELECTRON_DIST
 }
+
+// 可选：跳过「为 Electron 重新编译原生依赖」这一步（等价于 electron-builder 的 --no-npm-rebuild）。
+//
+// 为什么需要它：@electron/rebuild 会对没有可用预编译的模块退回 node-gyp 现编译，
+// 而 node-gyp 在准备阶段会先**整目录删除**自己的临时目录（binding.sln.gyp.*.tmp）。
+// 本机托管环境对「单次删除 ≥ 50 个文件」有安全拦截，那个临时目录恰好就有约 50 个文件，
+// 于是 gyp 直接以 exit code 1 失败、整个打包中断。
+// 在原生依赖已经是目标 ABI 的情况下这一步本就是冗余的（better_sqlite3.node 等
+// 已经是 Electron 40 / x64 的二进制），所以设这个变量即可安全跳过。
+// 未设置该变量时行为与原来完全一致。
+if (process.env.LX_SKIP_NPM_REBUILD) {
+  options.npmRebuild = false
+}
 /**
  * @type {import('electron-builder').Configuration}
  * @see https://www.electron.build/configuration/configuration
