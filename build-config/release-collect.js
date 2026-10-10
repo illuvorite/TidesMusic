@@ -9,7 +9,6 @@
  * 用法：node build-config/release-collect.js
  */
 const fs = require('fs')
-const os = require('os')
 const path = require('path')
 const crypto = require('crypto')
 
@@ -33,11 +32,16 @@ const unpackedNameMap = {
   'mac-arm64': 'darwin-arm64',
 }
 
-// 清空目录：先改名到系统临时目录再删除。
-// 目的地落在系统 temp 下属于安全的中间态，避免个别托管环境对「批量真删」的拦截。
+// 清空目录：先改名到**同盘**的临时位置再删除。
+//
+// ⚠️ 不能用 os.tmpdir()：本仓库在 D:，而系统 temp 通常落在 C:，
+// fs.renameSync 跨盘会抛 EXDEV；异常被下面的 catch 吞掉后旧目录原样留下 ——
+// 表现为 release/installer 里同时堆着历代版本的安装包（2026-10-10 实际踩到，
+// 一度让发布脚本把 v2.12.2 的产物也当成待上传附件）。
+// 改成同盘 stash 才能稳定搬走。删除失败不影响后续写入，只会留下一个 .stash-* 目录。
 const resetDir = (dir) => {
   if (fs.existsSync(dir)) {
-    const stash = path.join(os.tmpdir(), `tidesmusic-release-${Date.now()}-${path.basename(dir)}`)
+    const stash = path.join(path.dirname(dir), `.stash-${Date.now()}-${path.basename(dir)}`)
     try {
       fs.renameSync(dir, stash)
       fs.rmSync(stash, { recursive: true, force: true })
