@@ -176,8 +176,27 @@ interface SmartApplied {
   managesEq: boolean
 }
 
+/**
+ * 「音效总开关」= `player.soundEffect.enable`。
+ *
+ * ⚠️ 这个键此前是**死设置**：`defaultSetting.ts` 声明了它、注释也写着「关闭时整条音效链物理旁路，
+ * 素音直出；各音效设置保留」，但全仓库**没有任何地方读它**。于是面板表头那个「总开关」
+ * 只能靠**把 12 项子设置逐个清零**来假装关闭 —— 用户调好的十段 EQ / 增强滑条 / 卷积选择
+ * 会就此永久丢失，也正是 dev 与打包版配置漂移的元凶之一。
+ *
+ * 现在它才是真正的闸门：关闭 ⇒ 整条链退出（`setGalaxyChain(null)` 会 dispose 引擎），
+ * 而**子设置一字不动**，重新打开即原样恢复。
+ *
+ * 用 `!== false` 而不是真值判断：更早的配置里可能压根没有这个键，
+ * 缺失应当视为开启，才与 `defaultSetting` 的默认值 `true` 一致。
+ */
+export const isSoundEffectEnabled = (): boolean => appSetting['player.soundEffect.enable'] !== false
+
 /** 按优先级栈解析出当前应该挂上引擎的配置 */
 export const resolveAudioChain = (): ResolvedAudioChain => {
+  // 0. 音效总开关：关闭时整条链退出（setGalaxyChain(null) 会 dispose 引擎），设置原样保留
+  if (!isSoundEffectEnabled()) return { config: null, source: 'none', managesEq: false }
+
   // 1. 「音效制作」用户链
   const chain = readUserChain()
   if (chain) {
@@ -429,6 +448,9 @@ export const smartReasons = (): string[] => readSmartOverlay()?.reasons ?? []
  * 没有任何来源时退回用户手调的十段。
  */
 export const currentEqGainsForPreview = (): number[] => {
+  // 总开关关闭时实际听到的是**全平**（链路整体旁路，见 isSoundEffectEnabled），
+  // 不能报用户手调的那条 —— 否则「对比参照」会把没有生效的曲线当成现状
+  if (!isSoundEffectEnabled()) return EQ_FREQUENCIES.map(() => 0)
   const { config } = resolveAudioChain()
   return config ? toEqGains(config.eq) : readManualGains()
 }

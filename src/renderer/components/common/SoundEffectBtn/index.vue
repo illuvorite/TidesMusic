@@ -30,7 +30,7 @@
               <span :class="$style.switchDot" />
             </button>
             <span :class="$style.headerState">{{ isAnyActive ? $t('player__sound_effect_state_on') : $t('player__sound_effect_state_off') }}</span>
-            <span v-if="isAnyActive" :class="$style.headerPreset">{{ headerPresetText }}</span>
+            <span v-if="isAnyActive && hasActiveEffect" :class="$style.headerPreset">{{ headerPresetText }}</span>
             <button type="button" :class="$style.closeBtn" aria-label="close" ignore-tip @click="visible = false">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M6 6 18 18M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
@@ -99,7 +99,7 @@ import PitchShifter from './PitchShifter.vue'
 import Make from './Make.vue'
 import { appSetting, updateSetting } from '@renderer/store/setting'
 import { freqs, freqsPreset } from '@renderer/plugins/player'
-import { activeGalaxyPresetId, disableGalaxy, readUserChain } from '@renderer/plugins/player/galaxy/bridge'
+import { activeGalaxyPresetId, isSoundEffectEnabled, readUserChain } from '@renderer/plugins/player/galaxy/bridge'
 import { findFXPreset } from '@renderer/plugins/player/galaxy'
 
 defineProps({
@@ -146,8 +146,16 @@ const headerPresetText = computed(() => {
   return eqPresetText.value
 })
 
-// 是否有任一音效生效
-const isAnyActive = computed(() => {
+/**
+ * 音效总开关（`player.soundEffect.enable`）。关闭时整条链物理旁路，各子设置原样保留。
+ *
+ * 直接复用 `galaxy/bridge.ts` 的判定，不在这里重写一遍 —— 它是音频链路真正的闸门，
+ * 界面状态必须与它同源，否则又会出现「显示与实际听到的不符」。
+ */
+const soundEffectEnabled = computed(() => isSoundEffectEnabled())
+
+/** 子设置里是否真有生效的东西（与 galaxy/bridge.ts 的优先级栈保持一致） */
+const hasActiveEffect = computed(() => {
   if (appSetting['player.soundEffect.galaxy.enable']) return true
   // 音效制作的通用音效链
   if (appSetting['player.soundEffect.galaxy.userChain.enable']) return true
@@ -163,23 +171,20 @@ const isAnyActive = computed(() => {
   return false
 })
 
-// 总开关：一键关闭全部音效（与各子功能的原有逻辑一致，仅批量复位）
+// 表头开关的状态 = **总开关本身**。
+// 关闭之后不管子设置还剩什么，实际听到的都是素音；若继续拿「子设置非零」当开关状态，
+// 就会出现「看着是开、其实什么都听不到」的错位。
+const isAnyActive = computed(() => soundEffectEnabled.value)
+
+/**
+ * 总开关：**只翻这一个键**。
+ *
+ * 此前这里是「把十段 EQ / 环绕 / 卷积 / 移调 / 增强滑条 等 12 项子设置逐个清零」来假装关闭 ——
+ * 结果是用户调好的参数被永久抹掉（而 defaultSetting 里写明的是「各音效设置保留」），
+ * 也是 dev 与打包版配置漂移的元凶之一。现在关闭 = 链路整体旁路，设置一字不动。
+ */
 const handleToggleAll = () => {
-  if (!isAnyActive.value) return
-  const setting = {}
-  for (const f of freqs) setting[`player.soundEffect.biquadFilter.hz${f}`] = 0
-  setting['player.soundEffect.panner.enable'] = false
-  setting['player.soundEffect.panner.soundR'] = 0
-  setting['player.soundEffect.convolution.fileName'] = ''
-  setting['player.soundEffect.pitchShifter.playbackRate'] = 1
-  setting['player.soundEffect.enhance.bass'] = 0
-  setting['player.soundEffect.enhance.hifi'] = 0
-  setting['player.soundEffect.enhance.dynamic'] = 0
-  setting['player.soundEffect.enhance.balance'] = 0
-  updateSetting(setting)
-  // 银河链路（FX 预设 / 智能补偿 / 音效制作链）一并卸载，
-  // 否则它会继续接管尾段，一键关闭形同虚设
-  disableGalaxy()
+  updateSetting({ 'player.soundEffect.enable': !soundEffectEnabled.value })
 }
 
 const activeTab = ref('recommend')
@@ -205,7 +210,7 @@ const sideTabs = computed(() => {
       id: 'eq',
       label: window.i18n.t('player__sound_effect_biquad_filter'),
       // 参考图中该子标签只在「均衡器」页处于选中态时出现，其它页不显示
-      sub: activeTab.value === 'eq' && isAnyActive.value ? headerPresetText.value : '',
+      sub: activeTab.value === 'eq' && isAnyActive.value && hasActiveEffect.value ? headerPresetText.value : '',
       // 三段竖向推子
       icon: '<path d="M15.4 13v22M24 13v22M32.6 13v22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="15.4" cy="29.4" r="3.6" fill="currentColor"/><circle cx="24" cy="19.6" r="3.6" fill="currentColor"/><circle cx="32.6" cy="32.4" r="3.6" fill="currentColor"/>',
     },

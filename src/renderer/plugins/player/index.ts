@@ -696,10 +696,19 @@ const loadPitchShifterNode = () => {
 export const setPitchShifter = (val: number) => {
   // console.log('setPitchShifter', val)
   pitchShifterNodeTempValue = val
+  // 1 倍 = 不需要移调，此时**不该**把 worklet 拉起来：
+  //   · 'none'      —— 照旧调 loadPitchShifterNode() 会白下载/注册一次相位声码器，
+  //                     而它内部随后又会因「1 倍」提前 return，纯属浪费
+  //   · 'unconnect' —— 同理，没必要为一个不需要的效果改接链路
+  // 这条特判让「总开关关闭 → setPitchShifter(1)」成为安全操作（见 useSoundEffect.ts）。
+  // 注：'connected' 分支仍只是把音高复位为 1（相位声码器留在链路里）——那是既有行为，
+  //     动它会牵动 pause / waiting 那条撤出路径，不在本次修复范围内。
+  const isBypass = val == 1
   switch (pitchShifterNodeLoadStatus) {
     case 'loading':
       break
     case 'none':
+      if (isBypass) break
       loadPitchShifterNode()
       break
     case 'connected':
@@ -708,6 +717,7 @@ export const setPitchShifter = (val: number) => {
       pitchShifterNodePitchFactor.value = val
       break
     case 'unconnect':
+      if (isBypass) break
       connectPitchShifterNode()
       break
   }
